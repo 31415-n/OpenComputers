@@ -315,6 +315,53 @@ object InternetCard {
 
   TCPNotifier.start()
 
+  object WebSocketNotifier extends Thread {
+    private var selector = Selector.open()
+    private val toAccept = new ConcurrentLinkedQueue[(SocketChannel, () => Unit)]
+
+    override def run(): Unit = {
+      while (true) {
+        try {
+          // Register new WebSocket connections
+          Stream.continually(toAccept.poll).takeWhile(_ != null).foreach({
+            case (channel: SocketChannel, action: (() => Unit)) =>
+              channel.register(selector, SelectionKey.OP_READ, action)
+          })
+
+          selector.select()
+
+          import scala.collection.JavaConversions._
+          val selectedKeys = selector.selectedKeys
+          val readableKeys = mutable.HashSet[SelectionKey]()
+          selectedKeys.filter(_.isReadable).foreach(key => {
+            key.attachment.asInstanceOf[() => Unit].apply()
+            readableKeys += key
+          })
+
+          // Recreate selector to remove processed keys (same pattern as TCP)
+          if(readableKeys.nonEmpty) {
+            val newSelector = Selector.open()
+            selector.keys.filter(!readableKeys.contains(_)).foreach(key => {
+              key.channel.register(newSelector, SelectionKey.OP_READ, key.attachment)
+            })
+            selector.close()
+            selector = newSelector
+          }
+        } catch {
+          case e: IOException =>
+            OpenComputers.log.error("Error in WebSocket selector loop.", e)
+        }
+      }
+    }
+
+    def add(e: (SocketChannel, () => Unit)) {
+      toAccept.offer(e)
+      selector.wakeup()
+    }
+  }
+
+  WebSocketNotifier.start()
+
   class TCPSocket extends AbstractValue with Closable {
     def this(owner: InternetCard, uri: URI, port: Int) {
       this()
@@ -658,7 +705,6 @@ object InternetCard {
     private var connected = false
     private val messageQueue = new ConcurrentLinkedQueue[String]()
     private val binaryQueue = new ConcurrentLinkedQueue[Array[Byte]]()
-    private var reader: Future[_] = null
     private var handshakeComplete = false
 
     // RFC 6455 Section 5.4: Fragmentation support with proper state management
@@ -851,7 +897,6 @@ object InternetCard {
 
     private def forceClose(): Unit = {
       if (connector != null) connector.cancel(true)
-      if (reader != null) reader.cancel(true)
       closeTimeout.foreach(_.cancel(true))
 
       // Clean up SSL resources safely
@@ -874,7 +919,6 @@ object InternetCard {
       owner = None
       connector = null
       channel = null
-      reader = null
       closeTimeout = None
       // Don't reset SSL variables to avoid setter issues
     }
@@ -1036,63 +1080,35 @@ object InternetCard {
         }
         sslOutbound.flip()
 
-        // RFC 6455 compliance: Non-blocking write without Thread.yield() to prevent server blocking
+        // Simplified write - SSL writes are typically fast and don't need individual selectors
         val startTime = System.currentTimeMillis()
         val timeout = Settings.get.httpTimeout.max(5000) // 5 second minimum
-        val selector = Selector.open()
 
-        try {
-          channel.register(selector, SelectionKey.OP_WRITE)
-
-          while (sslOutbound.hasRemaining) {
-            val written = channel.write(sslOutbound)
-            if (written == 0) {
-              // Channel not ready for writing, use selector with timeout
-              if (System.currentTimeMillis() - startTime > timeout) {
-                throw new IOException("SSL write timeout")
-              }
-
-              // Use selector to wait for channel to become writable
-              val ready = selector.select(100) // 100ms timeout
-              if (ready == 0) {
-                // Check overall timeout
-                if (System.currentTimeMillis() - startTime > timeout) {
-                  throw new IOException("SSL write timeout")
-                }
-              }
+        while (sslOutbound.hasRemaining) {
+          val written = channel.write(sslOutbound)
+          if (written == 0) {
+            // Check timeout
+            if (System.currentTimeMillis() - startTime > timeout) {
+              throw new IOException("SSL write timeout")
             }
+            // Brief pause to avoid busy waiting
+            Thread.sleep(1)
           }
-        } finally {
-          selector.close()
         }
       } else {
-        // Non-blocking write for non-SSL with selector
+        // Simplified write for non-SSL
         val startTime = System.currentTimeMillis()
         val timeout = Settings.get.httpTimeout.max(5000)
-        val selector = Selector.open()
 
-        try {
-          channel.register(selector, SelectionKey.OP_WRITE)
-
-          while (data.hasRemaining) {
-            val written = channel.write(data)
-            if (written == 0) {
-              if (System.currentTimeMillis() - startTime > timeout) {
-                throw new IOException("Write timeout")
-              }
-
-              // Use selector to wait for channel to become writable
-              val ready = selector.select(100) // 100ms timeout
-              if (ready == 0) {
-                // Check overall timeout
-                if (System.currentTimeMillis() - startTime > timeout) {
-                  throw new IOException("Write timeout")
-                }
-              }
+        while (data.hasRemaining) {
+          val written = channel.write(data)
+          if (written == 0) {
+            if (System.currentTimeMillis() - startTime > timeout) {
+              throw new IOException("Write timeout")
             }
+            // Brief pause to avoid busy waiting
+            Thread.sleep(1)
           }
-        } finally {
-          selector.close()
         }
       }
     }
@@ -1170,36 +1186,25 @@ object InternetCard {
       var totalBytesRead = 0
       var responseComplete = false
 
-      // RFC 6455 compliance: Use selector for non-blocking handshake response reading
-      val selector = Selector.open()
-      try {
-        channel.register(selector, SelectionKey.OP_READ)
-
-        while (!responseComplete && (System.currentTimeMillis() - startTime) < timeout) {
-          val bytesRead = sslRead(buffer)
-          if (bytesRead > 0) {
-            totalBytesRead += bytesRead
-            // Check if we have complete HTTP response (ends with \r\n\r\n)
-            val currentData = new String(buffer.array(), 0, buffer.position(), "UTF-8")
-            if (currentData.contains("\r\n\r\n")) {
-              responseComplete = true
-            }
-          } else if (bytesRead == 0) {
-            // No data available, use selector to wait for data
-            val ready = selector.select(100) // 100ms timeout
-            if (ready == 0) {
-              // Check overall timeout
-              if (System.currentTimeMillis() - startTime >= timeout) {
-                // Exit loop on timeout
-                return
-              }
-            }
-          } else {
-            throw new IOException("WebSocket handshake failed: Connection closed during handshake")
+      // Simplified handshake reading - handshake is typically fast
+      while (!responseComplete && (System.currentTimeMillis() - startTime) < timeout) {
+        val bytesRead = sslRead(buffer)
+        if (bytesRead > 0) {
+          totalBytesRead += bytesRead
+          // Check if we have complete HTTP response (ends with \r\n\r\n)
+          val currentData = new String(buffer.array(), 0, buffer.position(), "UTF-8")
+          if (currentData.contains("\r\n\r\n")) {
+            responseComplete = true
           }
+        } else if (bytesRead == 0) {
+          // No data available, brief pause
+          if (System.currentTimeMillis() - startTime >= timeout) {
+            return // Exit on timeout
+          }
+          Thread.sleep(10) // Brief pause to avoid busy waiting
+        } else {
+          throw new IOException("WebSocket handshake failed: Connection closed during handshake")
         }
-      } finally {
-        selector.close()
       }
 
       if (!responseComplete) {
@@ -1330,20 +1335,18 @@ object InternetCard {
     }
 
     private def startReading(): Unit = {
-      reader = threadPool.submit(new Runnable {
-        override def run(): Unit = {
-          try {
-            while (connected && !Thread.currentThread().isInterrupted) {
-              readWebSocketFrame()
-            }
-          } catch {
-            case _: InterruptedException => // Expected when closing
-            case e: Exception =>
-              owner.foreach(_.node.sendToVisible("computer.signal", "websocket_error", id.toString, e.getMessage))
-              close()
+      // Use global WebSocket selector instead of individual selectors
+      WebSocketNotifier.add((channel, () => {
+        try {
+          if (connected) {
+            readWebSocketFrame()
           }
+        } catch {
+          case e: Exception =>
+            owner.foreach(_.node.sendToVisible("computer.signal", "websocket_error", id.toString, e.getMessage))
+            close()
         }
-      })
+      }))
     }
 
     private def readWebSocketFrame(): Unit = {
@@ -1517,42 +1520,28 @@ object InternetCard {
     private def readBytesWithTimeout(buffer: ByteBuffer, requiredBytes: Int, timeoutMs: Long): Boolean = {
       var totalRead = 0
       val startTime = System.currentTimeMillis()
-      val selector = Selector.open()
 
-      try {
-        channel.register(selector, SelectionKey.OP_READ)
-
-        while (totalRead < requiredBytes) {
-          val bytesRead = sslRead(buffer)
-          if (bytesRead > 0) {
-            totalRead += bytesRead
-          } else if (bytesRead == 0) {
-            // Check timeout
-            if (System.currentTimeMillis() - startTime > timeoutMs) {
-              return false // Timeout
-            }
-
-            // No data available, use selector to wait
-            val ready = selector.select(math.min(1000, timeoutMs - (System.currentTimeMillis() - startTime)))
-            if (ready == 0) {
-              // Check if connection is still alive and not interrupted
-              if (!connected || Thread.currentThread().isInterrupted) {
-                return false
-              }
-              // Check timeout again
-              if (System.currentTimeMillis() - startTime > timeoutMs) {
-                return false
-              }
-            }
-          } else {
-            // Connection closed
+      while (totalRead < requiredBytes) {
+        val bytesRead = sslRead(buffer)
+        if (bytesRead > 0) {
+          totalRead += bytesRead
+        } else if (bytesRead == 0) {
+          // Check timeout
+          if (System.currentTimeMillis() - startTime > timeoutMs) {
+            return false // Timeout
+          }
+          // Check if connection is still alive and not interrupted
+          if (!connected || Thread.currentThread().isInterrupted) {
             return false
           }
+          // Brief pause to avoid busy waiting
+          Thread.sleep(10)
+        } else {
+          // Connection closed
+          return false
         }
-        true // Success
-      } finally {
-        selector.close()
       }
+      true // Success
     }
 
     private def sendWebSocketFrame(data: Any, isText: Boolean, opcode: Int = -1, fin: Boolean = true): Unit = {
@@ -1969,29 +1958,15 @@ object InternetCard {
         val connected = socketChannel.connect(address)
         if (!connected) {
           // Connection in progress, wait for completion with timeout
-          val selector = Selector.open()
-          try {
-            socketChannel.register(selector, SelectionKey.OP_CONNECT)
-            val ready = selector.select(Settings.get.httpTimeout.max(5000)) // 5 second minimum timeout
-            if (ready == 0) {
+          val startTime = System.currentTimeMillis()
+          val timeout = Settings.get.httpTimeout.max(5000) // 5 second minimum timeout
+
+          while (!socketChannel.finishConnect()) {
+            if (System.currentTimeMillis() - startTime > timeout) {
               throw new IOException("WebSocket connection timeout")
             }
-
-            val keys = selector.selectedKeys()
-            val iterator = keys.iterator()
-            while (iterator.hasNext) {
-              val key = iterator.next()
-              iterator.remove()
-
-              if (key.isConnectable) {
-                val channel = key.channel().asInstanceOf[SocketChannel]
-                if (!channel.finishConnect()) {
-                  throw new IOException("Failed to complete WebSocket connection")
-                }
-              }
-            }
-          } finally {
-            selector.close()
+            // Brief pause to avoid busy waiting
+            Thread.sleep(10)
           }
         }
 
