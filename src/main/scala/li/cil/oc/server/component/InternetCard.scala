@@ -48,6 +48,9 @@ class InternetCard extends prefab.ManagedEnvironment with DeviceInfo {
 
   protected val connections = mutable.Set.empty[InternetCard.Closable]
 
+  // OpenComputers security: Connection rate limiting for DoS protection
+  private val connectionAttempts = mutable.Map.empty[String, (Long, Int)]
+
   // ----------------------------------------------------------------------- //
 
   private final lazy val deviceInfo = Map(
@@ -117,7 +120,7 @@ class InternetCard extends prefab.ManagedEnvironment with DeviceInfo {
     result(socket)
   }
 
-  @Callback(doc = """function(url:string[, headers:table]):userdata -- Opens a new WebSocket connection. Returns the handle of the connection.""")
+  @Callback(doc = """function(url:string[, headers:table[, protocols:table]]):userdata -- Opens a new WebSocket connection. Returns the handle of the connection.""")
   def websocket(context: Context, args: Arguments): Array[AnyRef] = this.synchronized {
     checkOwner(context)
     val url = args.checkString(0)
@@ -137,8 +140,31 @@ class InternetCard extends prefab.ManagedEnvironment with DeviceInfo {
     if (!Settings.get.httpHeadersEnabled && headers.nonEmpty) {
       return result(Unit, "websocket request headers are unavailable")
     }
+    val protocols = if (args.isTable(2)) args.checkTable(2).values.map(_.toString).toList
+    else List.empty[String]
     val wsUrl = checkWebSocketAddress(url)
-    val websocket = new InternetCard.WebSocketConnection(this, wsUrl, headers)
+
+    // Check rate limiting for DoS protection (if enabled)
+    if (Settings.get.webSocketRateLimitEnabled) {
+      val host = wsUrl._1.getHost
+      val currentTime = System.currentTimeMillis()
+
+      connectionAttempts.get(host) match {
+        case Some((lastTime, count)) =>
+          if (currentTime - lastTime < Settings.get.webSocketRateLimitWindow) {
+            if (count >= Settings.get.webSocketMaxConnectionsPerHost) {
+              throw new IOException(s"too many connection attempts to $host")
+            }
+            connectionAttempts(host) = (lastTime, count + 1)
+          } else {
+            connectionAttempts(host) = (currentTime, 1)
+          }
+        case None =>
+          connectionAttempts(host) = (currentTime, 1)
+      }
+    }
+
+    val websocket = new InternetCard.WebSocketConnection(this, wsUrl, headers, protocols)
     connections += websocket
     result(websocket)
   }
@@ -605,12 +631,13 @@ object InternetCard {
   }
 
   class WebSocketConnection extends AbstractValue with Closable {
-    def this(owner: InternetCard, urlAndSecure: (URL, Boolean), headers: Map[String, String]) {
+    def this(owner: InternetCard, urlAndSecure: (URL, Boolean), headers: Map[String, String], protocols: List[String] = List.empty) {
       this()
       this.owner = Some(owner)
       this.url = urlAndSecure._1
       this.isSecure = urlAndSecure._2
       this.headers = headers
+      this.requestedProtocols = protocols
       this.connector = threadPool.submit(new WebSocketConnector())
     }
 
@@ -618,6 +645,7 @@ object InternetCard {
     private var url: URL = null
     private var isSecure: Boolean = false
     private var headers: Map[String, String] = Map.empty
+    private var requestedProtocols: List[String] = List.empty
     private val id = UUID.randomUUID()
     private var connector: Future[SocketChannel] = null
     private var channel: SocketChannel = null
@@ -629,6 +657,13 @@ object InternetCard {
     private val binaryQueue = new ConcurrentLinkedQueue[Array[Byte]]()
     private var reader: Future[_] = null
     private var handshakeComplete = false
+
+    // RFC 6455 Section 5.4: Fragmentation support
+    private var fragmentBuffer: Option[java.io.ByteArrayOutputStream] = None
+    private var fragmentOpcode: Int = -1
+    private val maxMessageSize = Settings.get.maxNetworkPacketSize * 1024 // Use OC setting for max size
+    private var negotiatedExtensions: List[String] = List.empty
+    private var negotiatedProtocol: Option[String] = None
 
     @Callback(doc = """function():boolean -- Ensures WebSocket connection is established. Errors if the connection failed.""")
     def finishConnect(context: Context, args: Arguments): Array[AnyRef] = this.synchronized {
@@ -645,6 +680,20 @@ object InternetCard {
       result(connected && handshakeComplete)
     }
 
+    @Callback(doc = """function():string -- Returns the negotiated subprotocol, if any.""")
+    def getProtocol(context: Context, args: Arguments): Array[AnyRef] = this.synchronized {
+      result(negotiatedProtocol.orNull)
+    }
+
+    @Callback(doc = """function():table -- Returns the negotiated extensions.""")
+    def getExtensions(context: Context, args: Arguments): Array[AnyRef] = this.synchronized {
+      val extensionsTable = new java.util.HashMap[String, String]()
+      negotiatedExtensions.zipWithIndex.foreach { case (ext, idx) =>
+        extensionsTable.put((idx + 1).toString, ext)
+      }
+      result(extensionsTable)
+    }
+
     @Callback(doc = """function(message:string) -- Sends a text message over the WebSocket.""")
     def send(context: Context, args: Arguments): Array[AnyRef] = this.synchronized {
       if (!connected || !handshakeComplete) {
@@ -652,7 +701,7 @@ object InternetCard {
       }
       val message = args.checkString(0)
       try {
-        sendWebSocketFrame(message, isText = true)
+        sendWebSocketMessage(message.getBytes("UTF-8"), isText = true)
         result(true)
       } catch {
         case e: Exception =>
@@ -667,7 +716,23 @@ object InternetCard {
       }
       val data = args.checkByteArray(0)
       try {
-        sendWebSocketFrame(data, isText = false)
+        sendWebSocketMessage(data, isText = false)
+        result(true)
+      } catch {
+        case e: Exception =>
+          result(false, e.getMessage)
+      }
+    }
+
+    @Callback(doc = """function(message:string, fragment_size:number) -- Sends a large text message with fragmentation.""")
+    def sendFragmented(context: Context, args: Arguments): Array[AnyRef] = this.synchronized {
+      if (!connected || !handshakeComplete) {
+        return result(false, "websocket not connected")
+      }
+      val message = args.checkString(0)
+      val fragmentSize = args.optInteger(1, 1024) // Default 1KB fragments
+      try {
+        sendFragmentedMessage(message.getBytes("UTF-8"), isText = true, fragmentSize)
         result(true)
       } catch {
         case e: Exception =>
@@ -853,7 +918,7 @@ object InternetCard {
     }
 
     private def performHandshake(): Unit = {
-      // Simplified WebSocket handshake implementation
+      // RFC 6455 compliant WebSocket handshake implementation
       val key = java.util.Base64.getEncoder.encodeToString(java.security.SecureRandom.getInstanceStrong.generateSeed(16))
       val request = new StringBuilder()
       request.append(s"GET ${url.getPath}${if (url.getQuery != null) "?" + url.getQuery else ""} HTTP/1.1\r\n")
@@ -862,22 +927,79 @@ object InternetCard {
       request.append("Connection: Upgrade\r\n")
       request.append(s"Sec-WebSocket-Key: $key\r\n")
       request.append("Sec-WebSocket-Version: 13\r\n")
+
+      // RFC 6455 Section 9: Extensions support
+      request.append("Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits\r\n")
+
+      // RFC 6455 Section 1.9: Subprotocol support
+      if (requestedProtocols.nonEmpty) {
+        request.append(s"Sec-WebSocket-Protocol: ${requestedProtocols.mkString(", ")}\r\n")
+      }
+
+      // RFC 6455 Section 10: Security - Origin header for CSRF protection
+      request.append(s"Origin: ${url.getProtocol}://${url.getHost}${if (url.getPort != -1) ":" + url.getPort else ""}\r\n")
+
       headers.foreach { case (k, v) => request.append(s"$k: $v\r\n") }
       request.append("\r\n")
 
       sslWrite(ByteBuffer.wrap(request.toString.getBytes("UTF-8")))
 
-      // Read response (simplified)
+      // Read response with proper validation
       val buffer = ByteBuffer.allocate(4096)
       sslRead(buffer)
       val response = new String(buffer.array(), 0, buffer.position(), "UTF-8")
 
-      if (response.contains("HTTP/1.1 101") && response.contains("Upgrade: websocket")) {
-        handshakeComplete = true
-        owner.foreach(_.node.sendToVisible("computer.signal", "websocket_success", id.toString))
-      } else {
-        throw new IOException("WebSocket handshake failed")
+      // Validate handshake response according to RFC 6455
+      if (!response.contains("HTTP/1.1 101")) {
+        throw new IOException("WebSocket handshake failed: Invalid status code")
       }
+
+      if (!response.toLowerCase.contains("upgrade: websocket")) {
+        throw new IOException("WebSocket handshake failed: Missing Upgrade header")
+      }
+
+      if (!response.toLowerCase.contains("connection: upgrade")) {
+        throw new IOException("WebSocket handshake failed: Missing Connection header")
+      }
+
+      // Validate Sec-WebSocket-Accept according to RFC 6455 Section 4.2.2
+      val expectedAccept = calculateWebSocketAccept(key)
+      if (!response.contains(s"Sec-WebSocket-Accept: $expectedAccept")) {
+        throw new IOException("WebSocket handshake failed: Invalid Sec-WebSocket-Accept")
+      }
+
+      // Parse negotiated extensions (RFC 6455 Section 9)
+      negotiatedExtensions = parseExtensions(response)
+
+      // Parse negotiated subprotocol (RFC 6455 Section 1.9)
+      negotiatedProtocol = parseSubprotocol(response)
+
+      handshakeComplete = true
+      owner.foreach(_.node.sendToVisible("computer.signal", "websocket_success", id.toString))
+    }
+
+    private def calculateWebSocketAccept(key: String): String = {
+      import java.security.MessageDigest
+      val websocketMagic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+      val sha1 = MessageDigest.getInstance("SHA-1")
+      val hash = sha1.digest((key + websocketMagic).getBytes("UTF-8"))
+      java.util.Base64.getEncoder.encodeToString(hash)
+    }
+
+    private def parseExtensions(response: String): List[String] = {
+      // Parse Sec-WebSocket-Extensions header from response
+      val extensionPattern = """(?i)Sec-WebSocket-Extensions:\s*([^\r\n]+)""".r
+      extensionPattern.findFirstMatchIn(response) match {
+        case Some(m) =>
+          m.group(1).split(",").map(_.trim).filter(_.nonEmpty).toList
+        case None => List.empty
+      }
+    }
+
+    private def parseSubprotocol(response: String): Option[String] = {
+      // Parse Sec-WebSocket-Protocol header from response
+      val protocolPattern = """(?i)Sec-WebSocket-Protocol:\s*([^\r\n,]+)""".r
+      protocolPattern.findFirstMatchIn(response).map(_.group(1).trim)
     }
 
     private def startReading(): Unit = {
@@ -898,7 +1020,7 @@ object InternetCard {
     }
 
     private def readWebSocketFrame(): Unit = {
-      // Simplified WebSocket frame reading
+      // RFC 6455 compliant WebSocket frame reading
       val headerBuffer = ByteBuffer.allocate(2)
       if (sslRead(headerBuffer) < 2) return
 
@@ -907,47 +1029,87 @@ object InternetCard {
       val secondByte = headerBuffer.get() & 0xFF
 
       val fin = (firstByte & 0x80) != 0
+      val rsv = (firstByte & 0x70) >> 4
       val opcode = firstByte & 0x0F
       val masked = (secondByte & 0x80) != 0
-      var payloadLength = secondByte & 0x7F
+      var payloadLength = (secondByte & 0x7F).toLong
+
+      // Validate RSV bits (must be 0 unless extension is negotiated)
+      if (rsv != 0) {
+        sendCloseFrame(1002, "Protocol error: RSV bits must be 0")
+        return
+      }
 
       // Handle extended payload length
       if (payloadLength == 126) {
         val lengthBuffer = ByteBuffer.allocate(2)
-        sslRead(lengthBuffer)
+        if (sslRead(lengthBuffer) < 2) return
         lengthBuffer.flip()
         payloadLength = lengthBuffer.getShort() & 0xFFFF
       } else if (payloadLength == 127) {
         val lengthBuffer = ByteBuffer.allocate(8)
-        sslRead(lengthBuffer)
+        if (sslRead(lengthBuffer) < 8) return
         lengthBuffer.flip()
-        payloadLength = lengthBuffer.getLong().toInt // Simplified, should handle long properly
+        payloadLength = lengthBuffer.getLong()
+
+        // Check for payload length overflow
+        if (payloadLength < 0 || payloadLength > Int.MaxValue) {
+          sendCloseFrame(1009, "Message too big")
+          return
+        }
+      }
+
+      // Validate control frame constraints (RFC 6455 Section 5.5)
+      if (opcode >= 0x8) { // Control frame
+        if (!fin) {
+          sendCloseFrame(1002, "Protocol error: Control frames must not be fragmented")
+          return
+        }
+        if (payloadLength > 125) {
+          sendCloseFrame(1002, "Protocol error: Control frames must have payload <= 125 bytes")
+          return
+        }
+      }
+
+      // Read masking key if present
+      var maskingKey: Array[Byte] = null
+      if (masked) {
+        val maskBuffer = ByteBuffer.allocate(4)
+        if (sslRead(maskBuffer) < 4) return
+        maskingKey = maskBuffer.array()
       }
 
       // Read payload
-      val payloadBuffer = ByteBuffer.allocate(payloadLength)
-      sslRead(payloadBuffer)
-      val payload = payloadBuffer.array()
+      val payloadSize = payloadLength.toInt
+      val payloadBuffer = ByteBuffer.allocate(payloadSize)
+      if (sslRead(payloadBuffer) < payloadSize) return
+      var payload = payloadBuffer.array()
 
+      // Unmask payload if needed
+      if (masked && maskingKey != null) {
+        payload = payload.zipWithIndex.map { case (byte, index) =>
+          (byte ^ maskingKey(index % 4)).toByte
+        }
+      }
+
+      // Handle frame based on opcode
       opcode match {
-        case 0x1 => // Text frame
-          val message = new String(payload, "UTF-8")
-          messageQueue.offer(message)
-          owner.foreach(_.node.sendToVisible("computer.signal", "websocket_message", id.toString))
-        case 0x2 => // Binary frame
-          binaryQueue.offer(payload)
-          owner.foreach(_.node.sendToVisible("computer.signal", "websocket_binary", id.toString))
+        case 0x1 | 0x2 => // Text or Binary frame
+          handleDataFrame(fin, opcode, payload)
+        case 0x0 => // Continuation frame
+          handleContinuationFrame(fin, payload)
         case 0x8 => // Close frame
-          close()
+          handleCloseFrame(payload)
         case 0x9 => // Ping frame
           sendWebSocketFrame(payload, isText = false, opcode = 0xA) // Send pong
         case 0xA => // Pong frame
-          // Handle pong if needed
-        case _ => // Unknown frame type, ignore
+          // Handle pong if needed (keep-alive)
+        case _ => // Unknown frame type
+          sendCloseFrame(1002, s"Unknown opcode: $opcode")
       }
     }
 
-    private def sendWebSocketFrame(data: Any, isText: Boolean, opcode: Int = -1): Unit = {
+    private def sendWebSocketFrame(data: Any, isText: Boolean, opcode: Int = -1, fin: Boolean = true): Unit = {
       val payload = data match {
         case s: String => s.getBytes("UTF-8")
         case b: Array[Byte] => b
@@ -955,27 +1117,198 @@ object InternetCard {
       }
 
       val actualOpcode = if (opcode != -1) opcode else if (isText) 0x1 else 0x2
-      val frame = ByteBuffer.allocate(payload.length + 10) // Max header size
+      val frame = ByteBuffer.allocate(payload.length + 14) // Max header size + mask key
 
-      // First byte: FIN + opcode
-      frame.put((0x80 | actualOpcode).toByte)
+      // First byte: FIN + RSV(000) + opcode
+      // RFC 6455: RSV bits must be 0 unless extension is negotiated
+      val finBit = if (fin) 0x80 else 0x00
+      val cleanOpcode = actualOpcode & 0x0F // Ensure opcode is only 4 bits
+      val firstByte = (finBit | cleanOpcode).toByte // RSV bits are implicitly 0
+      frame.put(firstByte)
 
-      // Payload length
+      // Second byte: MASK + payload length
       if (payload.length < 126) {
-        frame.put(payload.length.toByte)
+        frame.put((0x80 | payload.length).toByte) // Set MASK bit
       } else if (payload.length < 65536) {
-        frame.put(126.toByte)
+        frame.put((0x80 | 126).toByte) // Set MASK bit
         frame.putShort(payload.length.toShort)
       } else {
-        frame.put(127.toByte)
+        frame.put((0x80 | 127).toByte) // Set MASK bit
         frame.putLong(payload.length.toLong)
       }
 
-      // Payload
-      frame.put(payload)
+      // Generate masking key (4 bytes)
+      val maskingKey = Array.ofDim[Byte](4)
+      scala.util.Random.nextBytes(maskingKey)
+      frame.put(maskingKey)
+
+      // Mask and add payload
+      val maskedPayload = payload.zipWithIndex.map { case (byte, index) =>
+        (byte ^ maskingKey(index % 4)).toByte
+      }
+      frame.put(maskedPayload)
       frame.flip()
 
       sslWrite(frame)
+    }
+
+    private def sendWebSocketMessage(data: Array[Byte], isText: Boolean): Unit = {
+      val maxFrameSize = 32768 // 32KB max frame size
+
+      if (data.length <= maxFrameSize) {
+        // Send as single frame
+        sendWebSocketFrame(data, isText)
+      } else {
+        // Send as fragmented message
+        sendFragmentedMessage(data, isText, maxFrameSize)
+      }
+    }
+
+    private def sendFragmentedMessage(data: Array[Byte], isText: Boolean, fragmentSize: Int): Unit = {
+      if (data.length == 0) {
+        // Send empty frame
+        sendWebSocketFrame(data, isText)
+        return
+      }
+
+      val totalFragments = (data.length + fragmentSize - 1) / fragmentSize
+
+      for (i <- 0 until totalFragments) {
+        val start = i * fragmentSize
+        val end = math.min(start + fragmentSize, data.length)
+        val fragment = data.slice(start, end)
+        val isFirst = i == 0
+        val isLast = i == totalFragments - 1
+
+        if (isFirst) {
+          // First fragment: use original opcode, FIN = false (unless also last)
+          sendWebSocketFrame(fragment, isText, if (isLast) -1 else (if (isText) 0x1 else 0x2), fin = isLast)
+        } else {
+          // Continuation fragment: opcode = 0x0, FIN = true only for last
+          sendWebSocketFrame(fragment, isText = false, opcode = 0x0, fin = isLast)
+        }
+      }
+    }
+
+    private def handleDataFrame(fin: Boolean, opcode: Int, payload: Array[Byte]): Unit = {
+      if (fragmentBuffer.isDefined) {
+        sendCloseFrame(1002, "Unexpected data frame during fragmentation")
+        return
+      }
+
+      if (fin) {
+        // Complete message in single frame
+        handleCompleteMessage(opcode, payload)
+      } else {
+        // Start fragmented message
+        if (payload.length > maxMessageSize) {
+          sendCloseFrame(1009, "Message too big")
+          return
+        }
+        fragmentBuffer = Some(new java.io.ByteArrayOutputStream())
+        fragmentOpcode = opcode
+        fragmentBuffer.get.write(payload)
+      }
+    }
+
+    private def handleContinuationFrame(fin: Boolean, payload: Array[Byte]): Unit = {
+      fragmentBuffer match {
+        case Some(buffer) =>
+          if (buffer.size() + payload.length > maxMessageSize) {
+            sendCloseFrame(1009, "Message too big")
+            fragmentBuffer = None
+            fragmentOpcode = -1
+            return
+          }
+
+          buffer.write(payload)
+
+          if (fin) {
+            // Complete fragmented message
+            val completePayload = buffer.toByteArray
+            handleCompleteMessage(fragmentOpcode, completePayload)
+            fragmentBuffer = None
+            fragmentOpcode = -1
+          }
+
+        case None =>
+          sendCloseFrame(1002, "Unexpected continuation frame")
+      }
+    }
+
+    private def handleCompleteMessage(opcode: Int, payload: Array[Byte]): Unit = {
+      opcode match {
+        case 0x1 => // Text message
+          try {
+            val message = new String(payload, "UTF-8")
+            if (!isValidUTF8(payload)) {
+              sendCloseFrame(1007, "Invalid UTF-8 in text frame")
+              return
+            }
+            messageQueue.offer(message)
+            owner.foreach(_.node.sendToVisible("computer.signal", "websocket_message", id.toString))
+          } catch {
+            case _: Exception =>
+              sendCloseFrame(1007, "Invalid UTF-8 in text frame")
+          }
+
+        case 0x2 => // Binary message
+          binaryQueue.offer(payload)
+          owner.foreach(_.node.sendToVisible("computer.signal", "websocket_binary", id.toString))
+
+        case _ =>
+          sendCloseFrame(1002, s"Invalid opcode for complete message: $opcode")
+      }
+    }
+
+    private def isValidUTF8(bytes: Array[Byte]): Boolean = {
+      try {
+        val decoder = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+        decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+        decoder.onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+        decoder.decode(java.nio.ByteBuffer.wrap(bytes))
+        true
+      } catch {
+        case _: Exception => false
+      }
+    }
+
+    private def sendCloseFrame(statusCode: Int, reason: String = ""): Unit = {
+      try {
+        val reasonBytes = reason.getBytes("UTF-8")
+        val payload = ByteBuffer.allocate(2 + reasonBytes.length)
+        payload.putShort(statusCode.toShort)
+        payload.put(reasonBytes)
+        sendWebSocketFrame(payload.array(), isText = false, opcode = 0x8)
+      } catch {
+        case _: Exception => // Ignore errors when sending close frame
+      }
+      close()
+    }
+
+    private def handleCloseFrame(payload: Array[Byte]): Unit = {
+      var statusCode = 1000 // Normal closure
+      var reason = ""
+
+      if (payload.length >= 2) {
+        val buffer = ByteBuffer.wrap(payload)
+        statusCode = buffer.getShort() & 0xFFFF
+
+        if (payload.length > 2) {
+          val reasonBytes = new Array[Byte](payload.length - 2)
+          buffer.get(reasonBytes)
+          reason = new String(reasonBytes, "UTF-8")
+        }
+      }
+
+      // Send close frame in response (RFC 6455 Section 7.1.2)
+      try {
+        sendWebSocketFrame(payload, isText = false, opcode = 0x8)
+      } catch {
+        case _: Exception => // Ignore errors when sending close response
+      }
+
+      close()
     }
 
     private class WebSocketConnector extends Callable[SocketChannel] {

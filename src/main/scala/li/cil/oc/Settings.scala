@@ -307,6 +307,9 @@ class Settings(val config: Config) {
     .contains("removeme")
   val httpTimeout = (config.getInt("internet.requestTimeout") max 0) * 1000
   val maxConnections = config.getInt("internet.maxTcpConnections") max 0
+  val webSocketRateLimitEnabled = config.getBoolean("internet.webSocketRateLimit.enabled")
+  val webSocketMaxConnectionsPerHost = config.getInt("internet.webSocketRateLimit.maxConnectionsPerHost") max 0
+  val webSocketRateLimitWindow = (config.getInt("internet.webSocketRateLimit.timeWindowSeconds") max 0) * 1000
   val internetThreads = config.getInt("internet.threads") max 1
 
   // ----------------------------------------------------------------------- //

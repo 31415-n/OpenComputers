@@ -13,9 +13,20 @@ The internet card grants [computers](../general/computer.md) access to the inter
 
 ## WebSocket Usage
 
-WebSockets provide a persistent, full-duplex communication channel between the computer and a WebSocket server. This is ideal for real-time applications like chat systems, live data feeds, or interactive web applications.
+WebSockets provide a persistent, full-duplex communication channel between the computer and a WebSocket server. This implementation fully complies with RFC 6455 WebSocket Protocol standard.
 
-Example usage:
+## Features
+
+- **Full RFC 6455 Compliance**: Complete implementation of the WebSocket protocol
+- **Fragmentation Support**: Automatic handling of large messages
+- **Subprotocol Negotiation**: Support for WebSocket subprotocols
+- **Extensions Support**: Built-in support for WebSocket extensions
+- **UTF-8 Validation**: Proper validation of text frames
+- **Binary Data**: Full support for binary WebSocket frames
+- **Security Features**: Origin validation, rate limiting, and CSRF protection
+
+## Basic Usage
+
 ```lua
 local internet = require("internet")
 
@@ -33,6 +44,40 @@ local message = ws.receive()
 if message then
   print("Received:", message)
 end
+```
+
+## Advanced Usage
+
+```lua
+-- Connect with custom headers and subprotocols
+local headers = {["User-Agent"] = "OpenComputers/1.0"}
+local protocols = {"chat", "echo"}
+local ws = internet.websocket("ws://example.com/", headers, protocols)
+
+-- Check negotiated protocol
+local protocol = ws.getProtocol()
+print("Using protocol:", protocol)
+
+-- Check negotiated extensions
+local extensions = ws.getExtensions()
+for i, ext in pairs(extensions) do
+  print("Extension:", ext)
+end
+
+-- Send large messages with automatic fragmentation
+local large_data = string.rep("data", 10000)
+ws.send(large_data)
+
+-- Send with explicit fragmentation
+ws.sendFragmented("Large message", 1024) -- 1KB fragments
+
+-- Send binary data
+local binary = {0x48, 0x65, 0x6C, 0x6C, 0x6F} -- "Hello"
+ws.sendBinary(binary)
+
+-- Receive binary data
+local binary_data = ws.receiveBinary()
+```
 
 -- Send binary data
 ws.sendBinary("Binary data here")
