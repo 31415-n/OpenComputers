@@ -129,6 +129,18 @@ class InternetCard extends prefab.ManagedEnvironment with DeviceInfo {
     result(socket)
   }
 
+  /**
+   * Creates a new RFC 6455 compliant WebSocket connection.
+   *
+   * Supports both ws:// and wss:// protocols with proper SSL/TLS handling.
+   * Implements full WebSocket handshake, frame processing, and close handshake.
+   * Connection count is limited by OpenComputers settings for server performance.
+   *
+   * @param url WebSocket URL (ws:// or wss://)
+   * @param headers Optional HTTP headers for handshake
+   * @param protocols Optional subprotocol list for negotiation
+   * @return WebSocketConnection handle for Lua API
+   */
   @Callback(doc = """function(url:string[, headers:table[, protocols:table]]):userdata -- Opens a new WebSocket connection. Returns the handle of the connection.""")
   def websocket(context: Context, args: Arguments): Array[AnyRef] = {
     checkOwner(context)
@@ -270,12 +282,21 @@ object InternetCard {
     def close(): Unit
   }
 
+  /**
+   * TCP connection notifier using NIO selector for efficient I/O multiplexing.
+   * Handles multiple TCP connections in a single thread to avoid performance issues
+   * on multiplayer servers with many concurrent connections.
+   */
   object TCPNotifier extends Thread {
     private var selector = Selector.open()
     private val toAccept = new ConcurrentLinkedQueue[(SocketChannel, () => Unit)]
+    @volatile private var running = true
+
+    setDaemon(true) // Daemon thread prevents JVM shutdown hanging
+    setName("OpenComputers-TCP-Notifier")
 
     override def run(): Unit = {
-      while (true) {
+      while (running) {
         try {
           Stream.continually(toAccept.poll).takeWhile(_ != null).foreach({
             case (channel: SocketChannel, action: (() => Unit)) =>
@@ -311,16 +332,35 @@ object InternetCard {
       toAccept.offer(e)
       selector.wakeup()
     }
+
+    def shutdown(): Unit = {
+      running = false
+      selector.wakeup()
+      try {
+        selector.close()
+      } catch {
+        case _: Exception => // Ignore
+      }
+    }
   }
 
   TCPNotifier.start()
 
+  /**
+   * WebSocket connection notifier implementing RFC 6455 compliant client-only functionality.
+   * Uses single NIO selector architecture for optimal performance with multiple concurrent
+   * WebSocket connections. Prevents server performance degradation on multiplayer servers.
+   */
   object WebSocketNotifier extends Thread {
     private var selector = Selector.open()
     private val toAccept = new ConcurrentLinkedQueue[(SocketChannel, () => Unit)]
+    @volatile private var running = true
+
+    setDaemon(true) // Daemon thread prevents JVM shutdown hanging
+    setName("OpenComputers-WebSocket-Notifier")
 
     override def run(): Unit = {
-      while (true) {
+      while (running) {
         try {
           // Register new WebSocket connections
           Stream.continually(toAccept.poll).takeWhile(_ != null).foreach({
@@ -358,9 +398,35 @@ object InternetCard {
       toAccept.offer(e)
       selector.wakeup()
     }
+
+    def shutdown(): Unit = {
+      running = false
+      selector.wakeup()
+      try {
+        selector.close()
+      } catch {
+        case _: Exception => // Ignore
+      }
+    }
   }
 
   WebSocketNotifier.start()
+
+  /**
+   * Shutdown hook ensures proper cleanup of notifier threads during JVM shutdown.
+   * Prevents resource leaks and ensures graceful termination of network connections.
+   * Critical for server environments where clean shutdown is important.
+   */
+  Runtime.getRuntime.addShutdownHook(new Thread(new Runnable {
+    override def run(): Unit = {
+      try {
+        TCPNotifier.shutdown()
+        WebSocketNotifier.shutdown()
+      } catch {
+        case _: Exception => // Ignore shutdown errors during JVM termination
+      }
+    }
+  }))
 
   class TCPSocket extends AbstractValue with Closable {
     def this(owner: InternetCard, uri: URI, port: Int) {
@@ -680,6 +746,24 @@ object InternetCard {
 
   }
 
+  /**
+   * RFC 6455 compliant WebSocket client implementation for OpenComputers.
+   *
+   * Features:
+   * - Full RFC 6455 compliance (handshake, framing, close handshake)
+   * - Client-only implementation (no server functionality)
+   * - Proper UTF-8 validation for text frames
+   * - Fragmentation support with DoS protection
+   * - SSL/TLS support for secure WebSocket connections (wss://)
+   * - Ping/Pong frame handling for connection keep-alive
+   * - Thread-safe operation with proper resource management
+   *
+   * Security considerations:
+   * - Validates all incoming frames according to RFC 6455
+   * - Implements proper close handshake to prevent connection leaks
+   * - Limits fragment count and message size to prevent DoS attacks
+   * - Uses existing OpenComputers security filtering for connections
+   */
   class WebSocketConnection extends AbstractValue with Closable {
     def this(owner: InternetCard, urlAndSecure: (URL, Boolean), headers: Map[String, String], protocols: List[String] = List.empty) {
       this()
@@ -1079,37 +1163,49 @@ object InternetCard {
           throw new SSLException("SSL wrap failed: " + result.getStatus)
         }
         sslOutbound.flip()
-
-        // Simplified write - SSL writes are typically fast and don't need individual selectors
-        val startTime = System.currentTimeMillis()
-        val timeout = Settings.get.httpTimeout.max(5000) // 5 second minimum
-
-        while (sslOutbound.hasRemaining) {
-          val written = channel.write(sslOutbound)
-          if (written == 0) {
-            // Check timeout
-            if (System.currentTimeMillis() - startTime > timeout) {
-              throw new IOException("SSL write timeout")
-            }
-            // Brief pause to avoid busy waiting
-            Thread.sleep(1)
-          }
-        }
+        writeBufferNonBlocking(sslOutbound)
       } else {
-        // Simplified write for non-SSL
-        val startTime = System.currentTimeMillis()
-        val timeout = Settings.get.httpTimeout.max(5000)
+        writeBufferNonBlocking(data)
+      }
+    }
 
-        while (data.hasRemaining) {
-          val written = channel.write(data)
-          if (written == 0) {
-            if (System.currentTimeMillis() - startTime > timeout) {
-              throw new IOException("Write timeout")
-            }
-            // Brief pause to avoid busy waiting
-            Thread.sleep(1)
+    private def writeBufferNonBlocking(buffer: ByteBuffer): Unit = {
+      val timeout = Settings.get.httpTimeout.max(5000) // 5 second minimum
+      val future = new CompletableFuture[Unit]()
+
+      def attemptWrite(): Unit = {
+        try {
+          val written = channel.write(buffer)
+          if (buffer.hasRemaining) {
+            // Schedule retry if buffer not fully written
+            threadPool.schedule(new Runnable {
+              override def run(): Unit = attemptWrite()
+            }, 1, TimeUnit.MILLISECONDS)
+          } else {
+            future.complete(())
+          }
+        } catch {
+          case e: Exception => future.completeExceptionally(e)
+        }
+      }
+
+      // Start writing
+      attemptWrite()
+
+      // Set timeout
+      threadPool.schedule(new Runnable {
+        override def run(): Unit = {
+          if (!future.isDone) {
+            future.completeExceptionally(new IOException("Write timeout"))
           }
         }
+      }, timeout, TimeUnit.MILLISECONDS)
+
+      // Wait for completion
+      try {
+        future.get()
+      } catch {
+        case e: ExecutionException => throw e.getCause
       }
     }
 
@@ -1186,25 +1282,13 @@ object InternetCard {
       var totalBytesRead = 0
       var responseComplete = false
 
-      // Simplified handshake reading - handshake is typically fast
-      while (!responseComplete && (System.currentTimeMillis() - startTime) < timeout) {
-        val bytesRead = sslRead(buffer)
-        if (bytesRead > 0) {
-          totalBytesRead += bytesRead
-          // Check if we have complete HTTP response (ends with \r\n\r\n)
-          val currentData = new String(buffer.array(), 0, buffer.position(), "UTF-8")
-          if (currentData.contains("\r\n\r\n")) {
-            responseComplete = true
-          }
-        } else if (bytesRead == 0) {
-          // No data available, brief pause
-          if (System.currentTimeMillis() - startTime >= timeout) {
-            return // Exit on timeout
-          }
-          Thread.sleep(10) // Brief pause to avoid busy waiting
-        } else {
-          throw new IOException("WebSocket handshake failed: Connection closed during handshake")
-        }
+      // NIO-based handshake reading with ScheduledExecutorService
+      readHandshakeResponseNonBlocking(buffer, timeout) match {
+        case Some(response) =>
+          totalBytesRead = response.length
+          responseComplete = true
+        case None =>
+          throw new IOException("WebSocket handshake failed: Response timeout")
       }
 
       if (!responseComplete) {
@@ -1228,6 +1312,60 @@ object InternetCard {
 
       handshakeComplete = true
       owner.foreach(_.node.sendToVisible("computer.signal", "websocket_success", id.toString))
+    }
+
+    private def readHandshakeResponseNonBlocking(buffer: ByteBuffer, timeoutMs: Long): Option[String] = {
+      val future = new CompletableFuture[String]()
+      val responseBuilder = new StringBuilder()
+
+      def attemptRead(): Unit = {
+        try {
+          val bytesRead = sslRead(buffer)
+          if (bytesRead > 0) {
+            val newData = new String(buffer.array(), buffer.position() - bytesRead, bytesRead, "UTF-8")
+            responseBuilder.append(newData)
+
+            // Check if we have complete HTTP response (ends with \r\n\r\n)
+            val currentResponse = responseBuilder.toString()
+            if (currentResponse.contains("\r\n\r\n")) {
+              future.complete(currentResponse)
+            } else {
+              // Schedule next read attempt
+              threadPool.schedule(new Runnable {
+                override def run(): Unit = attemptRead()
+              }, 1, TimeUnit.MILLISECONDS)
+            }
+          } else if (bytesRead == 0) {
+            // No data available, schedule retry
+            threadPool.schedule(new Runnable {
+              override def run(): Unit = attemptRead()
+            }, 10, TimeUnit.MILLISECONDS)
+          } else {
+            future.completeExceptionally(new IOException("Connection closed during handshake"))
+          }
+        } catch {
+          case e: Exception => future.completeExceptionally(e)
+        }
+      }
+
+      // Start reading
+      attemptRead()
+
+      // Set timeout
+      threadPool.schedule(new Runnable {
+        override def run(): Unit = {
+          if (!future.isDone) {
+            future.completeExceptionally(new IOException("Handshake timeout"))
+          }
+        }
+      }, timeoutMs, TimeUnit.MILLISECONDS)
+
+      // Wait for completion
+      try {
+        Some(future.get())
+      } catch {
+        case _: Exception => None
+      }
     }
 
     private def validateHandshakeResponse(response: String, key: String): Unit = {
@@ -1516,32 +1654,66 @@ object InternetCard {
       }
     }
 
-    // Optimized helper function for reading bytes with timeout
+    // NIO-based helper function for reading bytes with timeout
     private def readBytesWithTimeout(buffer: ByteBuffer, requiredBytes: Int, timeoutMs: Long): Boolean = {
+      val future = new CompletableFuture[Boolean]()
       var totalRead = 0
-      val startTime = System.currentTimeMillis()
 
-      while (totalRead < requiredBytes) {
-        val bytesRead = sslRead(buffer)
-        if (bytesRead > 0) {
-          totalRead += bytesRead
-        } else if (bytesRead == 0) {
-          // Check timeout
-          if (System.currentTimeMillis() - startTime > timeoutMs) {
-            return false // Timeout
+      def attemptRead(): Unit = {
+        try {
+          if (totalRead >= requiredBytes) {
+            future.complete(true)
+            return
           }
-          // Check if connection is still alive and not interrupted
-          if (!connected || Thread.currentThread().isInterrupted) {
-            return false
+
+          val bytesRead = sslRead(buffer)
+          if (bytesRead > 0) {
+            totalRead += bytesRead
+            if (totalRead >= requiredBytes) {
+              future.complete(true)
+            } else {
+              // Schedule next read attempt
+              threadPool.schedule(new Runnable {
+                override def run(): Unit = attemptRead()
+              }, 1, TimeUnit.MILLISECONDS)
+            }
+          } else if (bytesRead == 0) {
+            // Check if connection is still alive
+            if (!connected || Thread.currentThread().isInterrupted) {
+              future.complete(false)
+            } else {
+              // Schedule retry
+              threadPool.schedule(new Runnable {
+                override def run(): Unit = attemptRead()
+              }, 10, TimeUnit.MILLISECONDS)
+            }
+          } else {
+            // Connection closed
+            future.complete(false)
           }
-          // Brief pause to avoid busy waiting
-          Thread.sleep(10)
-        } else {
-          // Connection closed
-          return false
+        } catch {
+          case e: Exception => future.complete(false)
         }
       }
-      true // Success
+
+      // Start reading
+      attemptRead()
+
+      // Set timeout
+      threadPool.schedule(new Runnable {
+        override def run(): Unit = {
+          if (!future.isDone) {
+            future.complete(false) // Timeout
+          }
+        }
+      }, timeoutMs, TimeUnit.MILLISECONDS)
+
+      // Wait for completion
+      try {
+        future.get()
+      } catch {
+        case _: Exception => false
+      }
     }
 
     private def sendWebSocketFrame(data: Any, isText: Boolean, opcode: Int = -1, fin: Boolean = true): Unit = {
@@ -1957,20 +2129,49 @@ object InternetCard {
         // Non-blocking connect with timeout
         val connected = socketChannel.connect(address)
         if (!connected) {
-          // Connection in progress, wait for completion with timeout
-          val startTime = System.currentTimeMillis()
-          val timeout = Settings.get.httpTimeout.max(5000) // 5 second minimum timeout
-
-          while (!socketChannel.finishConnect()) {
-            if (System.currentTimeMillis() - startTime > timeout) {
-              throw new IOException("WebSocket connection timeout")
-            }
-            // Brief pause to avoid busy waiting
-            Thread.sleep(10)
-          }
+          // NIO-based connection completion with timeout
+          finishConnectionNonBlocking(socketChannel, Settings.get.httpTimeout.max(5000))
         }
 
         socketChannel
+      }
+    }
+
+    private def finishConnectionNonBlocking(socketChannel: SocketChannel, timeoutMs: Long): Unit = {
+      val future = new CompletableFuture[Unit]()
+
+      def attemptFinish(): Unit = {
+        try {
+          if (socketChannel.finishConnect()) {
+            future.complete(())
+          } else {
+            // Schedule retry
+            threadPool.schedule(new Runnable {
+              override def run(): Unit = attemptFinish()
+            }, 10, TimeUnit.MILLISECONDS)
+          }
+        } catch {
+          case e: Exception => future.completeExceptionally(e)
+        }
+      }
+
+      // Start connection attempt
+      attemptFinish()
+
+      // Set timeout
+      threadPool.schedule(new Runnable {
+        override def run(): Unit = {
+          if (!future.isDone) {
+            future.completeExceptionally(new IOException("WebSocket connection timeout"))
+          }
+        }
+      }, timeoutMs, TimeUnit.MILLISECONDS)
+
+      // Wait for completion
+      try {
+        future.get()
+      } catch {
+        case e: ExecutionException => throw e.getCause
       }
     }
   }
