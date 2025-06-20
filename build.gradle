@@ -2,11 +2,7 @@ plugins {
     id 'scala'
     id 'maven-publish'
     id 'net.neoforged.gradle.userdev' version '7.0.80'
-    id "com.matthewprenger.cursegradle" version "1.4.0"
-    id 'com.modrinth.minotaur' version '2.8.7'
 }
-
-
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
@@ -16,243 +12,84 @@ file "build.properties" withReader {
     ext.config = new ConfigSlurper().parse prop
 }
 
-version = "${mod_version}"
-if (version.endsWith("-snapshot")) {
-    version += "-" + (new Date().format('yyyyMMdd'))
-}
-
+version = "${config.mod.version}"
 group = config.mod.group
-archivesBaseName = config.mod.name
-
-def getGitRef() {
-    try {
-        def stdout = new ByteArrayOutputStream()
-        exec {
-            commandLine 'git', 'rev-parse', '--short', 'HEAD'
-            standardOutput = stdout
-        }
-        return stdout.toString().trim()
-    } catch (Throwable e) {
-        return "unknown"
-    }
-}
-
-version += "+" + getGitRef()
-
-ext.simpleVersion = version
-version = "MC${config.minecraft.version}-${project.version}"
-
-minecraft {
-    mappings channel: "${config.minecraft.mappings_channel}", version: "${config.minecraft.mappings_version}"
-
-    runs {
-        client {
-            workingDirectory project.file('run')
-
-            property 'neoforge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
-            property 'neoforge.logging.console.level', 'debug'
-
-            mods {
-                opencomputers {
-                    source sourceSets.main
-                }
-            }
-        }
-        server {
-            property 'neoforge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
-            property 'neoforge.logging.console.level', 'debug'
-
-            mods {
-                opencomputers {
-                    source sourceSets.main
-                }
-            }
-        }
-    }
-
-    accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
-}
-
-task replaceSourceTokensScala(type: Sync) {
-    from sourceSets.main.scala
-    filter { line -> line
-            .replaceAll('@VERSION@', "${mod_version}")
-            .replaceAll("/*@MCVERSIONDEP@*/", ", acceptedMinecraftVersions = \"[${config.minecraft.version}]\"") }
-    into "$buildDir/srcReplaced/scala"
-}
-
-/* Do not pull this in on IDEA, as it changes the compiler's source path, making navigating to errors harder */
-if (!System.getProperty('idea.active')) {
-    compileScala {
-        source = replaceSourceTokensScala.outputs
-    }
-}
-
-compileScala {
-    configure(scalaCompileOptions.forkOptions) {
-        memoryMaximumSize = '1g'
-    }
-}
+base.archivesName = config.mod.name
 
 repositories {
     maven {
+        name = 'NeoForged'
+        url = 'https://maven.neoforged.net/releases'
+    }
+    maven {
         name "MightyPirates"
         url "https://maven.cil.li/"
-        metadataSources {
-            mavenPom()
-            artifact()
-        }
     }
-    maven {
-        name "SquidDev" /* CC: Tweaked */
-        url "https://squiddev.cc/maven/"
-    }
-    maven {
-        name "CurseForge"
-        url "https://minecraft.curseforge.com/api/maven/"
-        metadataSources {
-            mavenPom()
-            artifact()
-        }
-    }
-    maven {
-        url "https://cursemaven.com"
-        content {
-            includeGroup "curse.maven"
-        }
-    }
-    ivy {
-        name 'asie dependency mirror'
-        artifactPattern "https://asie.pl/javadeps/[module]-[revision](-[classifier]).[ext]"
-        metadataSources {
-            artifact()
-        }
-    }
-}
-
-configurations {
-    embedded
-
-    compileOnly.extendsFrom provided
-    implementation.extendsFrom embedded
 }
 
 dependencies {
     implementation "net.neoforged:neoforge:${config.neoforge.version}"
-
-    // Mod dependencies will be added back as they become available for 1.20.1
-
-    embedded name: 'OC-LuaJ', version: '20220907.1', ext: 'jar'
-    embedded name: 'OC-JNLua', version: '20230530.0', ext: 'jar'
-    embedded name: 'OC-JNLua-Natives', version: '20220928.1', ext: 'jar'
-
-    testImplementation("junit:junit:4.13.2")
-    testImplementation("org.mockito:mockito-all:1.10.19")
-    testImplementation("org.scalactic:scalactic_2.11:2.2.6")
-    testImplementation("org.scalatest:scalatest_2.11:2.2.6")
-
-    // EnderStorage dependency will be added back when available for 1.20.1
+    
+    implementation name: 'OC-LuaJ', version: '20220907.1', ext: 'jar'
+    implementation name: 'OC-JNLua', version: '20230530.0', ext: 'jar'
+    implementation name: 'OC-JNLua-Natives', version: '20220928.1', ext: 'jar'
 }
 
-processResources {
-    inputs.property "version", "${mod_version}"
-    inputs.property "mcversion", config.minecraft.version
-    inputs.property "fversion", config.forge.version
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    filesMatching(['mcmod.info']) {
-        expand 'version':"${mod_version}", 'mcversion':config.minecraft.version, 'fversion':config.forge.version
-    }
-    filesMatching(['application.conf']) {
-        filter { line ->
-            line.replaceAll("@VERSION@", "${mod_version}")
+runs {
+    client {
+        workingDirectory project.file('run')
+        
+        systemProperty 'neoforge.logging.markers', 'REGISTRIES'
+        systemProperty 'neoforge.logging.console.level', 'debug'
+        
+        mods {
+            opencomputers {
+                source sourceSets.main
+            }
         }
     }
-
-    // Access transformer is already in META-INF
-}
-
-jar {
-    configurations.embedded.each { dep ->
-        from(project.zipTree(dep)) {
-            exclude 'META-INF', 'META-INF/**'
-        }
-    }
-    manifest {
-        attributes "Specification-Title": "OpenComputers"
-        attributes "Specification-Vendor": "MightyPirates"
-        attributes "Specification-Version": "1"
-        attributes "Implementation-Title": project.name
-        attributes "Implementation-Version": project.version
-        attributes "Implementation-Vendor": "MightyPirates"
-        attributes "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
-    }
-}
-
-javadoc {
-    include 'li/cil/oc/api/**'
-}
-
-task apiJar(type: Jar) {
-    from sourceSets.main.allSource
-    from sourceSets.main.output
-    classifier = 'api'
-    include 'li/cil/oc/api/**'
-}
-
-task javadocJar(type: Jar, dependsOn: javadoc) {
-    from javadoc.destinationDir
-    classifier 'javadoc'
-}
-
-artifacts {
-    archives apiJar
-    archives javadocJar
-}
-
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            groupId = project.group
-            artifactId = project.name
-            version = mod_version
-            artifact jar
-            artifact apiJar
-            artifact javadocJar
-        }
-    }
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = System.getenv("GITHUB_MAVEN_URL") ?: ""
-            credentials {
-                username = System.getenv("GITHUB_ACTOR")
-                password = System.getenv("GITHUB_TOKEN")
+    
+    server {
+        workingDirectory project.file('run')
+        
+        systemProperty 'neoforge.logging.markers', 'REGISTRIES'
+        systemProperty 'neoforge.logging.console.level', 'debug'
+        
+        mods {
+            opencomputers {
+                source sourceSets.main
             }
         }
     }
 }
 
-curseforge {
-    apiKey = System.getenv('CURSEFORGE_API_KEY') ?: ""
-    project {
-        id = config.curse.project.id
-        releaseType = System.getenv('CURSEFORGE_RELEASE_TYPE') ?: "alpha"
-        changelogType = "markdown"
-        changelog = System.getenv("CHANGELOG") ?: "Changelog not available."
-        addGameVersion config.minecraft.version
-        addGameVersion "Java 17"
-        addGameVersion "NeoForge"
+mappings channel: "${config.minecraft.mappings_channel}", version: "${config.minecraft.mappings_version}"
+
+jar {
+    from(configurations.runtimeClasspath.findAll { it.name.startsWith('OC-') }.collect { zipTree(it) }) {
+        exclude 'META-INF', 'META-INF/**'
+    }
+    
+    manifest {
+        attributes([
+            "Specification-Title": "OpenComputers",
+            "Specification-Vendor": "MightyPirates",
+            "Specification-Version": "1",
+            "Implementation-Title": project.name,
+            "Implementation-Version": project.version,
+            "Implementation-Vendor": "MightyPirates"
+        ])
     }
 }
 
-modrinth {
-    token = System.getenv("MODRINTH_API_KEY") ?: ""
-    projectId = config.modrinth.project.id
-    changelog = System.getenv("CHANGELOG") ?: "Changelog not available."
-    versionNumber = mod_version
-    versionName = "${rootProject.name}-${version}"
-    versionType = System.getenv('MODRINTH_RELEASE_TYPE') ?: "alpha"
-    uploadFile = jar
-    gameVersions = [config.minecraft.version]
-    loaders = ["neoforge"]
+processResources {
+    inputs.property "version", "${config.mod.version}"
+    inputs.property "mcversion", config.minecraft.version
+    inputs.property "neoforge_version", config.neoforge.version
+    
+    filesMatching(['META-INF/mods.toml']) {
+        expand 'version': "${config.mod.version}", 
+               'mcversion': config.minecraft.version, 
+               'neoforge_version': config.neoforge.version
+    }
 }

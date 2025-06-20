@@ -1,0 +1,28 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+
+[[mods]]
+modId="opencomputers"
+version="${version}"
+displayName="OpenComputers"
+description='''
+OpenComputers is a mod that adds computers and various components to Minecraft.
+'''
+authors="Sangar, MightyPirates"
+credits="See GitHub contributors"
+logoFile="logo.png"
+
+[[dependencies.opencomputers]]
+modId="neoforge"
+mandatory=true
+versionRange="[47.1.104,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.opencomputers]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.1,1.21)"
+ordering="NONE"
+side="BOTH"
