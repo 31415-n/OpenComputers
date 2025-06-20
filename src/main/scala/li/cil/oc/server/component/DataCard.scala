@@ -199,7 +199,7 @@ object DataCard {
       if (iv.length != 16)
         throw new IllegalArgumentException("expected a 128-bit AES IV")
 
-      val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+      val cipher = Cipher.getInstance("AES/GCM/NoPadding")
       cipher.init(mode, new SecretKeySpec(key, "AES"), new IvParameterSpec(iv))
       result(cipher.doFinal(data))
     }
