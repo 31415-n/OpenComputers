@@ -1,73 +1,89 @@
 package li.cil.oc.client.renderer.tileentity
 
+import com.mojang.blaze3d.vertex.{PoseStack, VertexConsumer}
 import li.cil.oc.client.Textures
 import li.cil.oc.common.tileentity.Case
 import li.cil.oc.util.RenderState
-import net.minecraft.client.renderer.GlStateManager
-import net.minecraft.client.renderer.RenderHelper
-import net.minecraft.client.renderer.Tessellator
-import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats
-import net.minecraft.util.EnumFacing
-import net.minecraft.util.ResourceLocation
-import org.lwjgl.opengl.GL11
+import net.minecraft.client.renderer.{MultiBufferSource, RenderType}
+import net.minecraft.client.renderer.blockentity.{BlockEntityRenderer, BlockEntityRendererProvider}
+import net.minecraft.core.Direction
+import net.minecraft.resources.ResourceLocation
+import org.joml.Matrix4f
 
-object CaseRenderer extends TileEntitySpecialRenderer[Case] {
-  override def render(computer: Case, x: Double, y: Double, z: Double, f: Float, damage: Int, alpha: Float) {
+class CaseRenderer(context: BlockEntityRendererProvider.Context) extends BlockEntityRenderer[Case] {
+  override def render(computer: Case, partialTick: Float, poseStack: PoseStack, bufferSource: MultiBufferSource, packedLight: Int, packedOverlay: Int): Unit = {
     RenderState.checkError(getClass.getName + ".render: entering (aka: wasntme)")
 
-    RenderState.pushAttrib()
-
-    RenderState.disableEntityLighting()
-    RenderState.makeItBlend()
-    RenderState.setBlendAlpha(1)
-
-    GlStateManager.pushMatrix()
-
-    GlStateManager.translate(x + 0.5, y + 0.5, z + 0.5)
+    poseStack.pushPose()
+    poseStack.translate(0.5, 0.5, 0.5)
 
     computer.yaw match {
-      case EnumFacing.WEST => GlStateManager.rotate(-90, 0, 1, 0)
-      case EnumFacing.NORTH => GlStateManager.rotate(180, 0, 1, 0)
-      case EnumFacing.EAST => GlStateManager.rotate(90, 0, 1, 0)
+      case Direction.WEST => poseStack.mulPose(org.joml.Quaternionf().rotateY(Math.toRadians(-90).toFloat))
+      case Direction.NORTH => poseStack.mulPose(org.joml.Quaternionf().rotateY(Math.toRadians(180).toFloat))
+      case Direction.EAST => poseStack.mulPose(org.joml.Quaternionf().rotateY(Math.toRadians(90).toFloat))
       case _ => // No yaw.
     }
 
-    GlStateManager.translate(-0.5, 0.5, 0.505)
-    GlStateManager.scale(1, -1, 1)
+    poseStack.translate(-0.5, 0.5, 0.505)
+    poseStack.scale(1, -1, 1)
+
+    val buffer = bufferSource.getBuffer(RenderType.cutout())
+    val pose = poseStack.last().pose()
 
     if (computer.isRunning) {
-      renderFrontOverlay(Textures.Block.CaseFrontOn)
-      if (System.currentTimeMillis() - computer.lastFileSystemAccess < 400 && computer.world.rand.nextDouble() > 0.1) {
-        renderFrontOverlay(Textures.Block.CaseFrontActivity)
+      renderFrontOverlay(buffer, pose, Textures.Block.CaseFrontOn, packedLight, packedOverlay)
+      if (System.currentTimeMillis() - computer.lastFileSystemAccess < 400 && computer.getLevel.random.nextDouble() > 0.1) {
+        renderFrontOverlay(buffer, pose, Textures.Block.CaseFrontActivity, packedLight, packedOverlay)
       }
     }
     else if (computer.hasErrored && RenderUtil.shouldShowErrorLight(computer.hashCode)) {
-      renderFrontOverlay(Textures.Block.CaseFrontError)
+      renderFrontOverlay(buffer, pose, Textures.Block.CaseFrontError, packedLight, packedOverlay)
     }
 
-    RenderState.disableBlend()
-    RenderState.enableEntityLighting()
-
-    GlStateManager.popMatrix()
-    RenderState.popAttrib()
+    poseStack.popPose()
 
     RenderState.checkError(getClass.getName + ".render: leaving")
   }
 
-  private def renderFrontOverlay(texture: ResourceLocation): Unit = {
-    val t = Tessellator.getInstance
-    val r = t.getBuffer
-
-    Textures.Block.bind()
-    r.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX)
-
+  /**
+   * Renders a front overlay texture on the case
+   */
+  private def renderFrontOverlay(buffer: VertexConsumer, pose: Matrix4f, texture: ResourceLocation, packedLight: Int, packedOverlay: Int): Unit = {
     val icon = Textures.getSprite(texture)
-    r.pos(0, 1, 0).tex(icon.getMinU, icon.getMaxV).endVertex()
-    r.pos(1, 1, 0).tex(icon.getMaxU, icon.getMaxV).endVertex()
-    r.pos(1, 0, 0).tex(icon.getMaxU, icon.getMinV).endVertex()
-    r.pos(0, 0, 0).tex(icon.getMinU, icon.getMinV).endVertex()
-
-    t.draw()
+    
+    buffer.vertex(pose, 0, 1, 0)
+      .uv(icon.getU0, icon.getV1)
+      .overlayCoords(packedOverlay)
+      .uv2(packedLight)
+      .normal(0.0f, 0.0f, 1.0f)
+      .endVertex()
+    
+    buffer.vertex(pose, 1, 1, 0)
+      .uv(icon.getU1, icon.getV1)
+      .overlayCoords(packedOverlay)
+      .uv2(packedLight)
+      .normal(0.0f, 0.0f, 1.0f)
+      .endVertex()
+    
+    buffer.vertex(pose, 1, 0, 0)
+      .uv(icon.getU1, icon.getV0)
+      .overlayCoords(packedOverlay)
+      .uv2(packedLight)
+      .normal(0.0f, 0.0f, 1.0f)
+      .endVertex()
+    
+    buffer.vertex(pose, 0, 0, 0)
+      .uv(icon.getU0, icon.getV0)
+      .overlayCoords(packedOverlay)
+      .uv2(packedLight)
+      .normal(0.0f, 0.0f, 1.0f)
+      .endVertex()
   }
+}
+
+/**
+ * Companion object for creating the renderer
+ */
+object CaseRenderer {
+  def apply(context: BlockEntityRendererProvider.Context): CaseRenderer = new CaseRenderer(context)
 }

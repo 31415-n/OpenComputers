@@ -1,78 +1,82 @@
 package li.cil.oc.client.renderer.tileentity
 
+import com.mojang.blaze3d.vertex.{PoseStack, VertexConsumer}
 import li.cil.oc.client.Textures
 import li.cil.oc.common.tileentity
 import li.cil.oc.util.RenderState
-import net.minecraft.client.renderer.GlStateManager
-import net.minecraft.client.renderer.Tessellator
-import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats
-import org.lwjgl.opengl.GL11
+import net.minecraft.client.renderer.{MultiBufferSource, RenderType}
+import net.minecraft.client.renderer.blockentity.{BlockEntityRenderer, BlockEntityRendererProvider}
+import org.joml.Matrix4f
 
-object TransposerRenderer extends TileEntitySpecialRenderer[tileentity.Transposer] {
-  override def render(transposer: tileentity.Transposer, x: Double, y: Double, z: Double, f: Float, damage: Int, alpha: Float) {
+class TransposerRenderer(context: BlockEntityRendererProvider.Context) extends BlockEntityRenderer[tileentity.Transposer] {
+  override def render(transposer: tileentity.Transposer, partialTick: Float, poseStack: PoseStack, bufferSource: MultiBufferSource, packedLight: Int, packedOverlay: Int): Unit = {
     RenderState.checkError(getClass.getName + ".render: entering (aka: wasntme)")
 
     val activity = math.max(0, 1 - (System.currentTimeMillis() - transposer.lastOperation) / 1000.0)
     if (activity > 0) {
-      RenderState.pushAttrib()
+      poseStack.pushPose()
+      poseStack.translate(0.5, 0.5, 0.5)
+      poseStack.scale(1.0025f, -1.0025f, 1.0025f)
+      poseStack.translate(-0.5f, -0.5f, -0.5f)
 
-      RenderState.disableEntityLighting()
-      RenderState.makeItBlend()
-      RenderState.setBlendAlpha(activity.toFloat)
-
-      GlStateManager.pushMatrix()
-
-      GlStateManager.translate(x + 0.5, y + 0.5, z + 0.5)
-      GlStateManager.scale(1.0025, -1.0025, 1.0025)
-      GlStateManager.translate(-0.5f, -0.5f, -0.5f)
-
-      val t = Tessellator.getInstance
-      val r = t.getBuffer
-
-      Textures.Block.bind()
-      r.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX)
+      val buffer = bufferSource.getBuffer(RenderType.translucent())
+      val pose = poseStack.last().pose()
+      val alpha = activity.toFloat
 
       val icon = Textures.getSprite(Textures.Block.TransposerOn)
-      r.pos(0, 1, 0).tex(icon.getMaxU, icon.getMinV).endVertex()
-      r.pos(1, 1, 0).tex(icon.getMinU, icon.getMinV).endVertex()
-      r.pos(1, 1, 1).tex(icon.getMinU, icon.getMaxV).endVertex()
-      r.pos(0, 1, 1).tex(icon.getMaxU, icon.getMaxV).endVertex()
+      // Top face
+      addVertexWithAlpha(buffer, pose, 0, 1, 0, icon.getU1, icon.getV0, packedLight, packedOverlay, alpha)
+      addVertexWithAlpha(buffer, pose, 1, 1, 0, icon.getU0, icon.getV0, packedLight, packedOverlay, alpha)
+      addVertexWithAlpha(buffer, pose, 1, 1, 1, icon.getU0, icon.getV1, packedLight, packedOverlay, alpha)
+      addVertexWithAlpha(buffer, pose, 0, 1, 1, icon.getU1, icon.getV1, packedLight, packedOverlay, alpha)
 
-      r.pos(0, 0, 0).tex(icon.getMaxU, icon.getMaxV).endVertex()
-      r.pos(0, 0, 1).tex(icon.getMaxU, icon.getMinV).endVertex()
-      r.pos(1, 0, 1).tex(icon.getMinU, icon.getMinV).endVertex()
-      r.pos(1, 0, 0).tex(icon.getMinU, icon.getMaxV).endVertex()
+      // Bottom face
+      addVertexWithAlpha(buffer, pose, 0, 0, 0, icon.getU1, icon.getV1, packedLight, packedOverlay, alpha)
+      addVertexWithAlpha(buffer, pose, 0, 0, 1, icon.getU1, icon.getV0, packedLight, packedOverlay, alpha)
+      addVertexWithAlpha(buffer, pose, 1, 0, 1, icon.getU0, icon.getV0, packedLight, packedOverlay, alpha)
+      addVertexWithAlpha(buffer, pose, 1, 0, 0, icon.getU0, icon.getV1, packedLight, packedOverlay, alpha)
 
-      r.pos(1, 1, 0).tex(icon.getMinU, icon.getMaxV).endVertex()
-      r.pos(0, 1, 0).tex(icon.getMaxU, icon.getMaxV).endVertex()
-      r.pos(0, 0, 0).tex(icon.getMaxU, icon.getMinV).endVertex()
-      r.pos(1, 0, 0).tex(icon.getMinU, icon.getMinV).endVertex()
+      // Front face
+      addVertexWithAlpha(buffer, pose, 1, 1, 0, icon.getU0, icon.getV1, packedLight, packedOverlay, alpha)
+      addVertexWithAlpha(buffer, pose, 0, 1, 0, icon.getU1, icon.getV1, packedLight, packedOverlay, alpha)
+      addVertexWithAlpha(buffer, pose, 0, 0, 0, icon.getU1, icon.getV0, packedLight, packedOverlay, alpha)
+      addVertexWithAlpha(buffer, pose, 1, 0, 0, icon.getU0, icon.getV0, packedLight, packedOverlay, alpha)
 
-      r.pos(0, 1, 1).tex(icon.getMinU, icon.getMaxV).endVertex()
-      r.pos(1, 1, 1).tex(icon.getMaxU, icon.getMaxV).endVertex()
-      r.pos(1, 0, 1).tex(icon.getMaxU, icon.getMinV).endVertex()
-      r.pos(0, 0, 1).tex(icon.getMinU, icon.getMinV).endVertex()
+      // Back face
+      addVertexWithAlpha(buffer, pose, 0, 1, 1, icon.getU0, icon.getV1, packedLight, packedOverlay, alpha)
+      addVertexWithAlpha(buffer, pose, 1, 1, 1, icon.getU1, icon.getV1, packedLight, packedOverlay, alpha)
+      addVertexWithAlpha(buffer, pose, 1, 0, 1, icon.getU1, icon.getV0, packedLight, packedOverlay, alpha)
+      addVertexWithAlpha(buffer, pose, 0, 0, 1, icon.getU0, icon.getV0, packedLight, packedOverlay, alpha)
 
-      r.pos(0, 1, 0).tex(icon.getMinU, icon.getMaxV).endVertex()
-      r.pos(0, 1, 1).tex(icon.getMaxU, icon.getMaxV).endVertex()
-      r.pos(0, 0, 1).tex(icon.getMaxU, icon.getMinV).endVertex()
-      r.pos(0, 0, 0).tex(icon.getMinU, icon.getMinV).endVertex()
+      // Left face
+      addVertexWithAlpha(buffer, pose, 0, 1, 0, icon.getU0, icon.getV1, packedLight, packedOverlay, alpha)
+      addVertexWithAlpha(buffer, pose, 0, 1, 1, icon.getU1, icon.getV1, packedLight, packedOverlay, alpha)
+      addVertexWithAlpha(buffer, pose, 0, 0, 1, icon.getU1, icon.getV0, packedLight, packedOverlay, alpha)
+      addVertexWithAlpha(buffer, pose, 0, 0, 0, icon.getU0, icon.getV0, packedLight, packedOverlay, alpha)
 
-      r.pos(1, 1, 1).tex(icon.getMinU, icon.getMaxV).endVertex()
-      r.pos(1, 1, 0).tex(icon.getMaxU, icon.getMaxV).endVertex()
-      r.pos(1, 0, 0).tex(icon.getMaxU, icon.getMinV).endVertex()
-      r.pos(1, 0, 1).tex(icon.getMinU, icon.getMinV).endVertex()
+      // Right face
+      addVertexWithAlpha(buffer, pose, 1, 1, 1, icon.getU0, icon.getV1, packedLight, packedOverlay, alpha)
+      addVertexWithAlpha(buffer, pose, 1, 1, 0, icon.getU1, icon.getV1, packedLight, packedOverlay, alpha)
+      addVertexWithAlpha(buffer, pose, 1, 0, 0, icon.getU1, icon.getV0, packedLight, packedOverlay, alpha)
+      addVertexWithAlpha(buffer, pose, 1, 0, 1, icon.getU0, icon.getV0, packedLight, packedOverlay, alpha)
 
-      t.draw()
-
-      RenderState.disableBlend()
-      RenderState.enableEntityLighting()
-
-      GlStateManager.popMatrix()
-      RenderState.popAttrib()
+      poseStack.popPose()
     }
 
     RenderState.checkError(getClass.getName + ".render: leaving")
   }
+
+  private def addVertexWithAlpha(buffer: VertexConsumer, pose: Matrix4f, x: Float, y: Float, z: Float, u: Float, v: Float, packedLight: Int, packedOverlay: Int, alpha: Float): Unit = {
+    buffer.vertex(pose, x, y, z)
+      .color(1.0f, 1.0f, 1.0f, alpha)
+      .uv(u, v)
+      .overlayCoords(packedOverlay)
+      .uv2(packedLight)
+      .normal(0.0f, 1.0f, 0.0f)
+      .endVertex()
+  }
+}
+
+object TransposerRenderer {
+  def apply(context: BlockEntityRendererProvider.Context): TransposerRenderer = new TransposerRenderer(context)
 }

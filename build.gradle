@@ -48,6 +48,16 @@ repositories {
         name = 'Architectury'
         url = 'https://maven.architectury.dev/'
     }
+    // PaulsCode repository for sound system
+    maven {
+        name = 'PaulsCode'
+        url = 'https://www.paulscode.com/forum/index.php?action=downloads;sa=downfile&id=1'
+    }
+    // Alternative repository for PaulsCode libraries
+    maven {
+        name = 'JCenter'
+        url = 'https://jcenter.bintray.com/'
+    }
 }
 
 dependencies {
@@ -65,6 +75,13 @@ dependencies {
     
     // Scala library for Scala compilation
     implementation 'org.scala-lang:scala-library:2.13.12'
+    
+    // PaulsCode SoundSystem for OpenComputers sound functionality
+    implementation 'com.paulscode:soundsystem:20120107'
+    implementation 'com.paulscode:codecjorbis:20101023'
+    implementation 'com.paulscode:codecwav:20101023'
+    implementation 'com.paulscode:libraryjavasound:20101123'
+    implementation 'com.paulscode:librarylwjglopenal:20100824'
     
     // REI integration will be added later when we find compatible versions
     // implementation "me.shedaniel:RoughlyEnoughItems-neoforge:12.0.684"

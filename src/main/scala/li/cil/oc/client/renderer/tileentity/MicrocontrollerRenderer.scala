@@ -1,73 +1,85 @@
 package li.cil.oc.client.renderer.tileentity
 
+import com.mojang.blaze3d.vertex.{PoseStack, VertexConsumer}
 import li.cil.oc.client.Textures
 import li.cil.oc.common.tileentity.Microcontroller
 import li.cil.oc.util.RenderState
-import net.minecraft.client.renderer.GlStateManager
-import net.minecraft.client.renderer.Tessellator
-import net.minecraft.client.renderer.BufferBuilder
-import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats
-import net.minecraft.util.EnumFacing
-import net.minecraft.util.ResourceLocation
-import org.lwjgl.opengl.GL11
+import net.minecraft.client.renderer.{MultiBufferSource, RenderType}
+import net.minecraft.client.renderer.blockentity.{BlockEntityRenderer, BlockEntityRendererProvider}
+import net.minecraft.core.Direction
+import net.minecraft.resources.ResourceLocation
+import org.joml.Matrix4f
 
-object MicrocontrollerRenderer extends TileEntitySpecialRenderer[Microcontroller] {
-  override def render(mcu: Microcontroller, x: Double, y: Double, z: Double, f: Float, damage: Int, alpha: Float) {
+class MicrocontrollerRenderer(context: BlockEntityRendererProvider.Context) extends BlockEntityRenderer[Microcontroller] {
+  override def render(mcu: Microcontroller, partialTick: Float, poseStack: PoseStack, bufferSource: MultiBufferSource, packedLight: Int, packedOverlay: Int): Unit = {
     RenderState.checkError(getClass.getName + ".render: entering (aka: wasntme)")
 
-    RenderState.pushAttrib()
-
-    RenderState.disableEntityLighting()
-    RenderState.makeItBlend()
-    RenderState.setBlendAlpha(1)
-    GlStateManager.color(1, 1, 1, 1)
-
-    GlStateManager.pushMatrix()
-
-    GlStateManager.translate(x + 0.5, y + 0.5, z + 0.5)
+    poseStack.pushPose()
+    poseStack.translate(0.5, 0.5, 0.5)
 
     mcu.yaw match {
-      case EnumFacing.WEST => GlStateManager.rotate(-90, 0, 1, 0)
-      case EnumFacing.NORTH => GlStateManager.rotate(180, 0, 1, 0)
-      case EnumFacing.EAST => GlStateManager.rotate(90, 0, 1, 0)
+      case Direction.WEST => poseStack.mulPose(org.joml.Quaternionf().rotateY(Math.toRadians(-90).toFloat))
+      case Direction.NORTH => poseStack.mulPose(org.joml.Quaternionf().rotateY(Math.toRadians(180).toFloat))
+      case Direction.EAST => poseStack.mulPose(org.joml.Quaternionf().rotateY(Math.toRadians(90).toFloat))
       case _ => // No yaw.
     }
 
-    GlStateManager.translate(-0.5, 0.5, 0.505)
-    GlStateManager.scale(1, -1, 1)
+    poseStack.translate(-0.5, 0.5, 0.505)
+    poseStack.scale(1, -1, 1)
 
-    val t = Tessellator.getInstance
-    val r = t.getBuffer
+    val buffer = bufferSource.getBuffer(RenderType.cutout())
+    val pose = poseStack.last().pose()
 
-    Textures.Block.bind()
-    r.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX)
-
-    renderFrontOverlay(Textures.Block.MicrocontrollerFrontLight, r)
+    renderFrontOverlay(Textures.Block.MicrocontrollerFrontLight, buffer, pose, packedLight, packedOverlay)
 
     if (mcu.isRunning) {
-      renderFrontOverlay(Textures.Block.MicrocontrollerFrontOn, r)
+      renderFrontOverlay(Textures.Block.MicrocontrollerFrontOn, buffer, pose, packedLight, packedOverlay)
     }
     else if (mcu.hasErrored && RenderUtil.shouldShowErrorLight(mcu.hashCode)) {
-      renderFrontOverlay(Textures.Block.MicrocontrollerFrontError, r)
+      renderFrontOverlay(Textures.Block.MicrocontrollerFrontError, buffer, pose, packedLight, packedOverlay)
     }
 
-    t.draw()
-
-    RenderState.disableBlend()
-    RenderState.enableEntityLighting()
-
-    GlStateManager.popMatrix()
-    RenderState.popAttrib()
+    poseStack.popPose()
 
     RenderState.checkError(getClass.getName + ".render: leaving")
   }
 
-  private def renderFrontOverlay(texture: ResourceLocation, r: BufferBuilder): Unit = {
+  private def renderFrontOverlay(texture: ResourceLocation, buffer: VertexConsumer, pose: Matrix4f, packedLight: Int, packedOverlay: Int): Unit = {
     val icon = Textures.getSprite(texture)
-    r.pos(0, 1, 0).tex(icon.getMinU, icon.getMaxV).endVertex()
-    r.pos(1, 1, 0).tex(icon.getMaxU, icon.getMaxV).endVertex()
-    r.pos(1, 0, 0).tex(icon.getMaxU, icon.getMinV).endVertex()
-    r.pos(0, 0, 0).tex(icon.getMinU, icon.getMinV).endVertex()
+    
+    buffer.vertex(pose, 0, 1, 0)
+      .uv(icon.getU0, icon.getV1)
+      .overlayCoords(packedOverlay)
+      .uv2(packedLight)
+      .normal(0.0f, 0.0f, 1.0f)
+      .endVertex()
+    
+    buffer.vertex(pose, 1, 1, 0)
+      .uv(icon.getU1, icon.getV1)
+      .overlayCoords(packedOverlay)
+      .uv2(packedLight)
+      .normal(0.0f, 0.0f, 1.0f)
+      .endVertex()
+    
+    buffer.vertex(pose, 1, 0, 0)
+      .uv(icon.getU1, icon.getV0)
+      .overlayCoords(packedOverlay)
+      .uv2(packedLight)
+      .normal(0.0f, 0.0f, 1.0f)
+      .endVertex()
+    
+    buffer.vertex(pose, 0, 0, 0)
+      .uv(icon.getU0, icon.getV0)
+      .overlayCoords(packedOverlay)
+      .uv2(packedLight)
+      .normal(0.0f, 0.0f, 1.0f)
+      .endVertex()
   }
+}
+
+/**
+ * Companion object for creating the renderer
+ */
+object MicrocontrollerRenderer {
+  def apply(context: BlockEntityRendererProvider.Context): MicrocontrollerRenderer = new MicrocontrollerRenderer(context)
 }

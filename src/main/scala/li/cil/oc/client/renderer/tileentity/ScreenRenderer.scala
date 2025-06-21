@@ -1,5 +1,7 @@
 package li.cil.oc.client.renderer.tileentity
 
+import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.blaze3d.vertex.{PoseStack, VertexConsumer}
 import li.cil.oc.Constants
 import li.cil.oc.Settings
 import li.cil.oc.api
@@ -9,18 +11,15 @@ import li.cil.oc.common.tileentity.Screen
 import li.cil.oc.integration.util.Wrench
 import li.cil.oc.util.RenderState
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.GlStateManager
-import net.minecraft.client.renderer.OpenGlHelper
-import net.minecraft.client.renderer.Tessellator
-import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats
-import net.minecraft.item.ItemStack
-import net.minecraft.util.EnumFacing
+import net.minecraft.client.renderer.{MultiBufferSource, RenderType}
+import net.minecraft.client.renderer.blockentity.{BlockEntityRenderer, BlockEntityRendererProvider}
+import net.minecraft.core.Direction
+import net.minecraft.world.item.ItemStack
+import org.joml.Matrix4f
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL14
-import org.lwjgl.opengl.GLContext
 
-object ScreenRenderer extends TileEntitySpecialRenderer[Screen] {
+class ScreenRenderer(context: BlockEntityRendererProvider.Context) extends BlockEntityRenderer[Screen] {
   private val maxRenderDistanceSq = Settings.get.maxScreenTextRenderDistance * Settings.get.maxScreenTextRenderDistance
 
   private val fadeDistanceSq = Settings.get.screenTextFadeStartDistance * Settings.get.screenTextFadeStartDistance
@@ -28,14 +27,22 @@ object ScreenRenderer extends TileEntitySpecialRenderer[Screen] {
   private val fadeRatio = 1.0 / (maxRenderDistanceSq - fadeDistanceSq)
 
   private var screen: Screen = null
+  private var poseStack: PoseStack = null
+  private var bufferSource: MultiBufferSource = null
+  private var packedLight: Int = 0
+  private var packedOverlay: Int = 0
 
-  private val canUseBlendColor = GLContext.getCapabilities.OpenGL14
+  private val canUseBlendColor = true // OpenGL 1.4 is always available in modern MC
 
   // ----------------------------------------------------------------------- //
   // Rendering
   // ----------------------------------------------------------------------- //
 
-  override def render(screen: Screen, x: Double, y: Double, z: Double, f: Float, damage: Int, alpha: Float) {
+  override def render(screen: Screen, partialTick: Float, poseStack: PoseStack, bufferSource: MultiBufferSource, packedLight: Int, packedOverlay: Int): Unit = {
+    this.poseStack = poseStack
+    this.bufferSource = bufferSource
+    this.packedLight = packedLight
+    this.packedOverlay = packedOverlay
     RenderState.checkError(getClass.getName + ".render: entering (aka: wasntme)")
 
     this.screen = screen
@@ -48,29 +55,25 @@ object ScreenRenderer extends TileEntitySpecialRenderer[Screen] {
       return
     }
 
-    // y = block.bottom - player.feet
-    // eye is higher, so the y delta should be more negative
-    val eye_delta: Double = y - Minecraft.getMinecraft.player.getEyeHeight
-
+    // Get camera position for visibility check
+    val cameraPos = context.getBlockEntityRenderDispatcher.camera.getPosition
+    val screenPos = screen.getBlockPos
+    val relativePos = cameraPos.subtract(screenPos.getX + 0.5, screenPos.getY + 0.5, screenPos.getZ + 0.5)
+    
     // Crude check whether screen text can be seen by the local player based
     // on the player's position -> angle relative to screen.
     val screenFacing = screen.facing.getOpposite
-    if (screenFacing.getXOffset * (x + 0.5) + screenFacing.getYOffset * (eye_delta + 0.5) + screenFacing.getZOffset * (z + 0.5) < 0) {
+    if (screenFacing.getStepX * relativePos.x + screenFacing.getStepY * relativePos.y + screenFacing.getStepZ * relativePos.z < 0) {
       return
     }
 
     RenderState.checkError(getClass.getName + ".render: checks")
 
-    RenderState.pushAttrib()
+    RenderSystem.enableBlend()
+    RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
 
-    OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, 0xFF, 0xFF)
-    RenderState.disableEntityLighting()
-    RenderState.makeItBlend()
-    GlStateManager.color(1, 1, 1, 1)
-
-    GlStateManager.pushMatrix()
-
-    GlStateManager.translate(x + 0.5, y + 0.5, z + 0.5)
+    poseStack.pushPose()
+    poseStack.translate(0.5, 0.5, 0.5)
 
     RenderState.checkError(getClass.getName + ".render: setup")
 
@@ -81,48 +84,46 @@ object ScreenRenderer extends TileEntitySpecialRenderer[Screen] {
     if (distance > fadeDistanceSq) {
       val alpha = math.max(0, 1 - ((distance - fadeDistanceSq) * fadeRatio).toFloat)
       if (canUseBlendColor) {
-        GL14.glBlendColor(0, 0, 0, alpha)
-        GlStateManager.blendFunc(GL11.GL_CONSTANT_ALPHA, GL11.GL_ONE)
+        RenderSystem.blendColor(0, 0, 0, alpha)
+        RenderSystem.blendFunc(GL11.GL_CONSTANT_ALPHA, GL11.GL_ONE)
       }
     }
 
     RenderState.checkError(getClass.getName + ".render: fade")
 
     if (screen.buffer.isRenderingEnabled) {
-      val profiler = Minecraft.getMinecraft.profiler
-      profiler.startSection("opencomputers:screen_text")
+      val profiler = Minecraft.getInstance().getProfiler
+      profiler.push("opencomputers:screen_text")
       draw()
-      profiler.endSection()
+      profiler.pop()
     }
 
-    RenderState.disableBlend()
-    RenderState.enableEntityLighting()
+    RenderSystem.disableBlend()
 
-    GlStateManager.popMatrix()
-    RenderState.popAttrib()
+    poseStack.popPose()
 
     RenderState.checkError(getClass.getName + ".render: leaving")
   }
 
-  private def transform() {
+  private def transform(): Unit = {
     screen.yaw match {
-      case EnumFacing.WEST => GlStateManager.rotate(-90, 0, 1, 0)
-      case EnumFacing.NORTH => GlStateManager.rotate(180, 0, 1, 0)
-      case EnumFacing.EAST => GlStateManager.rotate(90, 0, 1, 0)
+      case Direction.WEST => poseStack.mulPose(org.joml.Quaternionf().rotateY(Math.toRadians(-90).toFloat))
+      case Direction.NORTH => poseStack.mulPose(org.joml.Quaternionf().rotateY(Math.toRadians(180).toFloat))
+      case Direction.EAST => poseStack.mulPose(org.joml.Quaternionf().rotateY(Math.toRadians(90).toFloat))
       case _ => // No yaw.
     }
     screen.pitch match {
-      case EnumFacing.DOWN => GlStateManager.rotate(90, 1, 0, 0)
-      case EnumFacing.UP => GlStateManager.rotate(-90, 1, 0, 0)
+      case Direction.DOWN => poseStack.mulPose(org.joml.Quaternionf().rotateX(Math.toRadians(90).toFloat))
+      case Direction.UP => poseStack.mulPose(org.joml.Quaternionf().rotateX(Math.toRadians(-90).toFloat))
       case _ => // No pitch.
     }
 
     // Fit area to screen (bottom left = bottom left).
-    GlStateManager.translate(-0.5f, -0.5f, 0.5f)
-    GlStateManager.translate(0, screen.height, 0)
+    poseStack.translate(-0.5f, -0.5f, 0.5f)
+    poseStack.translate(0, screen.height, 0)
 
     // Flip text upside down.
-    GlStateManager.scale(1, -1, 1)
+    poseStack.scale(1, -1, 1)
   }
 
   private def isScreen(stack: ItemStack): Boolean = api.Items.get(stack) match {
@@ -133,37 +134,56 @@ object ScreenRenderer extends TileEntitySpecialRenderer[Screen] {
     case _ => false
   }
 
-  private def drawOverlay() = if (screen.facing == EnumFacing.UP || screen.facing == EnumFacing.DOWN) {
+  private def drawOverlay(): Unit = if (screen.facing == Direction.UP || screen.facing == Direction.DOWN) {
     // Show up vector overlay when holding same screen block.
-    val stack = Minecraft.getMinecraft.player.getHeldItemMainhand
+    val stack = Minecraft.getInstance().player.getMainHandItem
     if (!stack.isEmpty) {
-      if (Wrench.holdsApplicableWrench(Minecraft.getMinecraft.player, screen.getPos) || isScreen(stack)) {
-        GlStateManager.pushMatrix()
+      if (Wrench.holdsApplicableWrench(Minecraft.getInstance().player, screen.getBlockPos) || isScreen(stack)) {
+        poseStack.pushPose()
         transform()
-        GlStateManager.depthMask(false)
-        GlStateManager.translate(screen.width / 2f - 0.5f, screen.height / 2f - 0.5f, 0.05f)
+        RenderSystem.depthMask(false)
+        poseStack.translate(screen.width / 2f - 0.5f, screen.height / 2f - 0.5f, 0.05f)
 
-        val t = Tessellator.getInstance
-        val r = t.getBuffer
-
-        Textures.Block.bind()
-        r.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX)
+        val buffer = bufferSource.getBuffer(RenderType.cutout())
+        val pose = poseStack.last().pose()
 
         val icon = Textures.getSprite(Textures.Block.ScreenUpIndicator)
-        r.pos(0, 1, 0).tex(icon.getMinU, icon.getMaxV).endVertex()
-        r.pos(1, 1, 0).tex(icon.getMaxU, icon.getMaxV).endVertex()
-        r.pos(1, 0, 0).tex(icon.getMaxU, icon.getMinV).endVertex()
-        r.pos(0, 0, 0).tex(icon.getMinU, icon.getMinV).endVertex()
+        
+        buffer.vertex(pose, 0, 1, 0)
+          .uv(icon.getU0, icon.getV1)
+          .overlayCoords(packedOverlay)
+          .uv2(packedLight)
+          .normal(0.0f, 0.0f, 1.0f)
+          .endVertex()
+        
+        buffer.vertex(pose, 1, 1, 0)
+          .uv(icon.getU1, icon.getV1)
+          .overlayCoords(packedOverlay)
+          .uv2(packedLight)
+          .normal(0.0f, 0.0f, 1.0f)
+          .endVertex()
+        
+        buffer.vertex(pose, 1, 0, 0)
+          .uv(icon.getU1, icon.getV0)
+          .overlayCoords(packedOverlay)
+          .uv2(packedLight)
+          .normal(0.0f, 0.0f, 1.0f)
+          .endVertex()
+        
+        buffer.vertex(pose, 0, 0, 0)
+          .uv(icon.getU0, icon.getV0)
+          .overlayCoords(packedOverlay)
+          .uv2(packedLight)
+          .normal(0.0f, 0.0f, 1.0f)
+          .endVertex()
 
-        t.draw()
-
-        GlStateManager.depthMask(true)
-        GlStateManager.popMatrix()
+        RenderSystem.depthMask(true)
+        poseStack.popPose()
       }
     }
   }
 
-  private def draw() {
+  private def draw(): Unit = {
     RenderState.checkError(getClass.getName + ".draw: entering (aka: wasntme)")
 
     val sx = screen.width
@@ -174,7 +194,7 @@ object ScreenRenderer extends TileEntitySpecialRenderer[Screen] {
     transform()
 
     // Offset from border.
-    GlStateManager.translate(sx * 2.25f / tw, sy * 2.25f / th, 0)
+    poseStack.translate(sx * 2.25f / tw, sy * 2.25f / th, 0)
 
     // Inner size (minus borders).
     val isx = sx - (4.5f / 16)
@@ -187,21 +207,21 @@ object ScreenRenderer extends TileEntitySpecialRenderer[Screen] {
     val scaleY = isy / sizeY
     if (true) {
       if (scaleX > scaleY) {
-        GlStateManager.translate(sizeX * 0.5f * (scaleX - scaleY), 0, 0)
-        GlStateManager.scale(scaleY, scaleY, 1)
+        poseStack.translate(sizeX * 0.5f * (scaleX - scaleY), 0, 0)
+        poseStack.scale(scaleY, scaleY, 1)
       }
       else {
-        GlStateManager.translate(0, sizeY * 0.5f * (scaleY - scaleX), 0)
-        GlStateManager.scale(scaleX, scaleX, 1)
+        poseStack.translate(0, sizeY * 0.5f * (scaleY - scaleX), 0)
+        poseStack.scale(scaleX, scaleX, 1)
       }
     }
     else {
       // Stretch to fit.
-      GlStateManager.scale(scaleX, scaleY, 1)
+      poseStack.scale(scaleX, scaleY, 1)
     }
 
     // Slightly offset the text so it doesn't clip into the screen.
-    GlStateManager.translate(0, 0, 0.01)
+    poseStack.translate(0, 0, 0.01)
 
     RenderState.checkError(getClass.getName + ".draw: setup")
 
@@ -212,12 +232,12 @@ object ScreenRenderer extends TileEntitySpecialRenderer[Screen] {
   }
 
   private def playerDistanceSq() = {
-    val player = Minecraft.getMinecraft.player
+    val player = Minecraft.getInstance().player
     val bounds = screen.getRenderBoundingBox
 
-    val px = player.posX
-    val py = player.posY
-    val pz = player.posZ
+    val px = player.getX
+    val py = player.getY
+    val pz = player.getZ
 
     val ex = bounds.maxX - bounds.minX
     val ey = bounds.maxY - bounds.minY
@@ -255,4 +275,11 @@ object ScreenRenderer extends TileEntitySpecialRenderer[Screen] {
     }
     else 0)
   }
+}
+
+/**
+ * Companion object for creating the renderer
+ */
+object ScreenRenderer {
+  def apply(context: BlockEntityRendererProvider.Context): ScreenRenderer = new ScreenRenderer(context)
 }

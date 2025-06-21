@@ -1,41 +1,38 @@
 package li.cil.oc.client.renderer.tileentity
 
+import com.mojang.blaze3d.vertex.PoseStack
 import li.cil.oc.api.event.RackMountableRenderEvent
 import li.cil.oc.common.tileentity.Rack
 import li.cil.oc.util.RenderState
-import net.minecraft.client.renderer.GlStateManager
-import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer
-import net.minecraft.util.EnumFacing
+import net.minecraft.client.renderer.MultiBufferSource
+import net.minecraft.client.renderer.blockentity.{BlockEntityRenderer, BlockEntityRendererProvider}
+import net.minecraft.core.Direction
 import net.minecraftforge.common.MinecraftForge
-import org.lwjgl.opengl.GL11
 
-object RackRenderer extends TileEntitySpecialRenderer[Rack] {
+class RackRenderer(context: BlockEntityRendererProvider.Context) extends BlockEntityRenderer[Rack] {
   private final val vOffset = 2 / 16f
   private final val vSize = 3 / 16f
 
-  override def render(rack: Rack, x: Double, y: Double, z: Double, partialTicks: Float, destroyStage: Int, alpha: Float): Unit = {
+  override def render(rack: Rack, partialTick: Float, poseStack: PoseStack, bufferSource: MultiBufferSource, packedLight: Int, packedOverlay: Int): Unit = {
     RenderState.checkError(getClass.getName + ".render: entering (aka: wasntme)")
 
-    RenderState.pushAttrib()
-
-    GlStateManager.pushMatrix()
-
-    GlStateManager.translate(x + 0.5, y + 0.5, z + 0.5)
+    poseStack.pushPose()
+    poseStack.translate(0.5, 0.5, 0.5)
 
     rack.yaw match {
-      case EnumFacing.WEST => GlStateManager.rotate(-90, 0, 1, 0)
-      case EnumFacing.NORTH => GlStateManager.rotate(180, 0, 1, 0)
-      case EnumFacing.EAST => GlStateManager.rotate(90, 0, 1, 0)
+      case Direction.WEST => poseStack.mulPose(org.joml.Quaternionf().rotateY(Math.toRadians(-90).toFloat))
+      case Direction.NORTH => poseStack.mulPose(org.joml.Quaternionf().rotateY(Math.toRadians(180).toFloat))
+      case Direction.EAST => poseStack.mulPose(org.joml.Quaternionf().rotateY(Math.toRadians(90).toFloat))
       case _ => // No yaw.
     }
 
-    GlStateManager.translate(-0.5, 0.5, 0.505 - 0.5f / 16f)
-    GlStateManager.scale(1, -1, 1)
+    poseStack.translate(-0.5, 0.5, 0.505 - 0.5f / 16f)
+    poseStack.scale(1, -1, 1)
 
     // Note: we manually sync the rack inventory for this to work.
-    for (i <- 0 until rack.getSizeInventory) {
-      if (!rack.getStackInSlot(i).isEmpty) {
-        GlStateManager.pushMatrix()
+    for (i <- 0 until rack.getContainerSize) {
+      if (!rack.getItem(i).isEmpty) {
+        poseStack.pushPose()
         RenderState.pushAttrib()
 
         val v0 = vOffset + i * vSize
@@ -44,13 +41,19 @@ object RackRenderer extends TileEntitySpecialRenderer[Rack] {
         MinecraftForge.EVENT_BUS.post(event)
 
         RenderState.popAttrib()
-        GlStateManager.popMatrix()
+        poseStack.popPose()
       }
     }
 
-    GlStateManager.popMatrix()
-    RenderState.popAttrib()
+    poseStack.popPose()
 
     RenderState.checkError(getClass.getName + ".render: leaving")
   }
+}
+
+/**
+ * Companion object for creating the renderer
+ */
+object RackRenderer {
+  def apply(context: BlockEntityRendererProvider.Context): RackRenderer = new RackRenderer(context)
 }

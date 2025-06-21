@@ -22,9 +22,7 @@ import org.lwjgl.opengl.GL11
  * - Shows which sides are open/active
  * - Uses proper texture mapping and vertex rendering
  */
-object AdapterRenderer extends BlockEntityRenderer[tileentity.Adapter] {
-  
-  def this(context: BlockEntityRendererProvider.Context) = this
+class AdapterRenderer(context: BlockEntityRendererProvider.Context) extends BlockEntityRenderer[tileentity.Adapter] {
 
   override def render(adapter: tileentity.Adapter, partialTick: Float, poseStack: PoseStack, bufferSource: MultiBufferSource, packedLight: Int, packedOverlay: Int): Unit = {
     RenderState.checkError(getClass.getName + ".render: entering (aka: wasntme)")
@@ -47,12 +45,12 @@ object AdapterRenderer extends BlockEntityRenderer[tileentity.Adapter] {
       val sideActivity = Textures.getSprite(Textures.Block.AdapterOn)
 
       // Render each open side with activity texture
-      renderSide(adapter, vertexConsumer, poseStack, Direction.DOWN, sideActivity)
-      renderSide(adapter, vertexConsumer, poseStack, Direction.UP, sideActivity)
-      renderSide(adapter, vertexConsumer, poseStack, Direction.NORTH, sideActivity)
-      renderSide(adapter, vertexConsumer, poseStack, Direction.SOUTH, sideActivity)
-      renderSide(adapter, vertexConsumer, poseStack, Direction.WEST, sideActivity)
-      renderSide(adapter, vertexConsumer, poseStack, Direction.EAST, sideActivity)
+      renderSide(adapter, vertexConsumer, poseStack, Direction.DOWN, sideActivity, packedLight, packedOverlay)
+      renderSide(adapter, vertexConsumer, poseStack, Direction.UP, sideActivity, packedLight, packedOverlay)
+      renderSide(adapter, vertexConsumer, poseStack, Direction.NORTH, sideActivity, packedLight, packedOverlay)
+      renderSide(adapter, vertexConsumer, poseStack, Direction.SOUTH, sideActivity, packedLight, packedOverlay)
+      renderSide(adapter, vertexConsumer, poseStack, Direction.WEST, sideActivity, packedLight, packedOverlay)
+      renderSide(adapter, vertexConsumer, poseStack, Direction.EAST, sideActivity, packedLight, packedOverlay)
 
       RenderState.disableBlend()
       RenderState.enableEntityLighting()
@@ -67,47 +65,54 @@ object AdapterRenderer extends BlockEntityRenderer[tileentity.Adapter] {
   /**
    * Render a single side of the adapter if it's open.
    */
-  private def renderSide(adapter: tileentity.Adapter, vertexConsumer: VertexConsumer, poseStack: PoseStack, side: Direction, sprite: net.minecraft.client.renderer.texture.TextureAtlasSprite): Unit = {
+  private def renderSide(adapter: tileentity.Adapter, vertexConsumer: VertexConsumer, poseStack: PoseStack, side: Direction, sprite: net.minecraft.client.renderer.texture.TextureAtlasSprite, packedLight: Int, packedOverlay: Int): Unit = {
     if (adapter.isSideOpen(side)) {
       val matrix = poseStack.last().pose()
       
       side match {
         case Direction.DOWN =>
-          vertexConsumer.vertex(matrix, 0, 1, 0).uv(sprite.getU1, sprite.getV0).endVertex()
-          vertexConsumer.vertex(matrix, 1, 1, 0).uv(sprite.getU0, sprite.getV0).endVertex()
-          vertexConsumer.vertex(matrix, 1, 1, 1).uv(sprite.getU0, sprite.getV1).endVertex()
-          vertexConsumer.vertex(matrix, 0, 1, 1).uv(sprite.getU1, sprite.getV1).endVertex()
+          vertexConsumer.vertex(matrix, 0, 1, 0).uv(sprite.getU1, sprite.getV0).overlayCoords(packedOverlay).uv2(packedLight).normal(0, -1, 0).endVertex()
+          vertexConsumer.vertex(matrix, 1, 1, 0).uv(sprite.getU0, sprite.getV0).overlayCoords(packedOverlay).uv2(packedLight).normal(0, -1, 0).endVertex()
+          vertexConsumer.vertex(matrix, 1, 1, 1).uv(sprite.getU0, sprite.getV1).overlayCoords(packedOverlay).uv2(packedLight).normal(0, -1, 0).endVertex()
+          vertexConsumer.vertex(matrix, 0, 1, 1).uv(sprite.getU1, sprite.getV1).overlayCoords(packedOverlay).uv2(packedLight).normal(0, -1, 0).endVertex()
           
         case Direction.UP =>
-          vertexConsumer.vertex(matrix, 0, 0, 0).uv(sprite.getU1, sprite.getV1).endVertex()
-          vertexConsumer.vertex(matrix, 0, 0, 1).uv(sprite.getU1, sprite.getV0).endVertex()
-          vertexConsumer.vertex(matrix, 1, 0, 1).uv(sprite.getU0, sprite.getV0).endVertex()
-          vertexConsumer.vertex(matrix, 1, 0, 0).uv(sprite.getU0, sprite.getV1).endVertex()
+          vertexConsumer.vertex(matrix, 0, 0, 0).uv(sprite.getU1, sprite.getV1).overlayCoords(packedOverlay).uv2(packedLight).normal(0, 1, 0).endVertex()
+          vertexConsumer.vertex(matrix, 0, 0, 1).uv(sprite.getU1, sprite.getV0).overlayCoords(packedOverlay).uv2(packedLight).normal(0, 1, 0).endVertex()
+          vertexConsumer.vertex(matrix, 1, 0, 1).uv(sprite.getU0, sprite.getV0).overlayCoords(packedOverlay).uv2(packedLight).normal(0, 1, 0).endVertex()
+          vertexConsumer.vertex(matrix, 1, 0, 0).uv(sprite.getU0, sprite.getV1).overlayCoords(packedOverlay).uv2(packedLight).normal(0, 1, 0).endVertex()
           
         case Direction.NORTH =>
-          vertexConsumer.vertex(matrix, 1, 1, 0).uv(sprite.getU0, sprite.getV1).endVertex()
-          vertexConsumer.vertex(matrix, 0, 1, 0).uv(sprite.getU1, sprite.getV1).endVertex()
-          vertexConsumer.vertex(matrix, 0, 0, 0).uv(sprite.getU1, sprite.getV0).endVertex()
-          vertexConsumer.vertex(matrix, 1, 0, 0).uv(sprite.getU0, sprite.getV0).endVertex()
+          vertexConsumer.vertex(matrix, 1, 1, 0).uv(sprite.getU0, sprite.getV1).overlayCoords(packedOverlay).uv2(packedLight).normal(0, 0, -1).endVertex()
+          vertexConsumer.vertex(matrix, 0, 1, 0).uv(sprite.getU1, sprite.getV1).overlayCoords(packedOverlay).uv2(packedLight).normal(0, 0, -1).endVertex()
+          vertexConsumer.vertex(matrix, 0, 0, 0).uv(sprite.getU1, sprite.getV0).overlayCoords(packedOverlay).uv2(packedLight).normal(0, 0, -1).endVertex()
+          vertexConsumer.vertex(matrix, 1, 0, 0).uv(sprite.getU0, sprite.getV0).overlayCoords(packedOverlay).uv2(packedLight).normal(0, 0, -1).endVertex()
           
         case Direction.SOUTH =>
-          vertexConsumer.vertex(matrix, 0, 1, 1).uv(sprite.getU0, sprite.getV1).endVertex()
-          vertexConsumer.vertex(matrix, 1, 1, 1).uv(sprite.getU1, sprite.getV1).endVertex()
-          vertexConsumer.vertex(matrix, 1, 0, 1).uv(sprite.getU1, sprite.getV0).endVertex()
-          vertexConsumer.vertex(matrix, 0, 0, 1).uv(sprite.getU0, sprite.getV0).endVertex()
+          vertexConsumer.vertex(matrix, 0, 1, 1).uv(sprite.getU0, sprite.getV1).overlayCoords(packedOverlay).uv2(packedLight).normal(0, 0, 1).endVertex()
+          vertexConsumer.vertex(matrix, 1, 1, 1).uv(sprite.getU1, sprite.getV1).overlayCoords(packedOverlay).uv2(packedLight).normal(0, 0, 1).endVertex()
+          vertexConsumer.vertex(matrix, 1, 0, 1).uv(sprite.getU1, sprite.getV0).overlayCoords(packedOverlay).uv2(packedLight).normal(0, 0, 1).endVertex()
+          vertexConsumer.vertex(matrix, 0, 0, 1).uv(sprite.getU0, sprite.getV0).overlayCoords(packedOverlay).uv2(packedLight).normal(0, 0, 1).endVertex()
           
         case Direction.WEST =>
-          vertexConsumer.vertex(matrix, 0, 1, 0).uv(sprite.getU0, sprite.getV1).endVertex()
-          vertexConsumer.vertex(matrix, 0, 1, 1).uv(sprite.getU1, sprite.getV1).endVertex()
-          vertexConsumer.vertex(matrix, 0, 0, 1).uv(sprite.getU1, sprite.getV0).endVertex()
-          vertexConsumer.vertex(matrix, 0, 0, 0).uv(sprite.getU0, sprite.getV0).endVertex()
+          vertexConsumer.vertex(matrix, 0, 1, 0).uv(sprite.getU0, sprite.getV1).overlayCoords(packedOverlay).uv2(packedLight).normal(-1, 0, 0).endVertex()
+          vertexConsumer.vertex(matrix, 0, 1, 1).uv(sprite.getU1, sprite.getV1).overlayCoords(packedOverlay).uv2(packedLight).normal(-1, 0, 0).endVertex()
+          vertexConsumer.vertex(matrix, 0, 0, 1).uv(sprite.getU1, sprite.getV0).overlayCoords(packedOverlay).uv2(packedLight).normal(-1, 0, 0).endVertex()
+          vertexConsumer.vertex(matrix, 0, 0, 0).uv(sprite.getU0, sprite.getV0).overlayCoords(packedOverlay).uv2(packedLight).normal(-1, 0, 0).endVertex()
           
         case Direction.EAST =>
-          vertexConsumer.vertex(matrix, 1, 1, 1).uv(sprite.getU0, sprite.getV1).endVertex()
-          vertexConsumer.vertex(matrix, 1, 1, 0).uv(sprite.getU1, sprite.getV1).endVertex()
-          vertexConsumer.vertex(matrix, 1, 0, 0).uv(sprite.getU1, sprite.getV0).endVertex()
-          vertexConsumer.vertex(matrix, 1, 0, 1).uv(sprite.getU0, sprite.getV0).endVertex()
+          vertexConsumer.vertex(matrix, 1, 1, 1).uv(sprite.getU0, sprite.getV1).overlayCoords(packedOverlay).uv2(packedLight).normal(1, 0, 0).endVertex()
+          vertexConsumer.vertex(matrix, 1, 1, 0).uv(sprite.getU1, sprite.getV1).overlayCoords(packedOverlay).uv2(packedLight).normal(1, 0, 0).endVertex()
+          vertexConsumer.vertex(matrix, 1, 0, 0).uv(sprite.getU1, sprite.getV0).overlayCoords(packedOverlay).uv2(packedLight).normal(1, 0, 0).endVertex()
+          vertexConsumer.vertex(matrix, 1, 0, 1).uv(sprite.getU0, sprite.getV0).overlayCoords(packedOverlay).uv2(packedLight).normal(1, 0, 0).endVertex()
       }
     }
   }
+}
+
+/**
+ * Companion object for creating the renderer
+ */
+object AdapterRenderer {
+  def apply(context: BlockEntityRendererProvider.Context): AdapterRenderer = new AdapterRenderer(context)
 }
