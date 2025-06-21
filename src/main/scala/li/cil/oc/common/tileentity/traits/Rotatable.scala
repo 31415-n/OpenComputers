@@ -6,9 +6,9 @@ import li.cil.oc.server.{PacketSender => ServerPacketSender}
 import li.cil.oc.util.ExtendedEnumFacing._
 import li.cil.oc.util.ExtendedWorld._
 import li.cil.oc.util.RotationHelper
-import net.minecraft.block.state.IBlockState
-import net.minecraft.entity.Entity
-import net.minecraft.util.EnumFacing
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.entity.Entity
+import net.minecraft.core.Direction
 
 /** TileEntity base class for rotatable blocks. */
 trait Rotatable extends RotationAware with internal.Rotatable {
@@ -16,34 +16,34 @@ trait Rotatable extends RotationAware with internal.Rotatable {
   // Lookup tables
   // ----------------------------------------------------------------------- //
 
-  private val pitch2Direction = Array(EnumFacing.UP, EnumFacing.NORTH, EnumFacing.DOWN)
+  private val pitch2Direction = Array(Direction.UP, Direction.NORTH, Direction.DOWN)
 
-  private val yaw2Direction = Array(EnumFacing.SOUTH, EnumFacing.WEST, EnumFacing.NORTH, EnumFacing.EAST)
+  private val yaw2Direction = Array(Direction.SOUTH, Direction.WEST, Direction.NORTH, Direction.EAST)
 
   // ----------------------------------------------------------------------- //
   // Accessors
   // ----------------------------------------------------------------------- //
 
-  def pitch = if (getWorld != null && getWorld.isBlockLoaded(getPos)) getWorld.getBlockState(getPos) match {
+  def pitch = if (getLevel != null && getLevel.isLoaded(getBlockPos)) getLevel.getBlockState(getBlockPos) match {
     case rotatable if rotatable.getProperties.containsKey(PropertyRotatable.Pitch) => rotatable.getValue(PropertyRotatable.Pitch)
-    case _ => EnumFacing.NORTH
+    case _ => Direction.NORTH
   } else null
 
-  def pitch_=(value: EnumFacing): Unit =
+  def pitch_=(value: Direction): Unit =
     trySetPitchYaw(value match {
-      case EnumFacing.DOWN | EnumFacing.UP => value
-      case _ => EnumFacing.NORTH
+      case Direction.DOWN | Direction.UP => value
+      case _ => Direction.NORTH
     }, yaw)
 
-  def yaw = if (getWorld != null && getWorld.isBlockLoaded(getPos)) getWorld.getBlockState(getPos) match {
+  def yaw = if (getLevel != null && getLevel.isLoaded(getBlockPos)) getLevel.getBlockState(getBlockPos) match {
     case rotatable if rotatable.getProperties.containsKey(PropertyRotatable.Yaw) => rotatable.getValue(PropertyRotatable.Yaw)
     case rotatable if rotatable.getProperties.containsKey(PropertyRotatable.Facing) => rotatable.getValue(PropertyRotatable.Facing)
-    case _ => EnumFacing.SOUTH
+    case _ => Direction.SOUTH
   } else null
 
-  def yaw_=(value: EnumFacing): Unit =
+  def yaw_=(value: Direction): Unit =
     trySetPitchYaw(pitch, value match {
-      case EnumFacing.DOWN | EnumFacing.UP => yaw
+      case Direction.DOWN | Direction.UP => yaw
       case _ => value
     })
 
@@ -77,7 +77,7 @@ trait Rotatable extends RotationAware with internal.Rotatable {
       val valid = block.getValidRotations(getWorld, getPos)
       if (valid != null && valid.contains(axis)) {
         val (newPitch, newYaw) = facing.getRotation(axis) match {
-          case value@(EnumFacing.UP | EnumFacing.DOWN) =>
+          case value@(Direction.UP | Direction.DOWN) =>
             if (value == pitch) (value, yaw.getRotation(axis))
             else (value, yaw)
           case value => (EnumFacing.NORTH, value)

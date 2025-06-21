@@ -6,13 +6,13 @@ import li.cil.oc.api.network.Connector
 import li.cil.oc.api.network.SidedEnvironment
 import li.cil.oc.common.EventHandler
 import li.cil.oc.util.ExtendedNBT._
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.util.EnumFacing
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.core.Direction
 
 trait Environment extends TileEntity with network.Environment with network.EnvironmentHost {
   protected var isChangeScheduled = false
 
-  override def world = getWorld
+  override def world = getLevel
 
   override def xPosition = x + 0.5
 
@@ -20,7 +20,7 @@ trait Environment extends TileEntity with network.Environment with network.Envir
 
   override def zPosition = z + 0.5
 
-  override def markChanged() = if (this.isInstanceOf[Tickable]) isChangeScheduled = true else getWorld.markChunkDirty(getPos, this)
+  override def markChanged() = if (this.isInstanceOf[Tickable]) isChangeScheduled = true else getLevel.setBlocksDirty(getBlockPos, getBlockState, getBlockState)
 
   protected def isConnected = node != null && node.address != null && node.network != null
 
@@ -36,7 +36,7 @@ trait Environment extends TileEntity with network.Environment with network.Envir
   override def updateEntity() {
     super.updateEntity()
     if (isChangeScheduled) {
-      getWorld.markChunkDirty(getPos, this)
+      getLevel.setBlocksDirty(getBlockPos, getBlockState, getBlockState)
       isChangeScheduled = false
     }
   }
@@ -46,7 +46,7 @@ trait Environment extends TileEntity with network.Environment with network.Envir
     if (isServer) {
       Option(node).foreach(_.remove)
       this match {
-        case sidedEnvironment: SidedEnvironment => for (side <- EnumFacing.values) {
+        case sidedEnvironment: SidedEnvironment => for (side <- Direction.values) {
           Option(sidedEnvironment.sidedNode(side)).foreach(_.remove())
         }
         case _ =>
@@ -58,14 +58,14 @@ trait Environment extends TileEntity with network.Environment with network.Envir
 
   private final val NodeTag = Settings.namespace + "node"
 
-  override def readFromNBTForServer(nbt: NBTTagCompound) {
+  override def readFromNBTForServer(nbt: CompoundTag) {
     super.readFromNBTForServer(nbt)
     if (node != null && node.host == this) {
-      node.load(nbt.getCompoundTag(NodeTag))
+      node.load(nbt.getCompound(NodeTag))
     }
   }
 
-  override def writeToNBTForServer(nbt: NBTTagCompound) {
+  override def writeToNBTForServer(nbt: CompoundTag) {
     super.writeToNBTForServer(nbt)
     if (node != null && node.host == this) {
       nbt.setNewCompoundTag(NodeTag, node.save)

@@ -121,8 +121,8 @@ object GuiHandler extends CommonGuiHandler {
               if (!Strings.isNullOrEmpty(key) && !Strings.isNullOrEmpty(address)) {
                 component.TerminalServer.loaded.find(address) match {
                   case Some(term) if term != null && term.rack != null => term.rack match {
-                    case rack: TileEntity with api.internal.Rack =>
-                      def inRange = player.isAlive && !rack.isRemoved && rack.distanceToSqr(player.getX, player.getY, player.getZ) < term.range * term.range
+                    case rack: BlockEntity with api.internal.Rack =>
+                      def inRange = player.isAlive && !rack.isRemoved && player.distanceToSqr(rack.getBlockPos.getX, rack.getBlockPos.getY, rack.getBlockPos.getZ) < term.range * term.range
                     if (inRange) {
                         if (term.sidedKeys.contains(key)) return new gui.Screen(term.buffer, true, () => true, () => {
                         // Check if someone else bound a term to our server.

@@ -16,12 +16,13 @@ import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.world.inventory.AbstractContainerMenu
 import net.minecraft.world.inventory.Slot
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 // Optional removed in newer versions
 import org.lwjgl.opengl.GL11
 
 import scala.jdk.CollectionConverters._
 
-abstract class DynamicGuiContainer[C <: AbstractContainerMenu](container: C) extends CustomGuiContainer(container) {
+abstract class DynamicGuiContainer(container: AbstractContainerMenu) extends CustomGuiContainer(container) {
   protected var hoveredSlot: Option[Slot] = None
 
   protected var hoveredStackNEI: StackOption = EmptyStack
@@ -32,13 +33,13 @@ abstract class DynamicGuiContainer[C <: AbstractContainerMenu](container: C) ext
       8, ySize - 96 + 2, 0x404040)
   }
 
-  override protected def drawGuiContainerForegroundLayer(mouseX: Int, mouseY: Int) {
+  override protected def renderLabels(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int) {
     RenderState.pushAttrib()
 
     drawSecondaryForegroundLayer(mouseX, mouseY)
 
-    for (slot <- 0 until inventorySlots.inventorySlots.size()) {
-      drawSlotHighlight(inventorySlots.inventorySlots.get(slot))
+    for (slot <- 0 until menu.slots.size()) {
+      drawSlotHighlight(menu.slots.get(slot))
     }
 
     RenderState.popAttrib()
@@ -46,37 +47,34 @@ abstract class DynamicGuiContainer[C <: AbstractContainerMenu](container: C) ext
 
   protected def drawSecondaryBackgroundLayer() {}
 
-  override protected def drawGuiContainerBackgroundLayer(dt: Float, mouseX: Int, mouseY: Int) {
-    GlStateManager.color(1, 1, 1, 1)
+  override protected def renderBg(guiGraphics: GuiGraphics, dt: Float, mouseX: Int, mouseY: Int) {
+    RenderSystem.setShaderColor(1, 1, 1, 1)
     Textures.bind(Textures.GUI.Background)
-    drawTexturedModalRect(guiLeft, guiTop, 0, 0, xSize, ySize)
+    guiGraphics.blit(Textures.GUI.Background, leftPos, topPos, 0, 0, imageWidth, imageHeight)
     drawSecondaryBackgroundLayer()
 
     RenderState.makeItBlend()
-    GlStateManager.disableLighting()
+    RenderSystem.disableDepthTest()
 
     drawInventorySlots()
   }
 
   protected def drawInventorySlots(): Unit = {
-    GlStateManager.pushMatrix()
-    GlStateManager.translate(guiLeft, guiTop, 0)
-    GlStateManager.disableDepth()
-    for (slot <- 0 until inventorySlots.inventorySlots.size()) {
-      drawSlotInventory(inventorySlots.inventorySlots.get(slot))
+    RenderSystem.enableBlend()
+    for (slot <- 0 until menu.slots.size()) {
+      drawSlotInventory(menu.slots.get(slot))
     }
-    GlStateManager.enableDepth()
-    GlStateManager.popMatrix()
+    RenderSystem.enableDepthTest()
     RenderState.makeItBlend()
   }
 
-  override def drawScreen(mouseX: Int, mouseY: Int, dt: Float) {
-    hoveredSlot = (inventorySlots.inventorySlots collect {
-      case slot: Slot if isPointInRegion(slot.xPos, slot.yPos, 16, 16, mouseX, mouseY) => slot
+  override def render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, dt: Float) {
+    hoveredSlot = (menu.slots.asScala collect {
+      case slot: Slot if isHovering(slot.x, slot.y, 16, 16, mouseX, mouseY) => slot
     }).headOption
     hoveredStackNEI = ItemSearch.hoveredStack(this, mouseX, mouseY)
 
-    super.drawScreen(mouseX, mouseY, dt)
+    super.render(guiGraphics, mouseX, mouseY, dt)
 
     if (Mods.RoughlyEnoughItems.isModAvailable) {
       drawREIHighlights()

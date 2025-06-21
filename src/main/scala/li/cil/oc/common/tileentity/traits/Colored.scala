@@ -4,10 +4,10 @@ import li.cil.oc.Settings
 import li.cil.oc.api.internal
 import li.cil.oc.server.PacketSender
 import li.cil.oc.util.Color
-import net.minecraft.item.EnumDyeColor
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraftforge.fml.relauncher.Side
-import net.minecraftforge.fml.relauncher.SideOnly
+import net.minecraft.world.item.DyeColor
+import net.minecraft.nbt.CompoundTag
+import net.minecraftforge.api.distmarker.Dist
+import net.minecraftforge.api.distmarker.OnlyIn
 
 trait Colored extends TileEntity with internal.Colored {
   private var _color = 0
@@ -24,7 +24,7 @@ trait Colored extends TileEntity with internal.Colored {
   override def controlsConnectivity = false
 
   protected def onColorChanged() {
-    if (getWorld != null && isServer) {
+    if (getLevel != null && isServer) {
       PacketSender.sendColorChange(this)
     }
   }
@@ -34,29 +34,29 @@ trait Colored extends TileEntity with internal.Colored {
   private final val RenderColorTag = Settings.namespace + "renderColorRGB"
   private final val RenderColorTagCompat = Settings.namespace + "renderColor"
 
-  override def readFromNBTForServer(nbt: NBTTagCompound) {
+  override def readFromNBTForServer(nbt: CompoundTag) {
     super.readFromNBTForServer(nbt)
-    if (nbt.hasKey(RenderColorTagCompat)) {
-      _color = Color.rgbValues(EnumDyeColor.byMetadata(nbt.getInteger(RenderColorTagCompat)))
+    if (nbt.contains(RenderColorTagCompat)) {
+      _color = Color.rgbValues(DyeColor.byId(nbt.getInt(RenderColorTagCompat)))
     }
-    if (nbt.hasKey(RenderColorTag)) {
-      _color = nbt.getInteger(RenderColorTag)
+    if (nbt.contains(RenderColorTag)) {
+      _color = nbt.getInt(RenderColorTag)
     }
   }
 
-  override def writeToNBTForServer(nbt: NBTTagCompound) {
+  override def writeToNBTForServer(nbt: CompoundTag) {
     super.writeToNBTForServer(nbt)
-    nbt.setInteger(RenderColorTag, _color)
+    nbt.putInt(RenderColorTag, _color)
   }
 
-  @SideOnly(Side.CLIENT)
-  override def readFromNBTForClient(nbt: NBTTagCompound) {
+  @OnlyIn(Dist.CLIENT)
+  override def readFromNBTForClient(nbt: CompoundTag) {
     super.readFromNBTForClient(nbt)
-    _color = nbt.getInteger(RenderColorTag)
+    _color = nbt.getInt(RenderColorTag)
   }
 
-  override def writeToNBTForClient(nbt: NBTTagCompound) {
+  override def writeToNBTForClient(nbt: CompoundTag) {
     super.writeToNBTForClient(nbt)
-    nbt.setInteger(RenderColorTag, _color)
+    nbt.putInt(RenderColorTag, _color)
   }
 }

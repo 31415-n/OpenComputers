@@ -19,36 +19,39 @@ import li.cil.oc.common.tileentity._
 import li.cil.oc.common.tileentity.traits._
 import li.cil.oc.common.{PacketHandler => CommonPacketHandler}
 import li.cil.oc.integration.Mods
-import li.cil.oc.integration.jei.ModJEI
+import li.cil.oc.integration.rei.ModREI
 import li.cil.oc.util.Audio
 import li.cil.oc.util.ExtendedWorld._
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiScreen
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
-import net.minecraft.nbt.CompressedStreamTools
-import net.minecraft.util.EnumFacing
-import net.minecraft.util.EnumParticleTypes
-import net.minecraft.util.ResourceLocation
-import net.minecraft.util.SoundCategory
-import net.minecraft.util.SoundEvent
-import net.minecraft.util.math.Vec3d
-import net.minecraft.world.World
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.ItemStack
+import net.minecraft.nbt.NbtIo
+import net.minecraft.core.Direction
+import net.minecraft.core.particles.ParticleTypes
+import net.minecraft.resources.ResourceLocation
+import net.minecraft.sounds.SoundSource
+import net.minecraft.sounds.SoundEvent
+import net.minecraft.world.phys.Vec3
+import net.minecraft.world.level.Level
 import net.minecraftforge.common.MinecraftForge
-import net.minecraftforge.fml.common.Optional
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
-import net.minecraftforge.fml.common.network.FMLNetworkEvent.ClientCustomPacketEvent
-import org.lwjgl.input.Keyboard
+import net.minecraftforge.eventbus.api.SubscribeEvent
+import net.minecraftforge.network.NetworkEvent
+import org.lwjgl.glfw.GLFW
 
+/**
+ * Client-side packet handler for OpenComputers network communication.
+ * Handles all incoming packets from server and updates client state accordingly.
+ */
 object PacketHandler extends CommonPacketHandler {
   @SubscribeEvent
-  def onPacket(e: ClientCustomPacketEvent): Unit = {
-    onPacketData(e.getManager.getNetHandler, e.getPacket.payload, Minecraft.getMinecraft.player)
+  def onPacket(e: NetworkEvent.ClientCustomPayloadEvent): Unit = {
+    onPacketData(e.getSource.get(), e.getPayload, Minecraft.getInstance().player)
   }
 
-  protected override def world(player: EntityPlayer, dimension: Int): Option[World] = {
-    val world = player.world
-    if (world.provider.getDimension == dimension) Some(world)
+  protected override def world(player: Player, dimension: Int): Option[Level] = {
+    val world = player.level
+    if (world.dimension().location().toString.hashCode == dimension) Some(world)
     else None
   }
 
@@ -118,15 +121,18 @@ object PacketHandler extends CommonPacketHandler {
     p.readTileEntity[Adapter]() match {
       case Some(t) =>
         t.openSides = t.uncompressSides(p.readByte())
-        t.world.notifyBlockUpdate(t.getPos)
+        t.getLevel.sendBlockUpdated(t.getBlockPos, t.getBlockState, t.getBlockState, 3)
       case _ => // Invalid packet.
     }
 
-  def onAnalyze(p: PacketParser) {
+  def onAnalyze(p: PacketParser): Unit = {
     val address = p.readUTF()
-    if (Keyboard.isKeyDown(Keyboard.KEY_LCONTROL) || Keyboard.isKeyDown(Keyboard.KEY_LCONTROL)) {
-      GuiScreen.setClipboardString(address)
-      p.player.sendMessage(Localization.Analyzer.AddressCopied)
+    val minecraft = Minecraft.getInstance()
+    val window = minecraft.getWindow.getWindow
+    if (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS || 
+        GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS) {
+      minecraft.keyboardHandler.setClipboard(address)
+      p.player.sendSystemMessage(Localization.Analyzer.AddressCopied)
     }
   }
 
@@ -135,7 +141,7 @@ object PacketHandler extends CommonPacketHandler {
       case Some(t) =>
         t.chargeSpeed = p.readDouble()
         t.hasPower = p.readBoolean()
-        t.world.notifyBlockUpdate(t.position)
+        t.getLevel.sendBlockUpdated(t.getBlockPos, t.getBlockState, t.getBlockState, 3)
       case _ => // Invalid packet.
     }
 
@@ -143,15 +149,15 @@ object PacketHandler extends CommonPacketHandler {
     OpenComputers.log.info(p.readUTF())
   }
 
-  def onClipboard(p: PacketParser) {
-    GuiScreen.setClipboardString(p.readUTF())
+  def onClipboard(p: PacketParser): Unit = {
+    Minecraft.getInstance().keyboardHandler.setClipboard(p.readUTF())
   }
 
   def onColorChange(p: PacketParser): Unit =
     p.readTileEntity[Colored]() match {
       case Some(t) =>
         t.setColor(p.readInt())
-        t.getWorld.notifyBlockUpdate(t.position)
+        t.getLevel.sendBlockUpdated(t.getBlockPos, t.getBlockState, t.getBlockState, 3)
       case _ => // Invalid packet.
     }
 
@@ -196,10 +202,10 @@ object PacketHandler extends CommonPacketHandler {
       case _ => // Invalid packet.
     }
 
-  def onFileSystemActivity(p: PacketParser): AnyVal = {
+  def onFileSystemActivity(p: PacketParser): Unit = {
     val sound = p.readUTF()
-    val data = CompressedStreamTools.read(p)
-    if (p.readBoolean()) p.readTileEntity[net.minecraft.tileentity.TileEntity]() match {
+    val data = NbtIo.read(p)
+    if (p.readBoolean()) p.readTileEntity[net.minecraft.world.level.block.entity.BlockEntity]() match {
       case Some(t) =>
         MinecraftForge.EVENT_BUS.post(new FileSystemAccessEvent.Client(sound, t, data))
       case _ => // Invalid packet.
@@ -214,9 +220,9 @@ object PacketHandler extends CommonPacketHandler {
     }
   }
 
-  def onNetworkActivity(p: PacketParser): AnyVal = {
-    val data = CompressedStreamTools.read(p)
-    if (p.readBoolean()) p.readTileEntity[net.minecraft.tileentity.TileEntity]() match {
+  def onNetworkActivity(p: PacketParser): Unit = {
+    val data = NbtIo.read(p)
+    if (p.readBoolean()) p.readTileEntity[net.minecraft.world.level.block.entity.BlockEntity]() match {
       case Some(t) =>
         MinecraftForge.EVENT_BUS.post(new NetworkActivityEvent.Client(t, data))
       case _ => // Invalid packet.
@@ -306,7 +312,7 @@ object PacketHandler extends CommonPacketHandler {
         val x = p.readDouble()
         val y = p.readDouble()
         val z = p.readDouble()
-        t.translation = new Vec3d(x, y, z)
+        t.translation = new Vec3(x, y, z)
       case _ => // Invalid packet.
     }
 
@@ -335,14 +341,15 @@ object PacketHandler extends CommonPacketHandler {
     if (!stack.isEmpty) {
       Loot.disksForClient += stack
     }
-    if(Mods.JustEnoughItems.isModAvailable) {
-      addDiskToJEI(stack)
+    if(Mods.RoughlyEnoughItems.isModAvailable) {
+      addDiskToREI(stack)
     }
   }
 
-  @Optional.Method(modid = Mods.IDs.JustEnoughItems)
-  private def addDiskToJEI(stack: ItemStack): Unit = {
-    ModJEI.addDiskAtRuntime(stack)
+  private def addDiskToREI(stack: ItemStack): Unit = {
+    if (Mods.RoughlyEnoughItems.isModAvailable) {
+      ModREI.addDiskAtRuntime(stack)
+    }
   }
 
   def onCyclingDisk(p: PacketParser): Any = {
@@ -353,7 +360,7 @@ object PacketHandler extends CommonPacketHandler {
   }
 
   def onNanomachinesConfiguration(p: PacketParser): Unit = {
-    p.readEntity[EntityPlayer]() match {
+    p.readEntity[Player]() match {
       case Some(player) =>
         val hasController = p.readBoolean()
         if (hasController) {
@@ -370,7 +377,7 @@ object PacketHandler extends CommonPacketHandler {
   }
 
   def onNanomachinesInputs(p: PacketParser): Unit = {
-    p.readEntity[EntityPlayer]() match {
+    p.readEntity[Player]() match {
       case Some(player) => api.Nanomachines.getController(player) match {
         case controller: ControllerImpl =>
           val inputs = new Array[Byte](p.readInt())
@@ -388,7 +395,7 @@ object PacketHandler extends CommonPacketHandler {
   }
 
   def onNanomachinesPower(p: PacketParser): Unit = {
-    p.readEntity[EntityPlayer]() match {
+    p.readEntity[Player]() match {
       case Some(player) => api.Nanomachines.getController(player) match {
         case controller: ControllerImpl => controller.storedEnergy = p.readDouble()
         case _ => // Wat.
@@ -402,7 +409,7 @@ object PacketHandler extends CommonPacketHandler {
       case Some(t) =>
         t.isInverted = p.readBoolean()
         t.openSides = t.uncompressSides(p.readByte())
-        t.world.notifyBlockUpdate(t.getPos)
+        t.getLevel.sendBlockUpdated(t.getBlockPos, t.getBlockState, t.getBlockState, 3)
       case _ => // Invalid packet.
     }
 
@@ -415,8 +422,8 @@ object PacketHandler extends CommonPacketHandler {
         val z = p.readInt()
         val velocity = p.readDouble()
         val direction = p.readDirection()
-        val particleType = EnumParticleTypes.getParticleFromId(p.readInt())
-        val count = p.readUnsignedByte() / (1 << Minecraft.getMinecraft.gameSettings.particleSetting)
+        val particleType = ParticleTypes.byId(p.readInt())
+        val count = p.readUnsignedByte() / (1 << Minecraft.getInstance().options.particles().getId)
 
         for (i <- 0 until count) {
           def rv(f: EnumFacing => Int) = direction match {
@@ -436,7 +443,7 @@ object PacketHandler extends CommonPacketHandler {
             val px = rp(x, vx, _.getXOffset)
             val py = rp(y, vy, _.getYOffset)
             val pz = rp(z, vz, _.getZOffset)
-            world.spawnParticle(particleType, px, py, pz, vx, vy + velocity * 0.25, vz)
+            world.addParticle(particleType, px, py, pz, vx, vy + velocity * 0.25, vz)
           }
         }
       case _ => // Invalid packet.
@@ -447,7 +454,7 @@ object PacketHandler extends CommonPacketHandler {
     if (!PetRenderer.isInitialized) {
       PetRenderer.isInitialized = true
       if (Settings.get.hideOwnPet) {
-        PetRenderer.hidden += Minecraft.getMinecraft.player.getName
+        PetRenderer.hidden += Minecraft.getInstance().player.getName.getString
       }
       PacketSender.sendPetVisibility()
     }
@@ -496,7 +503,7 @@ object PacketHandler extends CommonPacketHandler {
       case Some(t) =>
         val mountableIndex = p.readInt()
         t.lastData(mountableIndex) = p.readNBT()
-        t.getWorld.notifyBlockUpdate(t.getPos)
+        t.getLevel.sendBlockUpdated(t.getBlockPos, t.getBlockState, t.getBlockState, 3)
       case _ => // Invalid packet.
     }
 
@@ -513,7 +520,7 @@ object PacketHandler extends CommonPacketHandler {
     p.readTileEntity[RedstoneAware]() match {
       case Some(t) =>
         t.setOutputEnabled(p.readBoolean())
-        for (d <- EnumFacing.values) {
+        for (d <- Direction.values) {
           t.setOutput(d, p.readByte())
         }
       case _ => // Invalid packet.
@@ -608,25 +615,25 @@ object PacketHandler extends CommonPacketHandler {
     }
 
   def onTextBufferPowerChange(p: PacketParser): Unit =
-    ComponentTracker.get(p.player.getEntityWorld, p.readUTF()) match {
+    ComponentTracker.get(p.player.level, p.readUTF()) match {
       case Some(buffer: api.internal.TextBuffer) =>
         buffer.setRenderingEnabled(p.readBoolean())
       case _ => // Invalid packet.
     }
 
   def onTextBufferInit(p: PacketParser) {
-    ComponentTracker.get(p.player.getEntityWorld, p.readUTF()) match {
+    ComponentTracker.get(p.player.level, p.readUTF()) match {
       case Some(buffer: li.cil.oc.common.component.TextBuffer) =>
         val nbt = p.readNBT()
-        if (nbt.hasKey("maxWidth")) {
-          val maxWidth = nbt.getInteger("maxWidth")
-          val maxHeight = nbt.getInteger("maxHeight")
+        if (nbt.contains("maxWidth")) {
+          val maxWidth = nbt.getInt("maxWidth")
+          val maxHeight = nbt.getInt("maxHeight")
           buffer.setMaximumResolution(maxWidth, maxHeight)
         }
         buffer.data.load(nbt)
-        if (nbt.hasKey("viewportWidth")) {
-          val viewportWidth = nbt.getInteger("viewportWidth")
-          val viewportHeight = nbt.getInteger("viewportHeight")
+        if (nbt.contains("viewportWidth")) {
+          val viewportWidth = nbt.getInt("viewportWidth")
+          val viewportHeight = nbt.getInt("viewportHeight")
           buffer.setViewport(viewportWidth, viewportHeight)
         }
         buffer.proxy.markDirty()
@@ -636,7 +643,7 @@ object PacketHandler extends CommonPacketHandler {
   }
 
   def onTextBufferMulti(p: PacketParser): Unit =
-    if (p.player != null) ComponentTracker.get(p.player.getEntityWorld, p.readUTF()) match {
+    if (p.player != null) ComponentTracker.get(p.player.level, p.readUTF()) match {
       case Some(buffer: api.internal.TextBuffer) =>
         try while (true) {
           p.readPacketType() match {
@@ -828,9 +835,9 @@ object PacketHandler extends CommonPacketHandler {
         val y = p.readDouble()
         val z = p.readDouble()
         val sound = p.readUTF()
-        val category = SoundCategory.values()(p.readByte())
+        val category = SoundSource.values()(p.readByte())
         val range = p.readFloat()
-        world.playSound(p.player, x, y, z, new SoundEvent(new ResourceLocation(sound)), category, range / 15 + 0.5F, 1.0F)
+        world.playSound(p.player, x, y, z, SoundEvent.createVariableRangeEvent(new ResourceLocation(sound)), category, range / 15 + 0.5F, 1.0F)
       case _ => // Invalid packet.
     }
   }

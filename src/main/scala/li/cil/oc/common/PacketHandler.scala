@@ -12,39 +12,43 @@ import li.cil.oc.api
 import li.cil.oc.common.block.RobotAfterimage
 import li.cil.oc.util.BlockPosition
 import li.cil.oc.util.ExtendedWorld._
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.entity.player.EntityPlayerMP
-import net.minecraft.item.ItemStack
-import net.minecraft.nbt.CompressedStreamTools
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.network.INetHandler
-import net.minecraft.util.EnumFacing
-import net.minecraft.util.math.BlockPos
-import net.minecraft.world.World
-import net.minecraftforge.fml.common.FMLCommonHandler
+import net.minecraft.world.entity.player.Player
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.item.ItemStack
+import net.minecraft.nbt.NbtIo
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.network.Connection
+import net.minecraft.core.Direction
+import net.minecraft.core.BlockPos
+import net.minecraft.world.level.Level
+import net.minecraft.server.MinecraftServer
 
 import scala.reflect.ClassTag
 import scala.reflect.classTag
 
+/**
+ * Base packet handler for OpenComputers network communication.
+ * Handles packet processing, validation, and thread safety.
+ */
 abstract class PacketHandler {
   /** Top level dispatcher based on packet type. */
-  protected def onPacketData(handler: INetHandler, data: ByteBuf, player: EntityPlayer) {
-    val thread = FMLCommonHandler.instance.getWorldThread(handler)
-    if (thread.isCallingFromMinecraftThread) {
+  protected def onPacketData(handler: Connection, data: ByteBuf, player: Player): Unit = {
+    val server = player.getServer
+    if (server != null && server.isSameThread) {
       process(data, player)
     }
     else {
       data.retain()
-      thread.addScheduledTask(new Runnable {
-        override def run(): Unit = {
+      if (server != null) {
+        server.execute(() => {
           process(data, player)
           data.release()
-        }
-      })
+        })
+      }
     }
   }
 
-  private def process(data: ByteBuf, player: EntityPlayer): Unit = {
+  private def process(data: ByteBuf, player: Player): Unit = {
     // Don't crash on badly formatted packets (may have been altered by a
     // malicious client, in which case we don't want to allow it to kill the
     // server like this). Just spam the log a bit... ;)
@@ -69,7 +73,7 @@ abstract class PacketHandler {
     // Avoid AFK kicks by marking players as non-idle when they send packets.
     // This will usually be stuff like typing while in screen GUIs.
     player match {
-      case mp: EntityPlayerMP => mp.markPlayerActive()
+      case mp: ServerPlayer => mp.resetLastActionTime()
       case _ => // Uh... OK?
     }
   }
@@ -81,17 +85,17 @@ abstract class PacketHandler {
     * dimension; None otherwise. For the server it returns the world for the
     * specified dimension, if such a dimension exists; None otherwise.
     */
-  protected def world(player: EntityPlayer, dimension: Int): Option[World]
+  protected def world(player: Player, dimension: Int): Option[Level]
 
   protected def dispatch(p: PacketParser): Unit
 
-  protected class PacketParser(stream: InputStream, val player: EntityPlayer) extends DataInputStream(stream) {
+  protected class PacketParser(stream: InputStream, val player: Player) extends DataInputStream(stream) {
     val packetType = PacketType(readByte())
 
     def getTileEntity[T: ClassTag](dimension: Int, x: Int, y: Int, z: Int): Option[T] = {
       world(player, dimension) match {
-        case Some(world) if world.blockExists(BlockPosition(x, y, z)) =>
-          val t = world.getTileEntity(BlockPosition(x, y, z))
+        case Some(world) if world.isLoaded(BlockPosition(x, y, z).toBlockPos) =>
+          val t = world.getBlockEntity(BlockPosition(x, y, z).toBlockPos)
           if (t != null && classTag[T].runtimeClass.isAssignableFrom(t.getClass)) {
             return Some(t.asInstanceOf[T])
           }
@@ -114,7 +118,7 @@ abstract class PacketHandler {
     def getEntity[T: ClassTag](dimension: Int, id: Int): Option[T] = {
       world(player, dimension) match {
         case Some(world) =>
-          val e = world.getEntityByID(id)
+          val e = world.getEntity(id)
           if (e != null && classTag[T].runtimeClass.isAssignableFrom(e.getClass)) {
             return Some(e.asInstanceOf[T])
           }
@@ -137,23 +141,23 @@ abstract class PacketHandler {
       getEntity[T](dimension, id)
     }
 
-    def readDirection(): Option[EnumFacing] = readByte() match {
+    def readDirection(): Option[Direction] = readByte() match {
       case id if id < 0 => None
-      case id => Option(EnumFacing.byIndex(id))
+      case id => Option(Direction.from3DDataValue(id))
     }
 
     def readItemStack(): ItemStack = {
       val haveStack = readBoolean()
       if (haveStack) {
-        new ItemStack(readNBT())
+        ItemStack.of(readNBT())
       }
       else ItemStack.EMPTY
     }
 
-    def readNBT(): NBTTagCompound = {
+    def readNBT(): CompoundTag = {
       val haveNbt = readBoolean()
       if (haveNbt) {
-        CompressedStreamTools.read(this)
+        NbtIo.read(this)
       }
       else null
     }

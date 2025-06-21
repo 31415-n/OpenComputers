@@ -10,11 +10,11 @@ import li.cil.oc.api.manual.PathProvider
 import li.cil.oc.api.manual.TabIconRenderer
 import li.cil.oc.common.GuiType
 import net.minecraft.client.Minecraft
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
-import net.minecraft.util.math.BlockPos
-import net.minecraft.world.World
-import net.minecraftforge.fml.common.FMLCommonHandler
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.ItemStack
+import net.minecraft.core.BlockPos
+import net.minecraft.world.level.Level
+import net.minecraft.client.resources.language.I18n
 
 import scala.annotation.tailrec
 import scala.jdk.CollectionConverters._
@@ -72,7 +72,7 @@ object Manual extends ManualAPI {
     null
   }
 
-  override def pathFor(world: World, pos: BlockPos): String = {
+  override def pathFor(world: Level, pos: BlockPos): String = {
     for (provider <- pathProviders) {
       val path = try provider.pathFor(world, pos) catch {
         case t: Throwable =>
@@ -87,7 +87,7 @@ object Manual extends ManualAPI {
   override def contentFor(path: String): java.lang.Iterable[String] = {
     val cleanPath = com.google.common.io.Files.simplifyPath(path)
     val language = try {
-      FMLCommonHandler.instance.getCurrentLanguage
+      Minecraft.getInstance().getLanguageManager.getSelected
     } catch {
       case t: Throwable =>
         OpenComputers.log.warn("The game threw an error when querying current language.", t)
@@ -112,9 +112,10 @@ object Manual extends ManualAPI {
     null
   }
 
-  override def openFor(player: EntityPlayer): Unit = {
-    if (player.getEntityWorld.isRemote) {
-      player.openGui(OpenComputers, GuiType.Manual.id, player.getEntityWorld, 0, 0, 0)
+  override def openFor(player: Player): Unit = {
+    if (player.level.isClientSide) {
+      // Open GUI through network handler in 1.20.1
+      Minecraft.getInstance().setScreen(new gui.Manual())
     }
   }
 
@@ -124,7 +125,7 @@ object Manual extends ManualAPI {
   }
 
   override def navigate(path: String): Unit = {
-    Minecraft.getMinecraft.currentScreen match {
+    Minecraft.getInstance().screen match {
       case manual: gui.Manual => manual.pushPage(path)
       case _ => history.push(new History(path))
     }
@@ -139,11 +140,11 @@ object Manual extends ManualAPI {
     }
 
   @tailrec private def contentForWithRedirects(path: String, seen: List[String] = List.empty): Option[java.lang.Iterable[String]] = {
-    if (seen.contains(path)) return Some(asJavaIterable(Iterable("Redirection loop: ") ++ seen ++ Iterable(path)))
+    if (seen.contains(path)) return Some((Iterable("Redirection loop: ") ++ seen ++ Iterable(path)).asJava)
     doContentLookup(path) match {
-      case Some(content) => content.headOption match {
-        case Some(line) if line.toLowerCase.startsWith("#redirect ") =>
-          contentForWithRedirects(makeRelative(line.substring("#redirect ".length), path), seen :+ path)
+      case Some(content) => content.asScala.headOption match {
+        case Some(line) if line.asInstanceOf[String].toLowerCase.startsWith("#redirect ") =>
+          contentForWithRedirects(makeRelative(line.asInstanceOf[String].substring("#redirect ".length), path), seen :+ path)
         case _ => Some(content)
       }
       case _ => None
