@@ -3,9 +3,9 @@ package li.cil.oc.api.prefab;
 import li.cil.oc.api.Network;
 import li.cil.oc.api.network.Node;
 import li.cil.oc.api.network.SidedEnvironment;
-import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumFacing;
+import net.minecraft.util.Direction;
 import net.minecraft.util.ITickable;
 
 /**
@@ -72,7 +72,7 @@ public abstract class TileEntitySidedEnvironment extends TileEntity implements S
     // exists for a side won't work on the client.
 
     @Override
-    public Node sidedNode(final EnumFacing side) {
+    public Node sidedNode(final Direction side) {
         return nodes[side.ordinal()];
     }
 
@@ -116,7 +116,7 @@ public abstract class TileEntitySidedEnvironment extends TileEntity implements S
     // ----------------------------------------------------------------------- //
 
     @Override
-    public void readFromNBT(final NBTTagCompound nbt) {
+    public void readFromNBT(final CompoundTag nbt) {
         super.readFromNBT(nbt);
         int index = 0;
         for (Node node : nodes) {
@@ -136,13 +136,13 @@ public abstract class TileEntitySidedEnvironment extends TileEntity implements S
     }
 
     @Override
-    public NBTTagCompound writeToNBT(NBTTagCompound nbt) {
+    public CompoundTag writeToNBT(CompoundTag nbt) {
         super.writeToNBT(nbt);
         int index = 0;
         for (Node node : nodes) {
             // See readFromNBT() regarding host check.
             if (node != null && node.host() == this) {
-                final NBTTagCompound nodeNbt = new NBTTagCompound();
+                final CompoundTag nodeNbt = new CompoundTag();
                 node.save(nodeNbt);
                 nbt.setTag("oc:node" + index, nodeNbt);
             }

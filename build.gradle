@@ -4,7 +4,20 @@ plugins {
     id 'net.neoforged.gradle.userdev' version '7.0.80'
 }
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+compileJava {
+    options.encoding = 'UTF-8'
+}
+
+compileScala {
+    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_17
+}
 
 file "build.properties" withReader {
     def prop = new Properties()
@@ -17,6 +30,7 @@ group = config.mod.group
 base.archivesName = config.mod.name
 
 repositories {
+    mavenCentral()
     maven {
         name = 'NeoForged'
         url = 'https://maven.neoforged.net/releases'
@@ -28,48 +42,35 @@ repositories {
 }
 
 dependencies {
-    implementation "net.neoforged:neoforge:${config.neoforge.version}"
+    implementation "net.neoforged:forge:${config.neoforge.version}"
     
-    implementation name: 'OC-LuaJ', version: '20220907.1', ext: 'jar'
-    implementation name: 'OC-JNLua', version: '20230530.0', ext: 'jar'
-    implementation name: 'OC-JNLua-Natives', version: '20220928.1', ext: 'jar'
+    implementation files('libs/OC-LuaJ-20220907.1.jar')
+    implementation files('libs/OC-JNLua-20230530.0.jar')
+    implementation files('libs/OC-JNLua-Natives-20220928.1.jar')
 }
 
 runs {
-    client {
+    configureEach {
         workingDirectory project.file('run')
         
         systemProperty 'neoforge.logging.markers', 'REGISTRIES'
         systemProperty 'neoforge.logging.console.level', 'debug'
         
-        mods {
-            opencomputers {
-                source sourceSets.main
-            }
-        }
+        modSource project.sourceSets.main
+    }
+    
+    client {
+        // Client-specific configuration
     }
     
     server {
-        workingDirectory project.file('run')
-        
-        systemProperty 'neoforge.logging.markers', 'REGISTRIES'
-        systemProperty 'neoforge.logging.console.level', 'debug'
-        
-        mods {
-            opencomputers {
-                source sourceSets.main
-            }
-        }
+        // Server-specific configuration
     }
 }
 
-mappings channel: "${config.minecraft.mappings_channel}", version: "${config.minecraft.mappings_version}"
+// Mappings are configured automatically in newer NeoForge versions
 
 jar {
-    from(configurations.runtimeClasspath.findAll { it.name.startsWith('OC-') }.collect { zipTree(it) }) {
-        exclude 'META-INF', 'META-INF/**'
-    }
-    
     manifest {
         attributes([
             "Specification-Title": "OpenComputers",

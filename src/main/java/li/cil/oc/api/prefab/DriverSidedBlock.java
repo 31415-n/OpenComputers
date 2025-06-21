@@ -3,11 +3,11 @@ package li.cil.oc.api.prefab;
 import li.cil.oc.api.driver.DriverBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.item.ItemBlock;
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.item.ItemBlock;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.world.World;
+import net.minecraft.util.Direction;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.oredict.OreDictionary;
 
 /**
@@ -22,7 +22,7 @@ import net.minecraftforge.oredict.OreDictionary;
  * You still have to provide the implementation for creating its environment, if
  * any.
  * <br>
- * To limit sidedness, I recommend overriding {@link #worksWith(World, BlockPos, EnumFacing)}
+ * To limit sidedness, I recommend overriding {@link #worksWith(Level, BlockPos, Direction)}
  * and calling <code>super.worksWith</code> in addition to the side check.
  *
  * @see li.cil.oc.api.network.ManagedEnvironment
@@ -36,7 +36,7 @@ public abstract class DriverSidedBlock implements DriverBlock {
     }
 
     @Override
-    public boolean worksWith(final World world, final BlockPos pos, final EnumFacing side) {
+    public boolean worksWith(final Level world, final BlockPos pos, final Direction side) {
         final IBlockState state = world.getBlockState(pos);
         final Block block = state.getBlock();
         return worksWith(block, block.getMetaFromState(state));

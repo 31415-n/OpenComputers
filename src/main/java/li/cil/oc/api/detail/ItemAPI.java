@@ -1,8 +1,8 @@
 package li.cil.oc.api.detail;
 
 import li.cil.oc.api.FileSystem;
-import net.minecraft.item.EnumDyeColor;
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.item.EnumDyeColor;
+import net.minecraft.world.item.ItemStack;
 
 import javax.annotation.Nullable;
 import java.util.concurrent.Callable;

@@ -1,7 +1,7 @@
 package li.cil.oc.api.internal;
 
 import li.cil.oc.api.network.Environment;
-import net.minecraft.inventory.IInventory;
+import net.minecraft.world.inventory.IInventory;
 
 /**
  * This interface is implemented as a marker by adapters.

@@ -2,7 +2,7 @@ package li.cil.oc.common.asm.template;
 
 import li.cil.oc.api.network.Message;
 import li.cil.oc.api.network.Node;
-import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.tileentity.TileEntity;
 
 // This is a template implementation of methods injected into classes that are
@@ -48,12 +48,12 @@ public abstract class SimpleEnvironment extends TileEntity implements SimpleComp
     }
 
     @Override
-    public void readFromNBT(NBTTagCompound nbt) {
+    public void readFromNBT(CompoundTag nbt) {
         StaticSimpleEnvironment.readFromNBT(this, nbt);
     }
 
     @Override
-    public NBTTagCompound writeToNBT(NBTTagCompound nbt) {
+    public CompoundTag writeToNBT(CompoundTag nbt) {
         return StaticSimpleEnvironment.writeToNBT(this, nbt);
     }
 
@@ -75,11 +75,11 @@ public abstract class SimpleEnvironment extends TileEntity implements SimpleComp
         super.onChunkUnload();
     }
 
-    public void readFromNBT_OpenComputers(NBTTagCompound nbt) {
+    public void readFromNBT_OpenComputers(CompoundTag nbt) {
         super.readFromNBT(nbt);
     }
 
-    public NBTTagCompound writeToNBT_OpenComputers(NBTTagCompound nbt) {
+    public CompoundTag writeToNBT_OpenComputers(CompoundTag nbt) {
         return super.writeToNBT(nbt);
     }
 }

@@ -1,23 +1,31 @@
 package li.cil.oc.util;
 
-import net.minecraftforge.fml.common.ObfuscationReflectionHelper;
-
 import javax.annotation.Nullable;
+import java.lang.reflect.Field;
 
 public final class OCObfuscationReflectionHelper {
 	private OCObfuscationReflectionHelper() {
 
 	}
 
-	public static <T, E> T getPrivateValue(Class<? super E> classToAccess, @Nullable E instance, String srgName) {
-		// HACK: Don't break compatibility with older Forge versions.
-		// This also works around a Scala compiler crash: "trying to do lub/glb of typevar ?E".
-		return ObfuscationReflectionHelper.getPrivateValue(classToAccess, instance, new String[]{srgName});
+	@SuppressWarnings("unchecked")
+	public static <T, E> T getPrivateValue(Class<? super E> classToAccess, @Nullable E instance, String fieldName) {
+		try {
+			Field field = classToAccess.getDeclaredField(fieldName);
+			field.setAccessible(true);
+			return (T) field.get(instance);
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to get private value", e);
+		}
 	}
 
-	public static <T, E> void setPrivateValue(Class<? super T> classToAccess, T instance, E value, String srgName) {
-		// HACK: Don't break compatibility with older Forge versions.
-		// This also works around a Scala compiler crash: "trying to do lub/glb of typevar ?E".
-		ObfuscationReflectionHelper.setPrivateValue(classToAccess, instance, value, new String[]{srgName});
+	public static <T, E> void setPrivateValue(Class<? super T> classToAccess, T instance, E value, String fieldName) {
+		try {
+			Field field = classToAccess.getDeclaredField(fieldName);
+			field.setAccessible(true);
+			field.set(instance, value);
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to set private value", e);
+		}
 	}
 }

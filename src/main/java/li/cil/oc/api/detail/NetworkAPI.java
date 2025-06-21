@@ -5,7 +5,7 @@ import li.cil.oc.api.network.Node;
 import li.cil.oc.api.network.Packet;
 import li.cil.oc.api.network.Visibility;
 import li.cil.oc.api.network.WirelessEndpoint;
-import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockAccess;
@@ -182,5 +182,5 @@ public interface NetworkAPI {
      * @param nbt the tag to load the packet from.
      * @return the loaded packet.
      */
-    Packet newPacket(NBTTagCompound nbt);
+    Packet newPacket(CompoundTag nbt);
 }

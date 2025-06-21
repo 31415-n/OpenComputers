@@ -1,7 +1,5 @@
 package li.cil.oc.util;
 
-import net.minecraftforge.fml.common.FMLCommonHandler;
-
 import java.util.Collections;
 import java.util.Set;
 
@@ -13,7 +11,8 @@ public final class SideTracker {
     }
 
     public static boolean isServer() {
-        return FMLCommonHandler.instance().getEffectiveSide().isServer() || serverThreads.contains(Thread.currentThread());
+        // Simple check - if we're on a server thread, we're server-side
+        return serverThreads.contains(Thread.currentThread()) || Thread.currentThread().getName().contains("Server");
     }
 
     public static boolean isClient() {

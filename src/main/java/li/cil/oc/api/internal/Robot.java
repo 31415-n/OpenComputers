@@ -2,7 +2,7 @@ package li.cil.oc.api.internal;
 
 import li.cil.oc.api.network.EnvironmentHost;
 import li.cil.oc.api.network.Environment;
-import net.minecraft.inventory.ISidedInventory;
+import net.minecraft.world.inventory.ISidedInventory;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 

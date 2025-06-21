@@ -8,8 +8,8 @@ import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.EnumFacing;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.util.Direction;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.common.eventhandler.Cancelable;
 import net.minecraftforge.fml.common.eventhandler.Event;
@@ -39,9 +39,9 @@ public abstract class RackMountableRenderEvent extends Event {
      *
      * @see RackMountable#getData()
      */
-    public final NBTTagCompound data;
+    public final CompoundTag data;
 
-    public RackMountableRenderEvent(Rack rack, int mountable, NBTTagCompound data) {
+    public RackMountableRenderEvent(Rack rack, int mountable, CompoundTag data) {
         this.rack = rack;
         this.mountable = mountable;
         this.data = data;
@@ -62,14 +62,14 @@ public abstract class RackMountableRenderEvent extends Event {
         /**
          * The front-facing side, i.e. where the mountable is visible on the rack.
          */
-        public final EnumFacing side;
+        public final Direction side;
 
         /**
          * Texture to use for the front of the mountable.
          */
         private TextureAtlasSprite frontTextureOverride;
 
-        public Block(final Rack rack, final int mountable, final NBTTagCompound data, final EnumFacing side) {
+        public Block(final Rack rack, final int mountable, final CompoundTag data, final Direction side) {
             super(rack, mountable, data);
             this.side = side;
         }
@@ -114,7 +114,7 @@ public abstract class RackMountableRenderEvent extends Event {
          */
         public final float v0, v1;
 
-        public TileEntity(final Rack rack, final int mountable, final NBTTagCompound data, final float v0, final float v1) {
+        public TileEntity(final Rack rack, final int mountable, final CompoundTag data, final float v0, final float v1) {
             super(rack, mountable, data);
             this.v0 = v0;
             this.v1 = v1;
