@@ -1,7 +1,7 @@
 package li.cil.oc.api.internal;
 
 import li.cil.oc.api.network.Environment;
-import net.minecraft.world.inventory.Container;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 
 /**
  * This interface is implemented as a marker by adapters.
@@ -26,5 +26,5 @@ import net.minecraft.world.inventory.Container;
  * via the API, i.e. without having to link against internal classes. This
  * also means that <em>you should not implement this</em>.
  */
-public interface Adapter extends Environment, Container {
+public interface Adapter extends Environment, net.minecraft.world.Container {
 }

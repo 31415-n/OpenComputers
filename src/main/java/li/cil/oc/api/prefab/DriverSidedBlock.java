@@ -1,14 +1,14 @@
 package li.cil.oc.api.prefab;
 
 import li.cil.oc.api.driver.DriverBlock;
-import net.minecraft.block.Block;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.world.item.ItemBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.BlockPos;
-import net.minecraft.util.Direction;
+import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.oredict.OreDictionary;
+import net.minecraftforge.common.Tags;
 
 /**
  * If you wish to create a block component for a third-party block, i.e. a block
@@ -37,18 +37,17 @@ public abstract class DriverSidedBlock implements DriverBlock {
 
     @Override
     public boolean worksWith(final Level world, final BlockPos pos, final Direction side) {
-        final IBlockState state = world.getBlockState(pos);
+        final BlockState state = world.getBlockState(pos);
         final Block block = state.getBlock();
-        return worksWith(block, block.getMetaFromState(state));
+        return worksWith(block, 0); // Metadata removed in 1.20.1
     }
 
     protected boolean worksWith(final Block referenceBlock, final int referenceMetadata) {
         for (ItemStack stack : blocks) {
-            if (!stack.isEmpty() && stack.getItem() instanceof ItemBlock) {
-                final ItemBlock item = (ItemBlock) stack.getItem();
+            if (!stack.isEmpty() && stack.getItem() instanceof BlockItem) {
+                final BlockItem item = (BlockItem) stack.getItem();
                 final Block supportedBlock = item.getBlock();
-                final int supportedMetadata = item.getMetadata(stack.getItemDamage());
-                if (referenceBlock == supportedBlock && (referenceMetadata == supportedMetadata || stack.getItemDamage() == OreDictionary.WILDCARD_VALUE)) {
+                if (referenceBlock == supportedBlock) {
                     return true;
                 }
             }

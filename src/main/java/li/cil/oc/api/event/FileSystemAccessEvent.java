@@ -2,10 +2,10 @@ package li.cil.oc.api.event;
 
 import li.cil.oc.api.network.Node;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.tileentity.TileEntity;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.Level;
-import net.neoforged.bus.api.Cancelable;
-import net.neoforged.bus.api.Event;
+import net.minecraftforge.eventbus.api.Cancelable;
+import net.minecraftforge.eventbus.api.Event;
 
 /**
  * Events for handling file system access and representing it on the client.
@@ -19,8 +19,8 @@ import net.neoforged.bus.api.Event;
  * Canceling this event is provided to allow registering higher priority
  * event handlers that override default behavior.
  */
-@Cancellable
-public class FileSystemAccessEvent extends net.neoforged.bus.api.Event {
+@Cancelable
+public class FileSystemAccessEvent extends net.minecraftforge.eventbus.api.Event {
     protected String sound;
 
     protected Level world;
@@ -31,7 +31,7 @@ public class FileSystemAccessEvent extends net.neoforged.bus.api.Event {
 
     protected double z;
 
-    protected TileEntity tileEntity;
+    protected BlockEntity tileEntity;
 
     protected CompoundTag data;
 
@@ -42,12 +42,12 @@ public class FileSystemAccessEvent extends net.neoforged.bus.api.Event {
      * @param tileEntity the tile entity hosting the file system.
      * @param data       the additional data.
      */
-    protected FileSystemAccessEvent(String sound, TileEntity tileEntity, CompoundTag data) {
+    protected FileSystemAccessEvent(String sound, BlockEntity tileEntity, CompoundTag data) {
         this.sound = sound;
-        this.world = tileEntity.getWorld();
-        this.x = tileEntity.getPos().getX() + 0.5;
-        this.y = tileEntity.getPos().getY() + 0.5;
-        this.z = tileEntity.getPos().getZ() + 0.5;
+        this.world = tileEntity.getLevel();
+        this.x = tileEntity.getBlockPos().getX() + 0.5;
+        this.y = tileEntity.getBlockPos().getY() + 0.5;
+        this.z = tileEntity.getBlockPos().getZ() + 0.5;
         this.tileEntity = tileEntity;
         this.data = data;
     }
@@ -113,7 +113,7 @@ public class FileSystemAccessEvent extends net.neoforged.bus.api.Event {
      * <em>Important</em>: this can be <tt>null</tt>, which is usually the
      * case when the container is an entity or item.
      */
-    public TileEntity getTileEntity() {
+    public BlockEntity getTileEntity() {
         return tileEntity;
     }
 
@@ -128,7 +128,7 @@ public class FileSystemAccessEvent extends net.neoforged.bus.api.Event {
     public static final class Server extends FileSystemAccessEvent {
         private Node node;
 
-        public Server(String sound, TileEntity tileEntity, Node node) {
+        public Server(String sound, BlockEntity tileEntity, Node node) {
             super(sound, tileEntity, new CompoundTag());
             this.node = node;
         }
@@ -154,7 +154,7 @@ public class FileSystemAccessEvent extends net.neoforged.bus.api.Event {
          * @param tileEntity the tile entity hosting the file system.
          * @param data       the additional data.
          */
-        public Client(String sound, TileEntity tileEntity, CompoundTag data) {
+        public Client(String sound, BlockEntity tileEntity, CompoundTag data) {
             super(sound, tileEntity, data);
         }
 

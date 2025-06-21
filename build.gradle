@@ -50,6 +50,9 @@ dependencies {
     
     // JOML for vector math (replaces LWJGL vectors)
     implementation 'org.joml:joml:1.10.5'
+    
+    // Typesafe Config for configuration management
+    implementation 'com.typesafe:config:1.4.2'
 }
 
 runs {

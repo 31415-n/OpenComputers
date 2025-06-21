@@ -3,16 +3,22 @@ package li.cil.oc.api.event;
 import li.cil.oc.api.component.RackMountable;
 import li.cil.oc.api.internal.Rack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.renderer.texture.TextureMap;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
+import com.mojang.blaze3d.vertex.Tesselator;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.VertexFormat;
+import net.minecraft.client.renderer.texture.TextureAtlas;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.util.Direction;
-import net.minecraft.util.ResourceLocation;
-import net.neoforged.bus.api.Cancelable;
-import net.neoforged.bus.api.Event;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.eventbus.api.Cancelable;
+import net.minecraftforge.eventbus.api.Event;
 import org.lwjgl.opengl.GL11;
 
 /**
@@ -23,7 +29,7 @@ import org.lwjgl.opengl.GL11;
  * event handler's responsibility to not render outside the are of the
  * mountable (unless that's explicitly what they're going for, of course).
  */
-public abstract class RackMountableRenderEvent extends net.neoforged.bus.api.Event {
+public abstract class RackMountableRenderEvent extends net.minecraftforge.eventbus.api.Event {
     /**
      * The rack that house the mountable this event is fired for.
      */
@@ -57,7 +63,7 @@ public abstract class RackMountableRenderEvent extends net.neoforged.bus.api.Eve
      * <br>
      * The bounds will be set up before this call, so you may adjust those, if you wish.
      */
-    @Cancellable
+    @Cancelable
     public static class Block extends RackMountableRenderEvent {
         /**
          * The front-facing side, i.e. where the mountable is visible on the rack.
@@ -106,7 +112,7 @@ public abstract class RackMountableRenderEvent extends net.neoforged.bus.api.Eve
      * Use the {@link #renderOverlay(ResourceLocation)} to render a slice from a
      * texture in the vertical area occupied by the mountable.
      */
-    public static class TileEntity extends RackMountableRenderEvent {
+    public static class BlockEntity extends RackMountableRenderEvent {
         /**
          * The vertical low and high texture coordinates for the mountable's slot.
          * <br>
@@ -114,7 +120,7 @@ public abstract class RackMountableRenderEvent extends net.neoforged.bus.api.Eve
          */
         public final float v0, v1;
 
-        public TileEntity(final Rack rack, final int mountable, final CompoundTag data, final float v0, final float v1) {
+        public BlockEntity(final Rack rack, final int mountable, final CompoundTag data, final float v0, final float v1) {
             super(rack, mountable, data);
             this.v0 = v0;
             this.v1 = v1;
@@ -138,15 +144,15 @@ public abstract class RackMountableRenderEvent extends net.neoforged.bus.api.Eve
          * @param u1      the upper end of the vertical area to render at.
          */
         public void renderOverlay(final ResourceLocation texture, final float u0, final float u1) {
-            Minecraft.getMinecraft().getTextureManager().bindTexture(texture);
-            final Tessellator t = Tessellator.getInstance();
-            final BufferBuilder r = t.getBuffer();
-            r.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
-            r.pos(u0, v1, 0).tex(u0, v1).endVertex();
-            r.pos(u1, v1, 0).tex(u1, v1).endVertex();
-            r.pos(u1, v0, 0).tex(u1, v0).endVertex();
-            r.pos(u0, v0, 0).tex(u0, v0).endVertex();
-            t.draw();
+            final Tesselator t = Tesselator.getInstance();
+            final BufferBuilder r = t.getBuilder();
+            RenderSystem.setShaderTexture(0, texture);
+            r.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
+            r.vertex(u0, v1, 0).uv(u0, v1).endVertex();
+            r.vertex(u1, v1, 0).uv(u1, v1).endVertex();
+            r.vertex(u1, v0, 0).uv(u1, v0).endVertex();
+            r.vertex(u0, v0, 0).uv(u0, v0).endVertex();
+            t.end();
         }
 
         /**
@@ -167,16 +173,16 @@ public abstract class RackMountableRenderEvent extends net.neoforged.bus.api.Eve
          * @param u1      the upper end of the vertical area to render at.
          */
         public void renderOverlayFromAtlas(final ResourceLocation texture, final float u0, final float u1) {
-            Minecraft.getMinecraft().getTextureManager().bindTexture(TextureMap.LOCATION_BLOCKS_TEXTURE);
-            final TextureAtlasSprite icon = Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(texture.toString());
-            final Tessellator t = Tessellator.getInstance();
-            final BufferBuilder r = t.getBuffer();
-            r.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
-            r.pos(u0, v1, 0).tex(icon.getInterpolatedU(u0 * 16), icon.getInterpolatedV(v1 * 16)).endVertex();
-            r.pos(u1, v1, 0).tex(icon.getInterpolatedU(u1 * 16), icon.getInterpolatedV(v1 * 16)).endVertex();
-            r.pos(u1, v0, 0).tex(icon.getInterpolatedU(u1 * 16), icon.getInterpolatedV(v0 * 16)).endVertex();
-            r.pos(u0, v0, 0).tex(icon.getInterpolatedU(u0 * 16), icon.getInterpolatedV(v0 * 16)).endVertex();
-            t.draw();
+            RenderSystem.setShaderTexture(0, TextureAtlas.LOCATION_BLOCKS);
+            final TextureAtlasSprite icon = Minecraft.getInstance().getTextureAtlas(TextureAtlas.LOCATION_BLOCKS).apply(texture);
+            final Tesselator t = Tesselator.getInstance();
+            final BufferBuilder r = t.getBuilder();
+            r.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
+            r.vertex(u0, v1, 0).uv(icon.getU(u0 * 16), icon.getV(v1 * 16)).endVertex();
+            r.vertex(u1, v1, 0).uv(icon.getU(u1 * 16), icon.getV(v1 * 16)).endVertex();
+            r.vertex(u1, v0, 0).uv(icon.getU(u1 * 16), icon.getV(v0 * 16)).endVertex();
+            r.vertex(u0, v0, 0).uv(icon.getU(u0 * 16), icon.getV(v0 * 16)).endVertex();
+            t.end();
         }
     }
 }

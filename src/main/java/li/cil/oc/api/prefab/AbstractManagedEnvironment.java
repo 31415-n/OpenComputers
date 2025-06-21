@@ -48,7 +48,7 @@ public abstract class AbstractManagedEnvironment implements ManagedEnvironment {
     @Override
     public void load(final CompoundTag nbt) {
         if (node() != null) {
-            node().load(nbt.getCompoundTag(NODE_TAG));
+            node().load(nbt.getCompound(NODE_TAG));
         }
     }
 
@@ -64,13 +64,13 @@ public abstract class AbstractManagedEnvironment implements ManagedEnvironment {
 
                 final CompoundTag nodeTag = new CompoundTag();
                 node().save(nodeTag);
-                nbt.setTag(NODE_TAG, nodeTag);
+                nbt.put(NODE_TAG, nodeTag);
 
                 node().remove();
             } else {
                 final CompoundTag nodeTag = new CompoundTag();
                 node().save(nodeTag);
-                nbt.setTag(NODE_TAG, nodeTag);
+                nbt.put(NODE_TAG, nodeTag);
             }
         }
     }

@@ -3,7 +3,7 @@ package li.cil.oc.api.prefab;
 import com.google.common.base.Charsets;
 import li.cil.oc.api.manual.ContentProvider;
 import net.minecraft.client.Minecraft;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.ResourceLocation;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -43,7 +43,7 @@ public class ResourceContentProvider implements ContentProvider {
         final ResourceLocation location = new ResourceLocation(resourceDomain, basePath + (path.startsWith("/") ? path.substring(1) : path));
         InputStream is = null;
         try {
-            is = Minecraft.getMinecraft().getResourceManager().getResource(location).getInputStream();
+            is = Minecraft.getInstance().getResourceManager().getResource(location).get().open();
             final BufferedReader reader = new BufferedReader(new InputStreamReader(is, Charsets.UTF_8));
             final ArrayList<String> lines = new ArrayList<String>();
             String line;

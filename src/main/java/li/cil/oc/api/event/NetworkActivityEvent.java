@@ -2,9 +2,9 @@ package li.cil.oc.api.event;
 
 import li.cil.oc.api.network.Node;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.tileentity.TileEntity;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.Level;
-import net.neoforged.bus.api.Event;
+import net.minecraftforge.eventbus.api.Event;
 
 /**
  * Events for handling network activity and representing it on the client.
@@ -18,7 +18,7 @@ import net.neoforged.bus.api.Event;
  * Canceling this event is provided to allow registering higher priority
  * event handlers that override default behavior.
  */
-public class NetworkActivityEvent extends net.neoforged.bus.api.Event {
+public class NetworkActivityEvent extends net.minecraftforge.eventbus.api.Event {
     protected Level world;
 
     protected double x;
@@ -27,7 +27,7 @@ public class NetworkActivityEvent extends net.neoforged.bus.api.Event {
 
     protected double z;
 
-    protected TileEntity tileEntity;
+    protected BlockEntity tileEntity;
 
     protected CompoundTag data;
 
@@ -37,11 +37,11 @@ public class NetworkActivityEvent extends net.neoforged.bus.api.Event {
      * @param tileEntity the tile entity hosting the network card.
      * @param data       the additional data.
      */
-    protected NetworkActivityEvent(TileEntity tileEntity, CompoundTag data) {
-        this.world = tileEntity.getWorld();
-        this.x = tileEntity.getPos().getX() + 0.5;
-        this.y = tileEntity.getPos().getY() + 0.5;
-        this.z = tileEntity.getPos().getZ() + 0.5;
+    protected NetworkActivityEvent(BlockEntity tileEntity, CompoundTag data) {
+        this.world = tileEntity.getLevel();
+        this.x = tileEntity.getBlockPos().getX() + 0.5;
+        this.y = tileEntity.getBlockPos().getY() + 0.5;
+        this.z = tileEntity.getBlockPos().getZ() + 0.5;
         this.tileEntity = tileEntity;
         this.data = data;
     }
@@ -98,7 +98,7 @@ public class NetworkActivityEvent extends net.neoforged.bus.api.Event {
      * <em>Important</em>: this can be <tt>null</tt>, which is usually the
      * case when the container is an entity or item.
      */
-    public TileEntity getTileEntity() {
+    public BlockEntity getTileEntity() {
         return tileEntity;
     }
 
@@ -113,7 +113,7 @@ public class NetworkActivityEvent extends net.neoforged.bus.api.Event {
     public static final class Server extends NetworkActivityEvent {
         private Node node;
 
-        public Server(TileEntity tileEntity, Node node) {
+        public Server(BlockEntity tileEntity, Node node) {
             super(tileEntity, new CompoundTag());
             this.node = node;
         }
@@ -138,7 +138,7 @@ public class NetworkActivityEvent extends net.neoforged.bus.api.Event {
          * @param tileEntity the tile entity hosting the network card.
          * @param data       the additional data.
          */
-        public Client(TileEntity tileEntity, CompoundTag data) {
+        public Client(BlockEntity tileEntity, CompoundTag data) {
             super(tileEntity, data);
         }
 

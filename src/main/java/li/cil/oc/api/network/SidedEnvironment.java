@@ -1,9 +1,9 @@
 package li.cil.oc.api.network;
 
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.Direction;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.core.Direction;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * This interface is like {@link net.minecraft.world.inventory.WorldlyContainer} is to
@@ -12,7 +12,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
  * <br>
  * This interface is intended to be used on tile entities that are environments.
  * It is used to determine which neighbors a tile entity can connect to when
- * calling {@link li.cil.oc.api.Network#joinOrCreateNetwork(TileEntity)}. It is
+ * calling {@link li.cil.oc.api.Network#joinOrCreateNetwork(BlockEntity)}. It is
  * used by the keyboard to only interface with the side on which it is attached,
  * as well as the switch to offer a different node for each side.
  */

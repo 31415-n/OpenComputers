@@ -6,7 +6,10 @@ import li.cil.oc.api.network.Message;
 import li.cil.oc.api.network.Node;
 import li.cil.oc.api.network.Visibility;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.tileentity.TileEntity;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * TileEntities can implement the {@link li.cil.oc.api.network.Environment}
@@ -17,7 +20,11 @@ import net.minecraft.tileentity.TileEntity;
  * network as an index structure to find other nodes connected to them.
  */
 @SuppressWarnings("UnusedDeclaration")
-public abstract class TileEntityEnvironment extends TileEntity implements Environment {
+public abstract class TileEntityEnvironment extends BlockEntity implements Environment {
+    
+    protected TileEntityEnvironment(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
+    }
     private static final String TAG_NODE = "oc:node";
 
     /**
@@ -96,20 +103,26 @@ public abstract class TileEntityEnvironment extends TileEntity implements Enviro
 
     @Override
     public void onLoad() {
+        super.onLoad();
+        Network.joinOrCreateNetwork(this);
+    }
+
+    public void onChunkUnloaded() {
+        // Make sure to remove the node from its network when chunk unloads.
+        // In 1.20.1, this is the proper way to handle chunk unloading cleanup.
+        if (node != null) node.remove();
+    }
+    
+    @Override
+    public void clearRemoved() {
+        super.clearRemoved();
+        // Re-join network when chunk is loaded again
         Network.joinOrCreateNetwork(this);
     }
 
     @Override
-    public void onChunkUnload() {
-        super.onChunkUnload();
-        // Make sure to remove the node from its network when its environment,
-        // meaning this tile entity, gets unloaded.
-        if (node != null) node.remove();
-    }
-
-    @Override
-    public void invalidate() {
-        super.invalidate();
+    public void setRemoved() {
+        super.setRemoved();
         // Make sure to remove the node from its network when its environment,
         // meaning this tile entity, gets unloaded.
         if (node != null) node.remove();
@@ -118,8 +131,8 @@ public abstract class TileEntityEnvironment extends TileEntity implements Enviro
     // ----------------------------------------------------------------------- //
 
     @Override
-    public void readFromNBT(final CompoundTag nbt) {
-        super.readFromNBT(nbt);
+    public void load(final CompoundTag nbt) {
+        super.load(nbt);
         // The host check may be superfluous for you. It's just there to allow
         // some special cases, where getNode() returns some node managed by
         // some other instance (for example when you have multiple internal
@@ -129,19 +142,18 @@ public abstract class TileEntityEnvironment extends TileEntity implements Enviro
             // to continue working without interruption across loads. If the
             // node is a power connector this is also required to restore the
             // internal energy buffer of the node.
-            node.load(nbt.getCompoundTag(TAG_NODE));
+            node.load(nbt.getCompound(TAG_NODE));
         }
     }
 
     @Override
-    public CompoundTag writeToNBT(final CompoundTag nbt) {
-        super.writeToNBT(nbt);
+    protected void saveAdditional(final CompoundTag nbt) {
+        super.saveAdditional(nbt);
         // See readFromNBT() regarding host check.
         if (node != null && node.host() == this) {
             final CompoundTag nodeNbt = new CompoundTag();
             node.save(nodeNbt);
-            nbt.setTag(TAG_NODE, nodeNbt);
+            nbt.put(TAG_NODE, nodeNbt);
         }
-        return nbt;
     }
 }

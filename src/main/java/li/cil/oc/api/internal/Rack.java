@@ -3,7 +3,7 @@ package li.cil.oc.api.internal;
 import li.cil.oc.api.component.RackMountable;
 import li.cil.oc.api.network.EnvironmentHost;
 import li.cil.oc.api.network.SidedEnvironment;
-import net.minecraft.world.inventory.Container;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.nbt.CompoundTag;
 
 /**
@@ -20,7 +20,7 @@ import net.minecraft.nbt.CompoundTag;
  * i.e. without having to link against internal classes. This also means that
  * <em>you should not implement this</em>.
  */
-public interface Rack extends SidedEnvironment, EnvironmentHost, Rotatable, Container {
+public interface Rack extends SidedEnvironment, EnvironmentHost, Rotatable, net.minecraft.world.Container {
     /**
      * Determine the index of the specified mountable.
      *

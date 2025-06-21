@@ -59,8 +59,8 @@ public interface MachineHost extends EnvironmentHost {
     /** Helper method for printing the machine position in error messages and debug statements. */
     default String machinePosition()
     {
-        if (world() != null && world().provider != null)
-            return String.format("(%g, %g, %g, %d)", xPosition(), yPosition(), zPosition(), world().provider.getDimension());
+        if (world() != null)
+            return String.format("(%g, %g, %g, %s)", xPosition(), yPosition(), zPosition(), world().dimension().location());
         else
             return String.format("(%g, %g, %g)", xPosition(), yPosition(), zPosition());
     }

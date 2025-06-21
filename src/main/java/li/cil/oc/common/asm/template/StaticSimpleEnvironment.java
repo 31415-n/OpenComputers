@@ -8,7 +8,7 @@ import li.cil.oc.api.network.Visibility;
 import li.cil.oc.common.asm.SimpleComponentTickHandler;
 import li.cil.oc.util.SideTracker;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.tileentity.TileEntity;
+import net.minecraft.world.level.block.entity.BlockEntity;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -49,7 +49,7 @@ public final class StaticSimpleEnvironment {
 
     public static void validate(final SimpleComponentImpl self) {
         self.validate_OpenComputers();
-        SimpleComponentTickHandler.schedule((TileEntity) self);
+        SimpleComponentTickHandler.schedule((BlockEntity) self);
     }
 
     public static void invalidate(final SimpleComponentImpl self) {
@@ -74,7 +74,7 @@ public final class StaticSimpleEnvironment {
         self.readFromNBT_OpenComputers(nbt);
         final Node node = node(self);
         if (node != null) {
-            node.load(nbt.getCompoundTag("oc:node"));
+            node.load(nbt.getCompound("oc:node"));
         }
     }
 
@@ -84,7 +84,7 @@ public final class StaticSimpleEnvironment {
         if (node != null) {
             final CompoundTag nodeNbt = new CompoundTag();
             node.save(nodeNbt);
-            nbt.setTag("oc:node", nodeNbt);
+            nbt.put("oc:node", nodeNbt);
         }
         return nbt;
     }

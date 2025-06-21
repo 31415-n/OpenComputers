@@ -4,7 +4,7 @@ import li.cil.oc.api.internal.Agent;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
-import net.neoforged.bus.api.Cancelable;
+import net.minecraftforge.eventbus.api.Cancelable;
 
 public abstract class RobotPlaceBlockEvent extends RobotEvent {
     /**
@@ -34,7 +34,7 @@ public abstract class RobotPlaceBlockEvent extends RobotEvent {
      * <br>
      * Canceling this event will prevent the block from being placed.
      */
-    @Cancellable
+    @Cancelable
     public static class Pre extends RobotPlaceBlockEvent {
         public Pre(Agent agent, ItemStack stack, Level world, BlockPos pos) {
             super(agent, stack, world, pos);

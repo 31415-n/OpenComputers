@@ -2,9 +2,9 @@ package li.cil.oc.common.asm;
 
 import li.cil.oc.api.Network;
 import li.cil.oc.util.SideTracker;
-import net.minecraft.tileentity.TileEntity;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.gameevent.TickEvent;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.event.TickEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -22,7 +22,7 @@ public final class SimpleComponentTickHandler {
     private SimpleComponentTickHandler() {
     }
 
-    public static void schedule(final TileEntity tileEntity) {
+    public static void schedule(final BlockEntity tileEntity) {
         if (SideTracker.isServer()) {
             synchronized (pending) {
                 pending.add(new Runnable() {

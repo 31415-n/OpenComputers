@@ -1,7 +1,7 @@
 package li.cil.oc.api.driver;
 
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.Container;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -13,7 +13,7 @@ import net.minecraft.world.item.ItemStack;
  * the inventory controller upgrade, for example.
  * <br>
  * Implementations returned by {@link #getInventory} should save changes
- * back to the item stack when {@link Container#markDirty()} is called.
+ * back to the item stack when the container is modified.
  * Return <tt>null</tt> if the specified stack is not supported.
  */
 public interface InventoryProvider {
@@ -38,5 +38,5 @@ public interface InventoryProvider {
      * @param player the player holding the item, may be <tt>null</tt>.
      * @return the inventory representing the contents, or <tt>null</tt>.
      */
-    Container getInventory(ItemStack stack, Player player);
+    AbstractContainerMenu getInventory(ItemStack stack, Player player);
 }

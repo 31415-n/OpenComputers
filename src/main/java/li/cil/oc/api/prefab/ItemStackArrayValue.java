@@ -4,9 +4,9 @@ import li.cil.oc.api.machine.Arguments;
 import li.cil.oc.api.machine.Callback;
 import li.cil.oc.api.machine.Context;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.nbt.NBTBase;
+import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NBTTagList;
+import net.minecraft.nbt.ListTag;
 
 import java.util.HashMap;
 import java.util.TreeMap;
@@ -16,7 +16,7 @@ public class ItemStackArrayValue extends AbstractValue {
 	private ItemStack[] array = null;
 	private int iteratorIndex;
 
-	private static final byte TAGLIST_ID = (new NBTTagList()).getId();
+	private static final byte TAGLIST_ID = (new ListTag()).getId();
 	private static final byte COMPOUND_ID = (new CompoundTag()).getId();
 	private static final String ARRAY_KEY = "Array";
 	private static final String INDEX_KEY = "Index";
@@ -71,20 +71,20 @@ public class ItemStackArrayValue extends AbstractValue {
 
 	@Override
 	public void load(CompoundTag nbt) {
-		if (nbt.hasKey(ARRAY_KEY, TAGLIST_ID)){
-			NBTTagList tagList = nbt.getTagList(ARRAY_KEY,COMPOUND_ID);
-			this.array = new ItemStack[tagList.tagCount()];
-			for (int i = 0; i < tagList.tagCount(); ++i){
-				CompoundTag el = tagList.getCompoundTagAt(i);
+		if (nbt.contains(ARRAY_KEY, TAGLIST_ID)){
+			ListTag tagList = nbt.getList(ARRAY_KEY,COMPOUND_ID);
+			this.array = new ItemStack[tagList.size()];
+			for (int i = 0; i < tagList.size(); ++i){
+				CompoundTag el = tagList.getCompound(i);
 				if (el.isEmpty())
 					this.array[i] = ItemStack.EMPTY;
 				else
-					this.array[i] = new ItemStack(el);
+					this.array[i] = ItemStack.of(el);
 			}
 		} else {
 			this.array = null;
 		}
-		this.iteratorIndex = nbt.getInteger(INDEX_KEY);
+		this.iteratorIndex = nbt.getInt(INDEX_KEY);
 	}
 
 	@Override
@@ -93,20 +93,20 @@ public class ItemStackArrayValue extends AbstractValue {
 		CompoundTag nullnbt = new CompoundTag();
 
 		if (this.array != null) {
-			NBTTagList nbttaglist = new NBTTagList();
+			ListTag nbttaglist = new ListTag();
 			for (ItemStack stack : this.array) {
 				if (stack != null) {
-					NBTBase nbttagcompound = stack.serializeNBT();
-					nbttaglist.appendTag(nbttagcompound);
+					Tag nbttagcompound = stack.serializeNBT();
+					nbttaglist.add(nbttagcompound);
 				} else {
-					nbttaglist.appendTag(nullnbt);
+					nbttaglist.add(nullnbt);
 				}
 			}
 
-			nbt.setTag(ARRAY_KEY, nbttaglist);
+			nbt.put(ARRAY_KEY, nbttaglist);
 		}
 
-		nbt.setInteger(INDEX_KEY, iteratorIndex);
+		nbt.putInt(INDEX_KEY, iteratorIndex);
 	}
 
 	@Callback(doc="function():nil -- Reset the iterator index so that the next call will return the first element.")

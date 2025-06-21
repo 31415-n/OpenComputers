@@ -2,12 +2,11 @@ package li.cil.oc.api.prefab;
 
 import li.cil.oc.api.manual.TabIconRenderer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.OpenGlHelper;
-import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.gui.GuiGraphics;
 
 /**
  * Simple implementation of a tab icon renderer using an item stack as its graphic.
@@ -23,10 +22,10 @@ public class ItemStackTabIconRenderer implements TabIconRenderer {
     @OnlyIn(Dist.CLIENT)
     @Override
     public void render() {
-        GlStateManager.enableRescaleNormal();
-        RenderHelper.enableGUIStandardItemLighting();
-        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, 240, 240);
-        Minecraft.getMinecraft().getRenderItem().renderItemAndEffectIntoGUI(stack, 0, 0);
-        RenderHelper.disableStandardItemLighting();
+        // В 1.20.1 рендеринг изменился, но мы можем использовать прямой доступ к Minecraft
+        Minecraft mc = Minecraft.getInstance();
+        PoseStack poseStack = new PoseStack();
+        GuiGraphics guiGraphics = new GuiGraphics(mc, mc.renderBuffers().bufferSource());
+        guiGraphics.renderItem(stack, 0, 0);
     }
 }

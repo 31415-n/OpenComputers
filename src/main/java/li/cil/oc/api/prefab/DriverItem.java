@@ -30,7 +30,7 @@ public abstract class DriverItem implements li.cil.oc.api.driver.DriverItem {
     public boolean worksWith(final ItemStack stack) {
         if (!stack.isEmpty()) {
             for (ItemStack item : items) {
-                if (!item.isEmpty() && item.isItemEqual(stack)) {
+                if (!item.isEmpty() && ItemStack.isSameItem(item, stack)) {
                     return true;
                 }
             }
@@ -45,16 +45,16 @@ public abstract class DriverItem implements li.cil.oc.api.driver.DriverItem {
 
     @Override
     public CompoundTag dataTag(final ItemStack stack) {
-        if (!stack.hasTagCompound()) {
-            stack.setTagCompound(new CompoundTag());
+        if (!stack.hasTag()) {
+            stack.setTag(new CompoundTag());
         }
-        final CompoundTag nbt = stack.getTagCompound();
+        final CompoundTag nbt = stack.getTag();
         // This is the suggested key under which to store item component data.
         // You are free to change this as you please.
-        if (!nbt.hasKey("oc:data")) {
-            nbt.setTag("oc:data", new CompoundTag());
+        if (!nbt.contains("oc:data")) {
+            nbt.put("oc:data", new CompoundTag());
         }
-        return nbt.getCompoundTag("oc:data");
+        return nbt.getCompound("oc:data");
     }
 
     // Convenience methods provided for HostAware drivers.

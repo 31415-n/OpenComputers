@@ -21,7 +21,7 @@ public interface Rotatable {
      * <pre>
      * class SomeDriver implements li.cil.oc.api.driver.Item {
      *     // ...
-     *     ManagedEnvironment createEnvironment(ItemStack stack, TileEntity tileentity) {
+     *     ManagedEnvironment createEnvironment(ItemStack stack, BlockEntity tileentity) {
      *         if (tileentity instanceof Rotatable) {
      *             ForgeDirection facing = ((Rotatable)tileentity).facing();
      *             // Do something with facing.

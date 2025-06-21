@@ -1,9 +1,9 @@
 package li.cil.oc.api.prefab;
 
 import li.cil.oc.api.driver.DriverBlock;
-import net.minecraft.tileentity.TileEntity;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.core.BlockPos;
-import net.minecraft.util.Direction;
+import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 
 /**
@@ -21,7 +21,7 @@ public abstract class DriverSidedTileEntity implements DriverBlock {
             // the class in question is not present.
             return false;
         }
-        final TileEntity tileEntity = world.getTileEntity(pos);
+        final BlockEntity tileEntity = world.getBlockEntity(pos);
         return tileEntity != null && filter.isAssignableFrom(tileEntity.getClass());
     }
 }

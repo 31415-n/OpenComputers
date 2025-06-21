@@ -3,8 +3,8 @@ package li.cil.oc.api.internal;
 import li.cil.oc.api.Persistable;
 import li.cil.oc.api.network.ManagedEnvironment;
 import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * This interface implements functionality for displaying and manipulating
