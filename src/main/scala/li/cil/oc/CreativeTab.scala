@@ -1,11 +1,15 @@
 package li.cil.oc
 
-import net.minecraft.creativetab.CreativeTabs
+import net.minecraft.world.item.CreativeModeTab
+import net.minecraft.world.item.ItemStack
+import net.minecraft.network.chat.Component
 
-object CreativeTab extends CreativeTabs(CreativeTabs.getNextID, OpenComputers.Name) {
-  private lazy val stack = api.Items.get(Constants.BlockName.CaseTier1).createItemStack(1)
-
-  override def createIcon = stack
-
-  override def getTranslationKey = getTabLabel
+object CreativeTab {
+  val OPENCOMPUTERS: CreativeModeTab = CreativeModeTab.builder()
+    .title(Component.translatable("itemGroup." + OpenComputers.Name))
+    .icon(() => {
+      val stack = api.Items.get(Constants.BlockName.CaseTier1).createItemStack(1)
+      if (stack != null) stack else ItemStack.EMPTY
+    })
+    .build()
 }

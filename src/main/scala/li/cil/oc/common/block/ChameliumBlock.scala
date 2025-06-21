@@ -1,27 +1,24 @@
 package li.cil.oc.common.block
 
-import net.minecraft.block.material.Material
-import net.minecraft.block.properties.PropertyEnum
-import net.minecraft.block.state.BlockStateContainer
-import net.minecraft.block.state.IBlockState
-import net.minecraft.item.EnumDyeColor
+import net.minecraft.world.level.material.Material
+import net.minecraft.world.level.block.state.properties.EnumProperty
+import net.minecraft.world.level.block.state.StateDefinition
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.item.DyeColor
 
 object ChameliumBlock {
-  final val Color = PropertyEnum.create("color", classOf[EnumDyeColor])
+  final val Color = EnumProperty.create("color", classOf[DyeColor])
 }
 
-class ChameliumBlock extends SimpleBlock(Material.ROCK) {
-  setDefaultState(blockState.getBaseState.withProperty(ChameliumBlock.Color, EnumDyeColor.BLACK))
+class ChameliumBlock extends SimpleBlock(Material.STONE) {
+  registerDefaultState(stateDefinition.any().setValue(ChameliumBlock.Color, DyeColor.BLACK))
 
-  override def damageDropped(state: IBlockState): Int = getMetaFromState(state)
+  // Block state methods are handled differently in 1.20.1
+  // Meta-based methods are no longer used
 
-  override def getStateFromMeta(meta: Int): IBlockState =
-    getDefaultState.withProperty(ChameliumBlock.Color, EnumDyeColor.byDyeDamage(meta))
+  override def createBlockStateDefinition(builder: StateDefinition.Builder[net.minecraft.world.level.block.Block, BlockState]): Unit = {
+    builder.add(ChameliumBlock.Color)
+  }
 
-  override def getMetaFromState(state: IBlockState): Int =
-    state.getValue(ChameliumBlock.Color).getDyeDamage
-
-  override def createBlockState() = new BlockStateContainer(this, ChameliumBlock.Color)
-
-  override def hasTileEntity(state: IBlockState): Boolean = false
+  override def hasBlockEntity(state: BlockState): Boolean = false
 }

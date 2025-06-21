@@ -1,32 +1,34 @@
 package li.cil.oc.client
 
 import li.cil.oc.common.command.SimpleCommand
-import net.minecraft.client.gui.GuiScreen
-import net.minecraft.command.ICommandSender
+import net.minecraft.client.Minecraft
+import net.minecraft.commands.CommandSource
 import net.minecraft.server.MinecraftServer
-import net.minecraftforge.client.ClientCommandHandler
+import net.minecraftforge.client.event.RegisterClientCommandsEvent
+import net.minecraftforge.eventbus.api.SubscribeEvent
+import net.minecraftforge.fml.common.Mod
+import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.arguments.StringArgumentType
+import com.mojang.brigadier.builder.LiteralArgumentBuilder
+import com.mojang.brigadier.context.CommandContext
 
+@Mod.EventBusSubscriber(modid = "opencomputers", bus = Mod.EventBusSubscriber.Bus.FORGE)
 object CommandHandler {
-  def register(): Unit = {
-    ClientCommandHandler.instance.registerCommand(SetClipboardCommand)
-  }
-
-  object SetClipboardCommand extends SimpleCommand("oc_setclipboard") {
-    override def getUsage(source: ICommandSender): String = name + " <value>"
-
-    override def execute(server: MinecraftServer, source: ICommandSender, command: Array[String]): Unit = {
-      if (source.getEntityWorld.isRemote && command != null && command.length > 0) {
-        GuiScreen.setClipboardString(command(0))
-      }
-    }
-
-    // OP levels for reference:
-    // 1 - Ops can bypass spawn protection.
-    // 2 - Ops can use /clear, /difficulty, /effect, /gamemode, /gamerule, /give, /summon, /setblock and /tp, and can edit command blocks.
-    // 3 - Ops can use /ban, /deop, /kick, and /op.
-    // 4 - Ops can use /stop.
-
-    override def getRequiredPermissionLevel = 0
-  }
-
-}
+  
+  @SubscribeEvent
+  def onRegisterClientCommands(event: RegisterClientCommandsEvent): Unit = {
+    val dispatcher = event.getDispatcher
+    dispatcher.register(
+      LiteralArgumentBuilder.literal[CommandSource]("oc_setclipboard")
+        .`then`(
+          com.mojang.brigadier.builder.RequiredArgumentBuilder.argument[CommandSource, String]("value", StringArgumentType.greedyString())
+            .executes((context: CommandContext[CommandSource]) => {
+              val value = StringArgumentType.getString(context, "value")
+              if (context.getSource.getLevel != null && context.getSource.getLevel.isClientSide) {
+                Minecraft.getInstance().keyboardHandler.setClipboard(value)
+              }
+              1
+            })
+        )
+    )
+  }}

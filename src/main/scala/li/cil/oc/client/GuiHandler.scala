@@ -15,18 +15,19 @@ import li.cil.oc.common.{GuiHandler => CommonGuiHandler}
 import li.cil.oc.util.BlockPosition
 import li.cil.oc.util.ExtendedWorld._
 import net.minecraft.client.Minecraft
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.tileentity.TileEntity
-import net.minecraft.world.World
-import net.minecraft.item.ItemStack
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.level.block.entity.BlockEntity
+import net.minecraft.world.level.Level
+import net.minecraft.world.item.ItemStack
+import net.minecraft.client.gui.screens.Screen
 
 object GuiHandler extends CommonGuiHandler {
-  override def getClientGuiElement(id: Int, player: EntityPlayer, world: World, x: Int, y: Int, z: Int): AnyRef = {
+  def getClientGuiElement(id: Int, player: Player, world: Level, x: Int, y: Int, z: Int): Screen = {
     GuiType.Categories.get(id) match {
       case Some(GuiType.Category.Block) =>
-        world.getTileEntity(BlockPosition(x, GuiType.extractY(y), z)) match {
+        world.getBlockEntity(BlockPosition(x, GuiType.extractY(y), z)) match {
           case t: tileentity.Adapter if id == GuiType.Adapter.id =>
-            new gui.Adapter(player.inventory, t)
+            new gui.Adapter(player.getInventory, t)
           case t: tileentity.Assembler if id == GuiType.Assembler.id =>
             new gui.Assembler(player.inventory, t)
           case t: tileentity.Case if id == GuiType.Case.id =>

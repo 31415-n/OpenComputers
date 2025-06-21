@@ -39,6 +39,11 @@ repositories {
         name "MightyPirates"
         url "https://maven.cil.li/"
     }
+    // Additional repositories for Scala dependencies
+    maven {
+        name = 'Scala Tools'
+        url = 'https://oss.sonatype.org/content/groups/scala-tools/'
+    }
 }
 
 dependencies {
@@ -53,6 +58,9 @@ dependencies {
     
     // Typesafe Config for configuration management
     implementation 'com.typesafe:config:1.4.2'
+    
+    // Scala library for Scala compilation
+    implementation 'org.scala-lang:scala-library:2.13.12'
 }
 
 runs {

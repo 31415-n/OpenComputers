@@ -4,18 +4,17 @@ import li.cil.oc.common.IMC
 import li.cil.oc.common.Proxy
 import li.cil.oc.server.command.CommandHandler
 import net.minecraftforge.fml.common.Mod
-import net.minecraftforge.fml.common.Mod.EventHandler
-import net.minecraftforge.fml.common.SidedProxy
-import net.minecraftforge.fml.common.event.FMLInterModComms.IMCEvent
-import net.minecraftforge.fml.common.event._
-import net.minecraftforge.fml.common.network.FMLEventChannel
+import net.minecraftforge.fml.event.lifecycle._
+import net.minecraftforge.eventbus.api.SubscribeEvent
+import net.minecraftforge.fml.InterModComms
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext
+import net.minecraftforge.event.server.ServerStartingEvent
+import net.minecraftforge.event.server.ServerStoppedEvent
 import li.cil.oc.util.ThreadPoolFactory
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 
-@Mod(modid = OpenComputers.ID, name = OpenComputers.Name,
-  version = OpenComputers.Version,
-  modLanguage = "scala", useMetadata = true /*@MCVERSIONDEP@*/)
+@Mod(OpenComputers.ID)
 object OpenComputers {
   final val ID = "opencomputers"
 
@@ -29,32 +28,37 @@ object OpenComputers {
 
   var logger: Option[Logger] = None
 
-  @SidedProxy(clientSide = "li.cil.oc.client.Proxy", serverSide = "li.cil.oc.server.Proxy")
-  var proxy: Proxy = null
+  var proxy: Proxy = _
 
-  var channel: FMLEventChannel = _
-
-  @EventHandler
-  def preInit(e: FMLPreInitializationEvent) {
-    logger = Option(e.getModLog)
-    proxy.preInit(e)
-    OpenComputers.log.info("Done with pre init phase.")
+  // Initialize proxy based on dist
+  if (net.minecraftforge.api.distmarker.Dist.CLIENT.isClient) {
+    proxy = new li.cil.oc.client.Proxy()
+  } else {
+    proxy = new li.cil.oc.server.Proxy()
   }
 
-  @EventHandler
-  def init(e: FMLInitializationEvent): Unit = {
-    proxy.init(e)
-    OpenComputers.log.info("Done with init phase.")
+  FMLJavaModLoadingContext.get().getModEventBus.addListener(this.commonSetup)
+  FMLJavaModLoadingContext.get().getModEventBus.addListener(this.clientSetup)
+  FMLJavaModLoadingContext.get().getModEventBus.addListener(this.serverSetup)
+
+  def commonSetup(event: FMLCommonSetupEvent): Unit = {
+    logger = Option(LogManager.getLogger(Name))
+    proxy.preInit(event)
+    OpenComputers.log.info("Done with common setup phase.")
   }
 
-  @EventHandler
-  def postInit(e: FMLPostInitializationEvent): Unit = {
-    proxy.postInit(e)
-    OpenComputers.log.info("Done with post init phase.")
+  def clientSetup(event: FMLClientSetupEvent): Unit = {
+    proxy.init(event)
+    OpenComputers.log.info("Done with client setup phase.")
   }
 
-  @EventHandler
-  def serverStart(e: FMLServerStartingEvent): Unit = {
+  def serverSetup(event: FMLDedicatedServerSetupEvent): Unit = {
+    proxy.postInit(event)
+    OpenComputers.log.info("Done with server setup phase.")
+  }
+
+  @SubscribeEvent
+  def serverStart(e: ServerStartingEvent): Unit = {
     CommandHandler.register(e)
     ThreadPoolFactory.safePools.foreach(_.newThreadPool())
 
@@ -85,11 +89,11 @@ object OpenComputers {
     }
   }
 
-  @EventHandler
-  def serverStop(e: FMLServerStoppedEvent): Unit = {
+  @SubscribeEvent
+  def serverStop(e: ServerStoppedEvent): Unit = {
     ThreadPoolFactory.safePools.foreach(_.waitForCompletion())
   }
 
-  @EventHandler
-  def imc(e: IMCEvent): Unit = IMC.handleEvent(e)
+  @SubscribeEvent
+  def imc(event: net.minecraftforge.fml.event.lifecycle.InterModProcessEvent): Unit = IMC.handleEvent(event)
 }

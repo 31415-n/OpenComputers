@@ -2,22 +2,27 @@ package li.cil.oc.common.command
 
 import java.util
 
-import net.minecraft.command.CommandBase
-import net.minecraft.command.ICommandSender
+import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.context.CommandContext
+import net.minecraft.commands.CommandSourceStack
 import net.minecraft.server.MinecraftServer
-import net.minecraftforge.fml.common.FMLCommonHandler
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
-abstract class SimpleCommand(val name: String) extends CommandBase {
+abstract class SimpleCommand(val name: String) {
   protected var aliases = mutable.ListBuffer.empty[String]
 
-  override def getName = name
+  def getName: String = name
 
-  override def getAliases: util.List[String] = aliases
+  def getAliases: util.List[String] = aliases.asJava
 
-  override def checkPermission(server: MinecraftServer, sender: ICommandSender): Boolean = super.checkPermission(server, sender)|| (FMLCommonHandler.instance().getMinecraftServerInstance != null && FMLCommonHandler.instance().getMinecraftServerInstance.isSinglePlayer)
+  def register(dispatcher: CommandDispatcher[CommandSourceStack]): Unit = {
+    // Modern command registration will be implemented by subclasses
+  }
 
-  override def isUsernameIndex(command: Array[String], i: Int) = false
+  def execute(context: CommandContext[CommandSourceStack]): Int = {
+    // Default implementation - subclasses should override
+    0
+  }
 }

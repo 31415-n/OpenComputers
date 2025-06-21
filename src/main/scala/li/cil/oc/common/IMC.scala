@@ -19,20 +19,24 @@ import net.minecraft.item.ItemStack
 import net.minecraft.nbt.NBTTagString
 import net.minecraft.util.math.BlockPos
 import net.minecraftforge.common.util.Constants.NBT
-import net.minecraftforge.fml.common.event.FMLInterModComms.IMCEvent
+import net.minecraftforge.fml.event.lifecycle.InterModProcessEvent
 
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 
 object IMC {
-  def handleEvent(e: IMCEvent): Unit = {
-    for (message <- e.getMessages) {
-      if (message.key == api.IMC.REGISTER_ASSEMBLER_TEMPLATE && message.isNBTMessage) {
-        if (message.getNBTValue.hasKey("name", NBT.TAG_STRING))
-          OpenComputers.log.debug(s"Registering new assembler template '${message.getNBTValue.getString("name")}' from mod ${message.getSender}.")
-        else
-          OpenComputers.log.debug(s"Registering new, unnamed assembler template from mod ${message.getSender}.")
-        try AssemblerTemplates.add(message.getNBTValue) catch {
-          case t: Throwable => OpenComputers.log.warn("Failed registering assembler template.", t)
+  def handleEvent(e: InterModProcessEvent): Unit = {
+    for (message <- e.getIMCStream.iterator().asScala) {
+      if (message.method() == api.IMC.REGISTER_ASSEMBLER_TEMPLATE) {
+        message.messageSupplier().get() match {
+          case nbt: NBTTagCompound =>
+            if (nbt.hasKey("name", NBT.TAG_STRING))
+              OpenComputers.log.debug(s"Registering new assembler template '${nbt.getString("name")}' from mod ${message.senderModId()}.")
+            else
+              OpenComputers.log.debug(s"Registering new, unnamed assembler template from mod ${message.senderModId()}.")
+            try AssemblerTemplates.add(nbt) catch {
+              case t: Throwable => OpenComputers.log.warn("Failed registering assembler template.", t)
+            }
+          case _ =>
         }
       }
       else if (message.key == api.IMC.REGISTER_DISASSEMBLER_TEMPLATE && message.isNBTMessage) {
@@ -100,7 +104,7 @@ object IMC {
         ProgramLocations.addMapping(message.getNBTValue.getString("program"), message.getNBTValue.getString("label"), message.getNBTValue.getTagList("architectures", NBT.TAG_STRING).map((tag: NBTTagString) => tag.getString()).toArray: _*)
       }
       else {
-        OpenComputers.log.warn(s"Got an unrecognized or invalid IMC message '${message.key}' from mod ${message.getSender}.")
+        OpenComputers.log.warn(s"Got an unrecognized or invalid IMC message '${message.method()}' from mod ${message.senderModId()}.")
       }
     }
   }

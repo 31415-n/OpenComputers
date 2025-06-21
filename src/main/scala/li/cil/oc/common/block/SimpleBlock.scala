@@ -9,40 +9,45 @@ import li.cil.oc.common.tileentity.traits.Inventory
 import li.cil.oc.common.tileentity.traits.Rotatable
 import li.cil.oc.util.Color
 import li.cil.oc.util.Tooltip
-import net.minecraft.block.BlockContainer
-import net.minecraft.block.material.Material
-import net.minecraft.block.state.BlockFaceShape
-import net.minecraft.block.state.IBlockState
-import net.minecraft.client.util.ITooltipFlag
-import net.minecraft.entity.Entity
-import net.minecraft.entity.EntityLiving.SpawnPlacementType
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.EnumDyeColor
-import net.minecraft.item.EnumRarity
-import net.minecraft.item.ItemStack
-import net.minecraft.tileentity.TileEntity
-import net.minecraft.util._
-import net.minecraft.util.math.BlockPos
-import net.minecraft.world.IBlockAccess
-import net.minecraft.world.World
-import net.minecraftforge.fml.relauncher.Side
-import net.minecraftforge.fml.relauncher.SideOnly
+import net.minecraft.world.level.block.BaseEntityBlock
+import net.minecraft.world.level.material.Material
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.block.state.properties.BlockStateProperties
+import net.minecraft.world.level.block.RenderShape
+import net.minecraft.world.item.TooltipFlag
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.MobSpawnType
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.DyeColor
+import net.minecraft.world.item.Rarity
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.level.block.entity.BlockEntity
+import net.minecraft.world.InteractionResult
+import net.minecraft.world.InteractionHand
+import net.minecraft.world.phys.BlockHitResult
+import net.minecraft.core.BlockPos
+import net.minecraft.core.Direction
+import net.minecraft.world.level.BlockGetter
+import net.minecraft.world.level.Level
+import net.minecraftforge.api.distmarker.Dist
+import net.minecraftforge.api.distmarker.OnlyIn
 
-abstract class SimpleBlock(material: Material = Material.IRON) extends BlockContainer(material) {
+abstract class SimpleBlock(material: Material = Material.METAL) extends BaseEntityBlock(Properties.of(material)) {
+  import net.minecraft.world.level.block.state.BlockBehaviour.Properties
   setHardness(2f)
   setResistance(5)
   setCreativeTab(CreativeTab)
 
   var showInItemList = true
 
-  protected val validRotations_ = Array(EnumFacing.UP, EnumFacing.DOWN)
+  protected val validRotations_ = Array(Direction.UP, Direction.DOWN)
 
   def createItemStack(amount: Int = 1) = new ItemStack(this, amount)
 
-  override def createNewTileEntity(world: World, meta: Int): TileEntity = null
+  override def newBlockEntity(pos: BlockPos, state: BlockState): BlockEntity = null
 
-  @SideOnly(Side.CLIENT)
-  override def shouldSideBeRendered(state: IBlockState, world: IBlockAccess, pos: BlockPos, side: EnumFacing): Boolean = {
+  @OnlyIn(Dist.CLIENT)
+  override def skipRendering(state: BlockState, adjacentBlockState: BlockState, direction: Direction): Boolean = {
     val bounds = getBoundingBox(state, world, pos)
     (side == EnumFacing.DOWN && bounds.minY > 0) ||
       (side == EnumFacing.UP && bounds.maxY < 1) ||
@@ -57,58 +62,58 @@ abstract class SimpleBlock(material: Material = Material.IRON) extends BlockCont
   // Rendering
   // ----------------------------------------------------------------------- //
 
-  override def getRenderType(state: IBlockState): EnumBlockRenderType = EnumBlockRenderType.MODEL
+  override def getRenderShape(state: BlockState): RenderShape = RenderShape.MODEL
 
-  @SideOnly(Side.CLIENT)
-  def preItemRender(metadata: Int) {}
+  @OnlyIn(Dist.CLIENT)
+  def preItemRender(metadata: Int): Unit = {}
 
   // ----------------------------------------------------------------------- //
   // ItemBlock
   // ----------------------------------------------------------------------- //
 
-  def rarity(stack: ItemStack) = EnumRarity.COMMON
+  def rarity(stack: ItemStack) = Rarity.COMMON
 
-  @SideOnly(Side.CLIENT)
-  def addInformation(metadata: Int, stack: ItemStack, world: World, tooltip: util.List[String], flag: ITooltipFlag) {
+  @OnlyIn(Dist.CLIENT)
+  def addInformation(metadata: Int, stack: ItemStack, world: Level, tooltip: util.List[String], flag: TooltipFlag): Unit = {
     tooltipHead(metadata, stack, world, tooltip, flag)
     tooltipBody(metadata, stack, world, tooltip, flag)
     tooltipTail(metadata, stack, world, tooltip, flag)
   }
 
-  protected def tooltipHead(metadata: Int, stack: ItemStack, world: World, tooltip: util.List[String], flag: ITooltipFlag) {
+  protected def tooltipHead(metadata: Int, stack: ItemStack, world: Level, tooltip: util.List[String], flag: TooltipFlag): Unit = {
   }
 
-  protected def tooltipBody(metadata: Int, stack: ItemStack, world: World, tooltip: util.List[String], flag: ITooltipFlag) {
+  protected def tooltipBody(metadata: Int, stack: ItemStack, world: Level, tooltip: util.List[String], flag: TooltipFlag): Unit = {
     tooltip.addAll(Tooltip.get(getClass.getSimpleName.toLowerCase))
   }
 
-  protected def tooltipTail(metadata: Int, stack: ItemStack, world: World, tooltip: util.List[String], flag: ITooltipFlag) {
+  protected def tooltipTail(metadata: Int, stack: ItemStack, world: Level, tooltip: util.List[String], flag: TooltipFlag): Unit = {
   }
 
   // ----------------------------------------------------------------------- //
   // Rotation
   // ----------------------------------------------------------------------- //
 
-  def getFacing(world: IBlockAccess, pos: BlockPos): EnumFacing =
-    world.getTileEntity(pos) match {
+  def getFacing(world: BlockGetter, pos: BlockPos): Direction =
+    world.getBlockEntity(pos) match {
       case tileEntity: Rotatable => tileEntity.facing
-      case _ => EnumFacing.SOUTH
+      case _ => Direction.SOUTH
     }
 
-  def setFacing(world: World, pos: BlockPos, value: EnumFacing): Boolean =
-    world.getTileEntity(pos) match {
+  def setFacing(world: Level, pos: BlockPos, value: Direction): Boolean =
+    world.getBlockEntity(pos) match {
       case rotatable: Rotatable => rotatable.setFromFacing(value); true
       case _ => false
     }
 
-  def setRotationFromEntityPitchAndYaw(world: World, pos: BlockPos, value: Entity): Boolean =
-    world.getTileEntity(pos) match {
+  def setRotationFromEntityPitchAndYaw(world: Level, pos: BlockPos, value: Entity): Boolean =
+    world.getBlockEntity(pos) match {
       case rotatable: Rotatable => rotatable.setFromEntityPitchAndYaw(value); true
       case _ => false
     }
 
-  def toLocal(world: IBlockAccess, pos: BlockPos, value: EnumFacing): EnumFacing =
-    world.getTileEntity(pos) match {
+  def toLocal(world: BlockGetter, pos: BlockPos, value: Direction): Direction =
+    world.getBlockEntity(pos) match {
       case rotatable: Rotatable => rotatable.toLocal(value)
       case _ => value
     }
@@ -117,64 +122,62 @@ abstract class SimpleBlock(material: Material = Material.IRON) extends BlockCont
   // Block
   // ----------------------------------------------------------------------- //
 
-  override def getBlockFaceShape(world: IBlockAccess, state: IBlockState, pos: BlockPos, side: EnumFacing): BlockFaceShape = if(isBlockSolid(world, pos, side)) BlockFaceShape.SOLID else BlockFaceShape.UNDEFINED
+  def isBlockSolid(world: BlockGetter, pos: BlockPos, side: Direction): Boolean = world.getBlockState(pos).getMaterial.isSolid
 
-  def isBlockSolid(world: IBlockAccess, pos: BlockPos, side: EnumFacing): Boolean = world.getBlockState(pos).getMaterial.isSolid
+  def canHarvestBlock(world: BlockGetter, pos: BlockPos, player: Player) = true
 
-  override def isSideSolid(state: IBlockState, world: IBlockAccess, pos: BlockPos, side: EnumFacing): Boolean = true
+  def canBeReplacedByLeaves(state: BlockState, world: BlockGetter, pos: BlockPos): Boolean = false
 
-  override def canHarvestBlock(world: IBlockAccess, pos: BlockPos, player: EntityPlayer) = true
+  def canCreatureSpawn(state: BlockState, world: BlockGetter, pos: BlockPos, `type`: MobSpawnType): Boolean = false
 
-  override def getHarvestTool(state: IBlockState): String = null
+  def getValidRotations(world: Level, pos: BlockPos): Array[Direction] = validRotations_
 
-  override def canBeReplacedByLeaves(state: IBlockState, world: IBlockAccess, pos: BlockPos): Boolean = false
-
-  override def canCreatureSpawn(state: IBlockState, world: IBlockAccess, pos: BlockPos, `type`: SpawnPlacementType): Boolean = false
-
-  override def getValidRotations(world: World, pos: BlockPos): Array[EnumFacing] = validRotations_
-
-  override def breakBlock(world: World, pos: BlockPos, state: IBlockState): Unit = {
-    if (!world.isRemote) world.getTileEntity(pos) match {
+  override def onRemove(state: BlockState, world: Level, pos: BlockPos, newState: BlockState, isMoving: Boolean): Unit = {
+    if (!world.isClientSide) world.getBlockEntity(pos) match {
       case inventory: Inventory => inventory.dropAllSlots()
       case _ => // Ignore.
     }
-    super.breakBlock(world, pos, state)
+    super.onRemove(state, world, pos, newState, isMoving)
   }
 
   // ----------------------------------------------------------------------- //
 
-  override def rotateBlock(world: World, pos: BlockPos, axis: EnumFacing): Boolean =
-    world.getTileEntity(pos) match {
+  def rotateBlock(world: Level, pos: BlockPos, axis: Direction): Boolean =
+    world.getBlockEntity(pos) match {
       case rotatable: tileentity.traits.Rotatable if rotatable.rotate(axis) =>
-        world.notifyBlockUpdate(pos, world.getBlockState(pos), world.getBlockState(pos), 3)
+        world.sendBlockUpdated(pos, world.getBlockState(pos), world.getBlockState(pos), 3)
         true
       case _ => false
     }
 
-  override def recolorBlock(world: World, pos: BlockPos, side: EnumFacing, color: EnumDyeColor): Boolean =
-    world.getTileEntity(pos) match {
+  def recolorBlock(world: Level, pos: BlockPos, side: Direction, color: DyeColor): Boolean =
+    world.getBlockEntity(pos) match {
       case colored: Colored if colored.getColor != Color.rgbValues(color) =>
         colored.setColor(Color.rgbValues(color))
-        world.notifyBlockUpdate(pos, world.getBlockState(pos), world.getBlockState(pos), 3)
+        world.sendBlockUpdated(pos, world.getBlockState(pos), world.getBlockState(pos), 3)
         true // Blame Vexatos.
-      case _ => super.recolorBlock(world, pos, side, color)
+      case _ => false
     }
 
   // ----------------------------------------------------------------------- //
 
-  override def onBlockActivated(world: World, pos: BlockPos, state: IBlockState, player: EntityPlayer, hand: EnumHand, facing: EnumFacing, hitX: Float, hitY: Float, hitZ: Float): Boolean = {
-    val heldItem = player.getHeldItem(hand)
-    world.getTileEntity(pos) match {
+  override def use(state: BlockState, world: Level, pos: BlockPos, player: Player, hand: InteractionHand, hit: BlockHitResult): InteractionResult = {
+    val heldItem = player.getItemInHand(hand)
+    world.getBlockEntity(pos) match {
       case colored: Colored if Color.isDye(heldItem) =>
         colored.setColor(Color.rgbValues(Color.dyeColor(heldItem)))
-        world.notifyBlockUpdate(pos, world.getBlockState(pos), world.getBlockState(pos), 3)
-        if (!player.capabilities.isCreativeMode && colored.consumesDye) {
-          heldItem.splitStack(1)
+        world.sendBlockUpdated(pos, world.getBlockState(pos), world.getBlockState(pos), 3)
+        if (!player.getAbilities.instabuild && colored.consumesDye) {
+          heldItem.shrink(1)
         }
-        true
-      case _ => localOnBlockActivated(world, pos, player, hand, heldItem, facing, hitX, hitY, hitZ)
+        InteractionResult.SUCCESS
+      case _ => 
+        if (localOnBlockActivated(world, pos, player, hand, heldItem, hit.getDirection, hit.getLocation.x.toFloat, hit.getLocation.y.toFloat, hit.getLocation.z.toFloat))
+          InteractionResult.SUCCESS
+        else
+          InteractionResult.PASS
     }
   }
 
-  def localOnBlockActivated(world: World, pos: BlockPos, player: EntityPlayer, hand: EnumHand, heldItem: ItemStack, side: EnumFacing, hitX: Float, hitY: Float, hitZ: Float) = false
+  def localOnBlockActivated(world: Level, pos: BlockPos, player: Player, hand: InteractionHand, heldItem: ItemStack, side: Direction, hitX: Float, hitY: Float, hitZ: Float) = false
 }

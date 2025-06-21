@@ -15,16 +15,16 @@ import li.cil.oc.api.network.Analyzable
 import li.cil.oc.api.network._
 import li.cil.oc.common.Slot
 import li.cil.oc.server.{PacketSender => ServerPacketSender}
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.init.SoundEvents
-import net.minecraft.item.ItemStack
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.nbt.NBTTagList
-import net.minecraft.util.EnumFacing
-import net.minecraft.util.SoundCategory
+import net.minecraft.world.entity.player.Player
+import net.minecraft.sounds.SoundEvents
+import net.minecraft.world.item.ItemStack
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.ListTag
+import net.minecraft.core.Direction
+import net.minecraft.sounds.SoundSource
 import net.minecraftforge.common.util.Constants.NBT
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 class Adapter extends traits.Environment with traits.ComponentInventory with traits.Tickable with traits.OpenSides with Analyzable with internal.Adapter with DeviceInfo {
@@ -49,21 +49,21 @@ class Adapter extends traits.Environment with traits.ComponentInventory with tra
 
   override protected def defaultState = true
 
-  override def setSideOpen(side: EnumFacing, value: Boolean) {
+  override def setSideOpen(side: Direction, value: Boolean) {
     super.setSideOpen(side, value)
     if (isServer) {
       ServerPacketSender.sendAdapterState(this)
-      getWorld.playSound(null, x + 0.5, y + 0.5, z + 0.5, SoundEvents.BLOCK_PISTON_EXTEND, SoundCategory.BLOCKS, 0.5f, getWorld.rand.nextFloat() * 0.25f + 0.7f)
-      getWorld.notifyNeighborsOfStateChange(getPos, getBlockType, false)
+      getWorld.playSound(null, x + 0.5, y + 0.5, z + 0.5, SoundEvents.PISTON_EXTEND, SoundSource.BLOCKS, 0.5f, getWorld.getRandom.nextFloat() * 0.25f + 0.7f)
+      getWorld.updateNeighborsAt(getPos, getBlockState.getBlock)
       neighborChanged(side)
     } else {
-      getWorld.notifyBlockUpdate(getPos, getWorld.getBlockState(getPos), getWorld.getBlockState(getPos), 3)
+      getWorld.sendBlockUpdated(getPos, getWorld.getBlockState(getPos), getWorld.getBlockState(getPos), 3)
     }
   }
 
   // ----------------------------------------------------------------------- //
 
-  override def onAnalyze(player: EntityPlayer, side: EnumFacing, hitX: Float, hitY: Float, hitZ: Float): Array[Node] = {
+  override def onAnalyze(player: Player, side: Direction, hitX: Float, hitY: Float, hitZ: Float): Array[Node] = {
     (blocks collect {
       case Some((environment, _)) => environment.node
     }) ++
@@ -83,10 +83,10 @@ class Adapter extends traits.Environment with traits.ComponentInventory with tra
     }
   }
 
-  def neighborChanged(d: EnumFacing) {
+  def neighborChanged(d: Direction) {
     if (node != null && node.network != null) {
-      val blockPos = getPos.offset(d)
-      getWorld.getTileEntity(blockPos) match {
+      val blockPos = getPos.relative(d)
+      getWorld.getBlockEntity(blockPos) match {
         case _: traits.Environment =>
         // Don't provide adaption for our stuffs. This is mostly to avoid
         // cables and other non-functional stuff popping up in the adapter
@@ -111,7 +111,7 @@ class Adapter extends traits.Environment with traits.ComponentInventory with tra
                     if (environment.canUpdate) {
                       updatingBlocks += environment
                     }
-                    blocksData(d.ordinal()) = Some(new BlockData(environment.getClass.getName, new NBTTagCompound()))
+                    blocksData(d.ordinal()) = Some(new BlockData(environment.getClass.getName, new CompoundTag()))
                     node.connect(environment.node)
                   }
                 } // else: the more things change, the more they stay the same.
@@ -131,7 +131,7 @@ class Adapter extends traits.Environment with traits.ComponentInventory with tra
                       environment.load(data.data)
                     case _ =>
                   }
-                  blocksData(d.ordinal()) = Some(new BlockData(environment.getClass.getName, new NBTTagCompound()))
+                  blocksData(d.ordinal()) = Some(new BlockData(environment.getClass.getName, new CompoundTag()))
                   node.connect(environment.node)
                 }
             }
@@ -152,7 +152,7 @@ class Adapter extends traits.Environment with traits.ComponentInventory with tra
 
   def neighborChanged() {
     if (node != null && node.network != null) {
-      for (d <- EnumFacing.values) {
+      for (d <- Direction.values) {
         neighborChanged(d)
       }
     }
@@ -189,44 +189,44 @@ class Adapter extends traits.Environment with traits.ComponentInventory with tra
   private final val BlockNameTag = "name"
   private final val BlockDataTag = "data"
 
-  override def readFromNBTForServer(nbt: NBTTagCompound) {
+  override def readFromNBTForServer(nbt: CompoundTag) {
     super.readFromNBTForServer(nbt)
 
-    val blocksNbt = nbt.getTagList(BlocksTag, NBT.TAG_COMPOUND)
-    (0 until (blocksNbt.tagCount min blocksData.length)).
-      map(blocksNbt.getCompoundTagAt).
+    val blocksNbt = nbt.getList(BlocksTag, NBT.TAG_COMPOUND)
+    (0 until (blocksNbt.size min blocksData.length)).
+      map(blocksNbt.getCompound).
       zipWithIndex.
       foreach {
         case (blockNbt, i) =>
-          if (blockNbt.hasKey(BlockNameTag) && blockNbt.hasKey(BlockDataTag)) {
-            blocksData(i) = Some(new BlockData(blockNbt.getString(BlockNameTag), blockNbt.getCompoundTag(BlockDataTag)))
+          if (blockNbt.contains(BlockNameTag) && blockNbt.contains(BlockDataTag)) {
+            blocksData(i) = Some(new BlockData(blockNbt.getString(BlockNameTag), blockNbt.getCompound(BlockDataTag)))
           }
       }
   }
 
-  override def writeToNBTForServer(nbt: NBTTagCompound) {
+  override def writeToNBTForServer(nbt: CompoundTag) {
     super.writeToNBTForServer(nbt)
 
-    val blocksNbt = new NBTTagList()
+    val blocksNbt = new ListTag()
     for (i <- blocks.indices) {
-      val blockNbt = new NBTTagCompound()
+      val blockNbt = new CompoundTag()
       blocksData(i) match {
         case Some(data) =>
           blocks(i) match {
             case Some((environment, _)) => environment.save(data.data)
             case _ =>
           }
-          blockNbt.setString(BlockNameTag, data.name)
-          blockNbt.setTag(BlockDataTag, data.data)
+          blockNbt.putString(BlockNameTag, data.name)
+          blockNbt.put(BlockDataTag, data.data)
         case _ =>
       }
-      blocksNbt.appendTag(blockNbt)
+      blocksNbt.add(blockNbt)
     }
-    nbt.setTag(BlocksTag, blocksNbt)
+    nbt.put(BlocksTag, blocksNbt)
   }
 
   // ----------------------------------------------------------------------- //
 
-  private class BlockData(val name: String, val data: NBTTagCompound)
+  private class BlockData(val name: String, val data: CompoundTag)
 
 }
