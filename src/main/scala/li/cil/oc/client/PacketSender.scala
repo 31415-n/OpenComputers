@@ -8,14 +8,12 @@ import li.cil.oc.common.entity.Drone
 import li.cil.oc.common.tileentity._
 import li.cil.oc.common.tileentity.traits.Computer
 import net.minecraft.client.Minecraft
-import net.minecraft.client.audio.PositionedSoundRecord
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.init.SoundEvents
-import net.minecraft.item.ItemStack
-import net.minecraft.util.EnumFacing
-import net.minecraft.util.SoundCategory
-
-import scala.tools.nsc.doc.model.Entity
+import net.minecraft.client.resources.sounds.SimpleSoundInstance
+import net.minecraft.world.entity.player.Player
+import net.minecraft.sounds.SoundEvents
+import net.minecraft.world.item.ItemStack
+import net.minecraft.core.Direction
+import net.minecraft.sounds.SoundSource
 
 object PacketSender {
   // Timestamp after which the next clipboard message may be sent. Used to
@@ -77,9 +75,9 @@ object PacketSender {
   def sendClipboard(address: String, value: String) {
     if (value != null && !value.isEmpty) {
       if (value.length > 64 * 1024 || System.currentTimeMillis() < clipboardCooldown) {
-        val player = Minecraft.getMinecraft.player
-        val handler = Minecraft.getMinecraft.getSoundHandler
-        handler.playSound(new PositionedSoundRecord(SoundEvents.BLOCK_NOTE_HARP, SoundCategory.MASTER, 1, 1, player.posX.toFloat, player.posY.toFloat, player.posZ.toFloat))
+        val player = Minecraft.getInstance().player
+        val handler = Minecraft.getInstance().getSoundManager
+        handler.play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_HARP.get(), 1.0F))
       }
       else {
         clipboardCooldown = System.currentTimeMillis() + value.length / 10
@@ -159,7 +157,7 @@ object PacketSender {
     pb.sendToServer()
   }
 
-  def sendRackMountableMapping(t: Rack, mountableIndex: Int, nodeIndex: Int, side: Option[EnumFacing]) {
+  def sendRackMountableMapping(t: Rack, mountableIndex: Int, nodeIndex: Int, side: Option[Direction]) {
     val pb = new SimplePacketBuilder(PacketType.RackMountableMapping)
 
     pb.writeTileEntity(t)

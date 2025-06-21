@@ -17,7 +17,7 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NbtIo
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.network.Connection
+import net.minecraftforge.network.NetworkEvent
 import net.minecraft.core.Direction
 import net.minecraft.core.BlockPos
 import net.minecraft.world.level.Level
@@ -32,7 +32,7 @@ import scala.reflect.classTag
  */
 abstract class PacketHandler {
   /** Top level dispatcher based on packet type. */
-  protected def onPacketData(handler: Connection, data: ByteBuf, player: Player): Unit = {
+  protected def onPacketData(handler: Any, data: ByteBuf, player: Player): Unit = {
     val server = player.getServer
     if (server != null && server.isSameThread) {
       process(data, player)

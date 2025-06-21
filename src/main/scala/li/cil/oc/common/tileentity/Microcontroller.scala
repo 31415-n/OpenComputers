@@ -19,18 +19,18 @@ import li.cil.oc.util.ExtendedArguments._
 import li.cil.oc.util.ExtendedNBT._
 import li.cil.oc.util.StackOption
 import li.cil.oc.util.StackOption._
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.inventory.ISidedInventory
-import net.minecraft.item.ItemStack
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.util.EnumFacing
-import net.minecraftforge.common.util.Constants.NBT
-import net.minecraftforge.fml.relauncher.Side
-import net.minecraftforge.fml.relauncher.SideOnly
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.WorldlyContainer
+import net.minecraft.world.item.ItemStack
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.core.Direction
+import net.minecraft.nbt.Tag
+import net.minecraftforge.api.distmarker.Dist
+import net.minecraftforge.api.distmarker.OnlyIn
 
 import scala.jdk.CollectionConverters._
 
-class Microcontroller extends traits.PowerAcceptor with traits.Hub with traits.Computer with ISidedInventory with internal.Microcontroller with DeviceInfo {
+class Microcontroller extends traits.PowerAcceptor with traits.Hub with traits.Computer with WorldlyContainer with internal.Microcontroller with DeviceInfo {
   val info = new MicrocontrollerData()
 
   override def node = null
@@ -67,24 +67,24 @@ class Microcontroller extends traits.PowerAcceptor with traits.Hub with traits.C
 
   // ----------------------------------------------------------------------- //
 
-  @SideOnly(Side.CLIENT)
-  override def canConnect(side: EnumFacing): Boolean = side != facing
+  @OnlyIn(Dist.CLIENT)
+  override def canConnect(side: Direction): Boolean = side != facing
 
-  override def sidedNode(side: EnumFacing): Node = if (side != facing) super.sidedNode(side) else null
+  override def sidedNode(side: Direction): Node = if (side != facing) super.sidedNode(side) else null
 
-  @SideOnly(Side.CLIENT)
-  override protected def hasConnector(side: EnumFacing): Boolean = side != facing
+  @OnlyIn(Dist.CLIENT)
+  override protected def hasConnector(side: Direction): Boolean = side != facing
 
-  override protected def connector(side: EnumFacing) = Option(if (side != facing) snooperNode else null)
+  override protected def connector(side: Direction) = Option(if (side != facing) snooperNode else null)
 
   override def energyThroughput: Double = Settings.get.caseRate(Tier.One)
 
   // ----------------------------------------------------------------------- //
 
-  override def onAnalyze(player: EntityPlayer, side: EnumFacing, hitX: Float, hitY: Float, hitZ: Float): Array[Node] = {
+  override def onAnalyze(player: Player, side: Direction, hitX: Float, hitY: Float, hitZ: Float): Array[Node] = {
     super.onAnalyze(player, side, hitX, hitY, hitZ)
     if (side != facing)
-      Array(componentNodes(side.getIndex))
+      Array(componentNodes(side.get3DDataValue()))
     else
       Array(machine.node)
   }
@@ -116,14 +116,14 @@ class Microcontroller extends traits.PowerAcceptor with traits.Hub with traits.C
   @Callback(direct = true, doc = """function(side:number):boolean -- Get whether network messages are sent via the specified side.""")
   def isSideOpen(context: Context, args: Arguments): Array[AnyRef] = {
     val side = args.checkSideExcept(0, facing)
-    result(outputSides(side.ordinal()))
+    result(outputSides(side.get3DDataValue()))
   }
 
   @Callback(doc = """function(side:number, open:boolean):boolean -- Set whether network messages are sent via the specified side.""")
   def setSideOpen(context: Context, args: Arguments): Array[AnyRef] = {
     val side = args.checkSideExcept(0, facing)
-    val oldValue = outputSides(side.ordinal())
-    outputSides(side.ordinal()) = args.checkBoolean(1)
+    val oldValue = outputSides(side.get3DDataValue())
+    outputSides(side.get3DDataValue()) = args.checkBoolean(1)
     result(oldValue)
   }
 
@@ -134,7 +134,7 @@ class Microcontroller extends traits.PowerAcceptor with traits.Hub with traits.C
 
     // Pump energy into the internal network.
     if (isServer && getWorld.getTotalWorldTime % Settings.get.tickFrequency == 0) {
-      for (side <- EnumFacing.values if side != facing) {
+      for (side <- Direction.values if side != facing) {
         sidedNode(side) match {
           case connector: Connector =>
             val demand = snooperNode.globalBufferSize - snooperNode.globalBuffer
@@ -169,17 +169,17 @@ class Microcontroller extends traits.PowerAcceptor with traits.Hub with traits.C
       connectComponents()
     }
     if (plug.isPrimary)
-      plug.node.connect(componentNodes(plug.side.ordinal()))
+      plug.node.connect(componentNodes(plug.side.get3DDataValue()))
     else
-      componentNodes(plug.side.ordinal).remove()
+      componentNodes(plug.side.get3DDataValue()).remove()
   }
 
   override protected def onPlugDisconnect(plug: Plug, node: Node) {
     super.onPlugDisconnect(plug, node)
     if (plug.isPrimary && node != plug.node)
-      plug.node.connect(componentNodes(plug.side.ordinal()))
+      plug.node.connect(componentNodes(plug.side.get3DDataValue()))
     else
-      componentNodes(plug.side.ordinal).remove()
+      componentNodes(plug.side.get3DDataValue()).remove()
     if (node == plug.node)
       disconnectComponents()
   }
@@ -192,7 +192,7 @@ class Microcontroller extends traits.PowerAcceptor with traits.Hub with traits.C
 
   override def onMessage(message: Message): Unit = {
     if (message.name == "network.message" && message.source.network == snooperNode.network) {
-      for (side <- EnumFacing.values if outputSides(side.ordinal) && side != facing) {
+      for (side <- Direction.values if outputSides(side.get3DDataValue()) && side != facing) {
         sidedNode(side).sendToReachable(message.name, message.data: _*)
       }
     }
@@ -205,12 +205,12 @@ class Microcontroller extends traits.PowerAcceptor with traits.Hub with traits.C
   private final val ComponentNodesTag = Settings.namespace + "componentNodes"
   private final val SnooperTag = Settings.namespace + "snooper"
 
-  override def readFromNBTForServer(nbt: NBTTagCompound) {
+  override def readFromNBTForServer(nbt: CompoundTag) {
     // Load info before inventory and such, to avoid initializing components
     // to empty inventory.
     info.load(nbt.getCompoundTag(InfoTag))
     nbt.getBooleanArray(OutputsTag)
-    nbt.getTagList(ComponentNodesTag, NBT.TAG_COMPOUND).toArray[NBTTagCompound].
+    nbt.getList(ComponentNodesTag, Tag.TAG_COMPOUND).toArray.map(_.asInstanceOf[CompoundTag]).
       zipWithIndex.foreach {
       case (tag, index) => componentNodes(index).load(tag)
     }
@@ -220,27 +220,27 @@ class Microcontroller extends traits.PowerAcceptor with traits.Hub with traits.C
     machine.node.connect(snooperNode)
   }
 
-  override def writeToNBTForServer(nbt: NBTTagCompound) {
+  override def writeToNBTForServer(nbt: CompoundTag) {
     super.writeToNBTForServer(nbt)
     nbt.setNewCompoundTag(InfoTag, info.save)
     nbt.setBooleanArray(OutputsTag, outputSides)
     nbt.setNewTagList(ComponentNodesTag, componentNodes.map {
       case node: Node =>
-        val tag = new NBTTagCompound()
+        val tag = new CompoundTag()
         node.save(tag)
         tag
-      case _ => new NBTTagCompound()
+      case _ => new CompoundTag()
     })
     nbt.setNewCompoundTag(SnooperTag, snooperNode.save)
   }
 
-  @SideOnly(Side.CLIENT) override
-  def readFromNBTForClient(nbt: NBTTagCompound) {
+  @OnlyIn(Dist.CLIENT) override
+  def readFromNBTForClient(nbt: CompoundTag) {
     info.load(nbt.getCompoundTag(InfoTag))
     super.readFromNBTForClient(nbt)
   }
 
-  override def writeToNBTForClient(nbt: NBTTagCompound) {
+  override def writeToNBTForClient(nbt: CompoundTag) {
     super.writeToNBTForClient(nbt)
     nbt.setNewCompoundTag(InfoTag, info.save)
   }
@@ -265,11 +265,11 @@ class Microcontroller extends traits.PowerAcceptor with traits.Hub with traits.C
   override def removeStackFromSlot(slot: Int) = ItemStack.EMPTY
 
   // Nope.
-  override def canExtractItem(slot: Int, stack: ItemStack, side: EnumFacing) = false
+  override def canTakeItemThroughFace(slot: Int, stack: ItemStack, side: Direction) = false
 
-  override def canInsertItem(slot: Int, stack: ItemStack, side: EnumFacing) = false
+  override def canPlaceItemThroughFace(slot: Int, stack: ItemStack, side: Direction) = false
 
-  override def getSlotsForFace(side: EnumFacing): Array[Int] = Array()
+  override def getSlotsForFace(side: Direction): Array[Int] = Array()
 
   // For hotswapping EEPROMs.
   def changeEEPROM(newEeprom: ItemStack): StackOption = {

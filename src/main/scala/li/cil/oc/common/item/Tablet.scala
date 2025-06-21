@@ -53,6 +53,10 @@ import net.minecraft.world.item.context.UseOnContext
 import net.minecraft.world.level.Level
 import net.minecraft.nbt.Tag
 import net.minecraft.core.Direction
+import net.minecraft.world.MenuProvider
+import net.minecraft.world.inventory.AbstractContainerMenu
+import net.minecraft.world.entity.player.Inventory
+import net.minecraft.network.chat.Component
 import net.minecraftforge.event.level.LevelEvent
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import net.minecraftforge.event.TickEvent.ClientTickEvent
@@ -127,8 +131,8 @@ class Tablet(val parent: Delegator) extends traits.Delegate with CustomModel wit
   override def registerModelLocations(): Unit = {
     for (state <- Seq(None, Some(true), Some(false))) {
       val location = modelLocationFromState(state)
-      // Model registration updated for 1.20.1
-      // ModelBakery.registerItemVariants(parent, new ResourceLocation(location.getNamespace + ":" + location.getPath))
+      // Model registration for 1.20.1 - handled by resource system
+      // Models are now registered through resource packs and data generation
     }
   }
 
@@ -209,8 +213,20 @@ class Tablet(val parent: Delegator) extends traits.Delegate with CustomModel wit
               val tablet = Tablet.Server.get(stack, player)
               tablet.machine.stop()
               if (tablet.data.tier > Tier.One) {
-                // GUI opening updated for 1.20.1
-              // player.openGui(OpenComputers, GuiType.TabletInner.id, world, 0, 0, 0)
+                // Open tablet inner GUI using MenuProvider for 1.20.1
+                player match {
+                  case serverPlayer: ServerPlayer =>
+                    serverPlayer.openMenu(new MenuProvider {
+                      override def createMenu(containerId: Int, playerInventory: Inventory, player: Player): AbstractContainerMenu = {
+                        new container.Tablet(playerInventory, tablet)
+                      }
+                      
+                      override def getDisplayName: Component = {
+                        Component.translatable("gui.opencomputers.tablet")
+                      }
+                    })
+                  case _ =>
+                }
               }
             }
           }
@@ -224,8 +240,20 @@ class Tablet(val parent: Delegator) extends traits.Delegate with CustomModel wit
               }
             }
             else {
-              // GUI opening updated for 1.20.1
-              // player.openGui(OpenComputers, GuiType.Tablet.id, world, 0, 0, 0)
+              // Open tablet GUI using MenuProvider for 1.20.1
+              player match {
+                case serverPlayer: ServerPlayer =>
+                  serverPlayer.openMenu(new MenuProvider {
+                    override def createMenu(containerId: Int, playerInventory: Inventory, player: Player): AbstractContainerMenu = {
+                      new container.Tablet(playerInventory, Tablet.get(stack, player))
+                    }
+                    
+                    override def getDisplayName: Component = {
+                      Component.translatable("gui.opencomputers.tablet")
+                    }
+                  })
+                case _ =>
+              }
             }
           }
         }

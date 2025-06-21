@@ -3,180 +3,206 @@ package li.cil.oc.client.renderer.block
 import java.util
 import java.util.Collections
 import li.cil.oc.client.Textures
-import net.minecraft.block.state.IBlockState
+import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.block.model._
+import net.minecraft.client.resources.model._
 import net.minecraft.client.renderer.texture.TextureAtlasSprite
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats
-import net.minecraft.util.EnumFacing
-import net.minecraft.util.math.Vec3d
-import net.minecraftforge.common.ForgeModContainer
-import org.lwjgl.util.vector.Vector3f
+import net.minecraft.client.renderer.block.model.BakedQuad
+import net.minecraft.client.renderer.block.model.ItemOverrides
+import net.minecraft.client.renderer.block.model.ItemTransforms
+import net.minecraft.client.renderer.block.model.ItemTransform
+import net.minecraft.core.Direction
+import net.minecraft.world.phys.Vec3
+import net.minecraftforge.client.model.data.ModelData
+import org.joml.Vector3f
+import java.util.Random
 
-trait SmartBlockModelBase extends IBakedModel {
-  override def getOverrides: ItemOverrideList = ItemOverrideList.NONE
+/**
+ * Base trait for smart block models in OpenComputers.
+ * Provides common functionality for custom block model rendering in 1.20.1.
+ */
+trait SmartBlockModelBase extends BakedModel {
+  
+  override def getOverrides: ItemOverrides = ItemOverrides.EMPTY
 
-  override def getQuads(state: IBlockState, side: EnumFacing, rand: Long): util.List[BakedQuad] = Collections.emptyList()
+  override def getQuads(state: BlockState, side: Direction, rand: Random): util.List[BakedQuad] = Collections.emptyList()
 
-  override def isAmbientOcclusion = true
+  override def getQuads(state: BlockState, side: Direction, rand: Random, data: ModelData, renderType: net.minecraft.client.renderer.RenderType): util.List[BakedQuad] = {
+    getQuads(state, side, rand)
+  }
 
-  override def isGui3d = true
+  override def useAmbientOcclusion(): Boolean = true
 
-  override def isBuiltInRenderer = false
+  override def isGui3d: Boolean = true
 
-  // Note: we don't care about the actual texture here, we just need the block
-  // texture atlas. So any of our textures we know is loaded into it will do.
-  override def getParticleTexture = Textures.getSprite(Textures.Block.GenericTop)
+  override def usesBlockLight(): Boolean = false
 
-  override def getItemCameraTransforms = DefaultBlockCameraTransforms
+  override def isCustomRenderer: Boolean = false
 
-  protected final val DefaultBlockCameraTransforms = {
-    val gui = new ItemTransformVec3f(new Vector3f(30, 225, 0), new Vector3f(0, 0, 0), new Vector3f(0.625f, 0.625f, 0.625f))
-    val ground = new ItemTransformVec3f(new Vector3f(0, 0, 0), new Vector3f(0, 3, 0), new Vector3f(0.25f, 0.25f, 0.25f))
-    val fixed = new ItemTransformVec3f(new Vector3f(0, 0, 0), new Vector3f(0, 0, 0), new Vector3f(0.5f, 0.5f, 0.5f))
-    val thirdperson_righthand = new ItemTransformVec3f(new Vector3f(75, 45, 0), new Vector3f(0, 2.5f, 0), new Vector3f(0.375f, 0.375f, 0.375f))
-    val firstperson_righthand = new ItemTransformVec3f(new Vector3f(0, 45, 0), new Vector3f(0, 0, 0), new Vector3f(0.40f, 0.40f, 0.40f))
-    val firstperson_lefthand = new ItemTransformVec3f(new Vector3f(0, 225, 0), new Vector3f(0, 0, 0), new Vector3f(0.40f, 0.40f, 0.40f))
+  // Get particle texture from our texture atlas
+  override def getParticleIcon: TextureAtlasSprite = Textures.getSprite(Textures.Block.GenericTop)
 
-    // scale(0.0625f): see ItemTransformVec3f.Deserializer.deserialize.
-    gui.translation.scale(0.0625f)
-    ground.translation.scale(0.0625f)
-    fixed.translation.scale(0.0625f)
-    thirdperson_righthand.translation.scale(0.0625f)
-    firstperson_righthand.translation.scale(0.0625f)
-    firstperson_lefthand.translation.scale(0.0625f)
+  override def getParticleIcon(data: ModelData): TextureAtlasSprite = getParticleIcon
 
-    new ItemCameraTransforms(
-      ItemTransformVec3f.DEFAULT,
+  override def getTransforms: ItemTransforms = DefaultBlockTransforms
+
+  /**
+   * Default item transforms for blocks in 1.20.1.
+   */
+  protected final val DefaultBlockTransforms = {
+    val gui = new ItemTransform(new Vector3f(30, 225, 0), new Vector3f(0, 0, 0), new Vector3f(0.625f, 0.625f, 0.625f))
+    val ground = new ItemTransform(new Vector3f(0, 0, 0), new Vector3f(0, 0.1875f, 0), new Vector3f(0.25f, 0.25f, 0.25f))
+    val fixed = new ItemTransform(new Vector3f(0, 0, 0), new Vector3f(0, 0, 0), new Vector3f(0.5f, 0.5f, 0.5f))
+    val thirdperson_righthand = new ItemTransform(new Vector3f(75, 45, 0), new Vector3f(0, 0.15625f, 0), new Vector3f(0.375f, 0.375f, 0.375f))
+    val firstperson_righthand = new ItemTransform(new Vector3f(0, 45, 0), new Vector3f(0, 0, 0), new Vector3f(0.40f, 0.40f, 0.40f))
+    val firstperson_lefthand = new ItemTransform(new Vector3f(0, 225, 0), new Vector3f(0, 0, 0), new Vector3f(0.40f, 0.40f, 0.40f))
+
+    new ItemTransforms(
+      ItemTransform.NO_TRANSFORM,
       thirdperson_righthand,
       firstperson_lefthand,
       firstperson_righthand,
-      ItemTransformVec3f.DEFAULT,
+      ItemTransform.NO_TRANSFORM,
       gui,
       ground,
-      fixed)
+      fixed,
+      ItemTransform.NO_TRANSFORM
+    )
   }
 
-  protected def missingModel = Minecraft.getMinecraft.getRenderItem.getItemModelMesher.getModelManager.getMissingModel
+  /**
+   * Get the missing model fallback.
+   */
+  protected def missingModel: BakedModel = {
+    Minecraft.getInstance().getModelManager.getMissingModel
+  }
 
-  // Standard faces for a unit cube.
+  // Standard faces for a unit cube (vertices in world coordinates)
   protected final val UnitCube = Array(
-    Array(new Vec3d(0, 0, 1), new Vec3d(0, 0, 0), new Vec3d(1, 0, 0), new Vec3d(1, 0, 1)),
-    Array(new Vec3d(0, 1, 0), new Vec3d(0, 1, 1), new Vec3d(1, 1, 1), new Vec3d(1, 1, 0)),
-    Array(new Vec3d(1, 1, 0), new Vec3d(1, 0, 0), new Vec3d(0, 0, 0), new Vec3d(0, 1, 0)),
-    Array(new Vec3d(0, 1, 1), new Vec3d(0, 0, 1), new Vec3d(1, 0, 1), new Vec3d(1, 1, 1)),
-    Array(new Vec3d(0, 1, 0), new Vec3d(0, 0, 0), new Vec3d(0, 0, 1), new Vec3d(0, 1, 1)),
-    Array(new Vec3d(1, 1, 1), new Vec3d(1, 0, 1), new Vec3d(1, 0, 0), new Vec3d(1, 1, 0))
+    Array(new Vec3(0, 0, 1), new Vec3(0, 0, 0), new Vec3(1, 0, 0), new Vec3(1, 0, 1)), // DOWN
+    Array(new Vec3(0, 1, 0), new Vec3(0, 1, 1), new Vec3(1, 1, 1), new Vec3(1, 1, 0)), // UP
+    Array(new Vec3(1, 1, 0), new Vec3(1, 0, 0), new Vec3(0, 0, 0), new Vec3(0, 1, 0)), // NORTH
+    Array(new Vec3(0, 1, 1), new Vec3(0, 0, 1), new Vec3(1, 0, 1), new Vec3(1, 1, 1)), // SOUTH
+    Array(new Vec3(0, 1, 0), new Vec3(0, 0, 0), new Vec3(0, 0, 1), new Vec3(0, 1, 1)), // WEST
+    Array(new Vec3(1, 1, 1), new Vec3(1, 0, 1), new Vec3(1, 0, 0), new Vec3(1, 1, 0))  // EAST
   )
 
-  // Planes perpendicular to facings. Negative values mean we mirror along that,
-  // axis which is done to mirror back faces and the y axis (because up is
-  // positive but for our texture coordinates down is positive).
+  // UV mapping planes for each face direction
   protected final val Planes = Array(
-    (new Vec3d(1, 0, 0), new Vec3d(0, 0, -1)),
-    (new Vec3d(1, 0, 0), new Vec3d(0, 0, 1)),
-    (new Vec3d(-1, 0, 0), new Vec3d(0, -1, 0)),
-    (new Vec3d(1, 0, 0), new Vec3d(0, -1, 0)),
-    (new Vec3d(0, 0, 1), new Vec3d(0, -1, 0)),
-    (new Vec3d(0, 0, -1), new Vec3d(0, -1, 0))
+    (new Vec3(1, 0, 0), new Vec3(0, 0, -1)),  // DOWN
+    (new Vec3(1, 0, 0), new Vec3(0, 0, 1)),   // UP
+    (new Vec3(-1, 0, 0), new Vec3(0, -1, 0)), // NORTH
+    (new Vec3(1, 0, 0), new Vec3(0, -1, 0)),  // SOUTH
+    (new Vec3(0, 0, 1), new Vec3(0, -1, 0)),  // WEST
+    (new Vec3(0, 0, -1), new Vec3(0, -1, 0))  // EAST
   )
 
   protected final val White = 0xFFFFFF
 
   /**
-    * Generates a list of arrays, each containing the four vertices making up a
-    * face of the box with the specified size.
-    */
-  protected def makeBox(from: Vec3d, to: Vec3d) = {
+   * Generate vertices for a box with the specified bounds.
+   */
+  protected def makeBox(from: Vec3, to: Vec3): Array[Array[Vec3]] = {
     val minX = math.min(from.x, to.x)
     val minY = math.min(from.y, to.y)
     val minZ = math.min(from.z, to.z)
     val maxX = math.max(from.x, to.x)
     val maxY = math.max(from.y, to.y)
     val maxZ = math.max(from.z, to.z)
-    UnitCube.map(face => face.map(vertex => new Vec3d(
+    
+    UnitCube.map(face => face.map(vertex => new Vec3(
       math.max(minX, math.min(maxX, vertex.x)),
       math.max(minY, math.min(maxY, vertex.y)),
-      math.max(minZ, math.min(maxZ, vertex.z)))))
+      math.max(minZ, math.min(maxZ, vertex.z))
+    )))
   }
 
-  protected def rotateVector(v: Vec3d, angle: Double, axis: Vec3d) = {
-    // vrot = v * cos(angle) + (axis x v) * sin(angle) + axis * (axis dot v)(1 - cos(angle))
-    def scale(v: Vec3d, s: Double) = new Vec3d(v.x * s, v.y * s, v.z * s)
+  /**
+   * Rotate a vector around an axis.
+   */
+  protected def rotateVector(v: Vec3, angle: Double, axis: Vec3): Vec3 = {
+    def scale(v: Vec3, s: Double) = new Vec3(v.x * s, v.y * s, v.z * s)
     val cosAngle = math.cos(angle)
     val sinAngle = math.sin(angle)
-    scale(v, cosAngle).
-      add(scale(axis.crossProduct(v), sinAngle)).
-      add(scale(axis, axis.dotProduct(v) * (1 - cosAngle)))
+    scale(v, cosAngle)
+      .add(scale(axis.cross(v), sinAngle))
+      .add(scale(axis, axis.dot(v) * (1 - cosAngle)))
   }
 
-  protected def rotateFace(face: Array[Vec3d], angle: Double, axis: Vec3d, around: Vec3d = new Vec3d(0.5, 0.5, 0.5)) = {
+  /**
+   * Rotate a face around an axis.
+   */
+  protected def rotateFace(face: Array[Vec3], angle: Double, axis: Vec3, around: Vec3 = new Vec3(0.5, 0.5, 0.5)): Array[Vec3] = {
     face.map(v => rotateVector(v.subtract(around), angle, axis).add(around))
   }
 
-  protected def rotateBox(box: Array[Array[Vec3d]], angle: Double, axis: Vec3d = new Vec3d(0, 1, 0), around: Vec3d = new Vec3d(0.5, 0.5, 0.5)) = {
+  /**
+   * Rotate an entire box around an axis.
+   */
+  protected def rotateBox(box: Array[Array[Vec3]], angle: Double, axis: Vec3 = new Vec3(0, 1, 0), around: Vec3 = new Vec3(0.5, 0.5, 0.5)): Array[Array[Vec3]] = {
     box.map(face => rotateFace(face, angle, axis, around))
   }
 
   /**
-    * Create the BakedQuads for a set of quads defined by the specified vertices.
-    * <br>
-    * Usually used to generate the quads for a cube previously generated using makeBox().
-    */
-  protected def bakeQuads(box: Array[Array[Vec3d]], texture: Array[TextureAtlasSprite], color: Option[Int]): Array[BakedQuad] = {
+   * Create BakedQuads from box vertices with textures and optional color.
+   */
+  protected def bakeQuads(box: Array[Array[Vec3]], texture: Array[TextureAtlasSprite], color: Option[Int]): Array[BakedQuad] = {
     val colorRGB = color.getOrElse(White)
     bakeQuads(box, texture, colorRGB)
   }
 
   /**
-    * Create the BakedQuads for a set of quads defined by the specified vertices.
-    * <br>
-    * Usually used to generate the quads for a cube previously generated using makeBox().
-    */
-  protected def bakeQuads(box: Array[Array[Vec3d]], texture: Array[TextureAtlasSprite], colorRGB: Int): Array[BakedQuad] = {
-    EnumFacing.values.map(side => {
-      val vertices = box(side.getIndex)
-      val data = quadData(vertices, side, texture(side.getIndex), colorRGB, 0)
-      new BakedQuad(data, -1, side, texture(side.getIndex), true, DefaultVertexFormats.ITEM)
+   * Create BakedQuads from box vertices with textures and color.
+   */
+  protected def bakeQuads(box: Array[Array[Vec3]], texture: Array[TextureAtlasSprite], colorRGB: Int): Array[BakedQuad] = {
+    Direction.values.map(side => {
+      val vertices = box(side.get3DDataValue())
+      val data = quadData(vertices, side, texture(side.get3DDataValue()), colorRGB, 0)
+      new BakedQuad(data, -1, side, texture(side.get3DDataValue()), true)
     })
   }
 
   /**
-    * Create a single BakedQuad of a unit cube's specified side.
-    */
-  protected def bakeQuad(side: EnumFacing, texture: TextureAtlasSprite, color: Option[Int], rotation: Int) = {
+   * Create a single BakedQuad for a unit cube face.
+   */
+  protected def bakeQuad(side: Direction, texture: TextureAtlasSprite, color: Option[Int], rotation: Int): BakedQuad = {
     val colorRGB = color.getOrElse(White)
-    val vertices = UnitCube(side.getIndex)
+    val vertices = UnitCube(side.get3DDataValue())
     val data = quadData(vertices, side, texture, colorRGB, rotation)
-    new BakedQuad(data, -1, side, texture, true, DefaultVertexFormats.ITEM)
+    new BakedQuad(data, -1, side, texture, true)
   }
 
-  // Generate raw data used for a BakedQuad based on the specified facing, vertices, texture and rotation.
-  // The UV coordinates are generated from the positions of the vertices, i.e. they are simply cube-
-  // mapped. This is good enough for us.
-  protected def quadData(vertices: Array[Vec3d], facing: EnumFacing, texture: TextureAtlasSprite, colorRGB: Int, rotation: Int): Array[Int] = {
-    val (uAxis, vAxis) = Planes(facing.getIndex)
+  /**
+   * Generate raw vertex data for a quad.
+   */
+  protected def quadData(vertices: Array[Vec3], facing: Direction, texture: TextureAtlasSprite, colorRGB: Int, rotation: Int): Array[Int] = {
+    val (uAxis, vAxis) = Planes(facing.get3DDataValue())
     val rot = (rotation + 4) % 4
+    
     vertices.flatMap(vertex => {
-      var u = vertex.dotProduct(uAxis)
-      var v = vertex.dotProduct(vAxis)
+      var u = vertex.dot(uAxis)
+      var v = vertex.dot(vAxis)
       if (uAxis.x + uAxis.y + uAxis.z < 0) u = 1 + u
       if (vAxis.x + vAxis.y + vAxis.z < 0) v = 1 + v
-      for (i <- 0 until rot) {
-        // (u, v) = (v, -u)
+      
+      for (_ <- 0 until rot) {
         val tmp = u
         u = v
         v = (-(tmp - 0.5)) + 0.5
       }
-      rawData(vertex.x, vertex.y, vertex.z, facing, texture, texture.getInterpolatedU(u * 16), texture.getInterpolatedV(v * 16), colorRGB)
+      
+      rawData(vertex.x, vertex.y, vertex.z, facing, texture, texture.getU(u * 16), texture.getV(v * 16), colorRGB)
     })
   }
 
-  // See FaceBakery#storeVertexData.
-  protected def rawData(x: Double, y: Double, z: Double, face: EnumFacing, texture: TextureAtlasSprite, u: Float, v: Float, colorRGB: Int) = {
-    val vx = (face.getXOffset * 127) & 0xFF
-    val vy = (face.getYOffset * 127) & 0xFF
-    val vz = (face.getZOffset * 127) & 0xFF
+  /**
+   * Generate raw vertex data for a single vertex.
+   */
+  protected def rawData(x: Double, y: Double, z: Double, face: Direction, texture: TextureAtlasSprite, u: Float, v: Float, colorRGB: Int): Array[Int] = {
+    val normal = face.getNormal
+    val vx = (normal.getX * 127) & 0xFF
+    val vy = (normal.getY * 127) & 0xFF
+    val vz = (normal.getZ * 127) & 0xFF
 
     Array(
       java.lang.Float.floatToRawIntBits(x.toFloat),
@@ -189,29 +215,29 @@ trait SmartBlockModelBase extends IBakedModel {
     )
   }
 
-  protected def getFaceShadeColor(face: EnumFacing, colorRGB: Int): Int = {
-    if (ForgeModContainer.forgeLightPipelineEnabled) {
-      // Forge's light pipeline uses a separate lighting stage.
-      0xFF000000 | (colorRGB & 0xFF00) | ((colorRGB & 0xFF) << 16) | ((colorRGB & 0xFF0000) >> 16)
-    } else {
-      // See FaceBakery.
-      // TODO: This still doesn't look right on non-solid blocks (compare print3d/stairs.3dm).
-      val brightness = getFaceBrightness(face)
-      val b = (colorRGB >> 16) & 0xFF
-      val g = (colorRGB >> 8) & 0xFF
-      val r = colorRGB & 0xFF
-      0xFF000000 | shade(r, brightness) << 16 | shade(g, brightness) << 8 | shade(b, brightness)
-    }
+  /**
+   * Apply face shading to color.
+   */
+  protected def getFaceShadeColor(face: Direction, colorRGB: Int): Int = {
+    // In 1.20.1, lighting is handled by the rendering pipeline
+    val brightness = getFaceBrightness(face)
+    val b = (colorRGB >> 16) & 0xFF
+    val g = (colorRGB >> 8) & 0xFF
+    val r = colorRGB & 0xFF
+    0xFF000000 | shade(r, brightness) << 16 | shade(g, brightness) << 8 | shade(b, brightness)
   }
 
-  private def shade(value: Int, brightness: Float) = (brightness * value).toInt max 0 min 255
+  private def shade(value: Int, brightness: Float): Int = (brightness * value).toInt max 0 min 255
 
-  protected def getFaceBrightness(face: EnumFacing): Float = {
+  /**
+   * Get brightness multiplier for a face direction.
+   */
+  protected def getFaceBrightness(face: Direction): Float = {
     face match {
-      case EnumFacing.DOWN => 0.5f
-      case EnumFacing.UP => 1.0f
-      case EnumFacing.NORTH | EnumFacing.SOUTH => 0.8f
-      case EnumFacing.WEST | EnumFacing.EAST => 0.6f
+      case Direction.DOWN => 0.5f
+      case Direction.UP => 1.0f
+      case Direction.NORTH | Direction.SOUTH => 0.8f
+      case Direction.WEST | Direction.EAST => 0.6f
     }
   }
 }

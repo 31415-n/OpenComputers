@@ -10,8 +10,8 @@ import li.cil.oc.integration.opencomputers.DriverScreen
 import li.cil.oc.util.ExtendedNBT._
 import li.cil.oc.util.ItemUtils
 import net.minecraft.world.item.ItemStack
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraftforge.common.util.Constants.NBT
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.Tag
 
 import scala.io.Source
 
@@ -59,7 +59,7 @@ class RobotData extends ItemData(Constants.BlockName.Robot) {
   private final val ContainersTag = Settings.namespace + "containers"
   private final val LightColorTag = Settings.namespace + "lightColor"
 
-  override def load(nbt: NBTTagCompound) {
+  override def load(nbt: CompoundTag) {
     name = ItemUtils.getDisplayName(nbt).getOrElse("")
     if (Strings.isNullOrEmpty(name)) {
       name = RobotData.randomName
@@ -67,16 +67,16 @@ class RobotData extends ItemData(Constants.BlockName.Robot) {
     totalEnergy = nbt.getInteger(StoredEnergyTag)
     robotEnergy = nbt.getInteger(RobotEnergyTag)
     tier = nbt.getInteger(TierTag)
-    components = nbt.getTagList(ComponentsTag, NBT.TAG_COMPOUND).
-      toArray[net.minecraft.nbt.CompoundTag].map(ItemStack.of(_))
-    containers = nbt.getTagList(ContainersTag, NBT.TAG_COMPOUND).
-      toArray[net.minecraft.nbt.CompoundTag].map(ItemStack.of(_))
+    components = nbt.getList(ComponentsTag, Tag.TAG_COMPOUND).
+      toArray.map(tag => ItemStack.of(tag.asInstanceOf[CompoundTag]))
+    containers = nbt.getList(ContainersTag, Tag.TAG_COMPOUND).
+      toArray.map(tag => ItemStack.of(tag.asInstanceOf[CompoundTag]))
     if (nbt.hasKey(LightColorTag)) {
       lightColor = nbt.getInteger(LightColorTag)
     }
   }
 
-  override def save(nbt: NBTTagCompound) {
+  override def save(nbt: CompoundTag) {
     if (!Strings.isNullOrEmpty(name)) {
       ItemUtils.setDisplayName(nbt, name)
     }
@@ -96,8 +96,8 @@ class RobotData extends ItemData(Constants.BlockName.Robot) {
     newInfo.components.foreach(cs => Option(api.Driver.driverFor(cs)) match {
       case Some(driver) if driver == DriverScreen =>
         val nbt = driver.dataTag(cs)
-        for (tagName <- nbt.getKeySet.toArray) {
-          nbt.removeTag(tagName.asInstanceOf[String])
+        for (tagName <- nbt.getAllKeys.toArray) {
+          nbt.remove(tagName.asInstanceOf[String])
         }
       case _ =>
     })

@@ -14,12 +14,12 @@ import li.cil.oc.common.item.data.NodeData
 import li.cil.oc.server.component.FileSystem
 import li.cil.oc.server.{PacketSender => ServerPacketSender}
 import li.cil.oc.util.ExtendedNBT._
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.util.EnumFacing
-import net.minecraftforge.fml.relauncher.Side
-import net.minecraftforge.fml.relauncher.SideOnly
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.ItemStack
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.core.Direction
+import net.minecraftforge.api.distmarker.Dist
+import net.minecraftforge.api.distmarker.OnlyIn
 
 class Raid extends traits.Environment with traits.Inventory with traits.Rotatable with Analyzable {
   val node = api.Network.newNode(this, Visibility.None).create()
@@ -36,7 +36,7 @@ class Raid extends traits.Environment with traits.Inventory with traits.Rotatabl
 
   // ----------------------------------------------------------------------- //
 
-  override def onAnalyze(player: EntityPlayer, side: EnumFacing, hitX: Float, hitY: Float, hitZ: Float) = Array(filesystem.map(_.node).orNull)
+  override def onAnalyze(player: Player, side: Direction, hitX: Float, hitY: Float, hitZ: Float) = Array(filesystem.map(_.node).orNull)
 
   // ----------------------------------------------------------------------- //
 
@@ -70,7 +70,7 @@ class Raid extends traits.Environment with traits.Inventory with traits.Rotatabl
       filesystem.foreach(fs => {
         fs.fileSystem.close()
         fs.fileSystem.list("/").foreach(fs.fileSystem.delete)
-        fs.save(new NBTTagCompound()) // Flush buffered fs.
+        fs.save(new CompoundTag()) // Flush buffered fs.
         fs.node.remove()
         filesystem = None
       })
@@ -90,7 +90,7 @@ class Raid extends traits.Environment with traits.Inventory with traits.Rotatabl
         api.FileSystem.fromSaveDirectory(id, wipeDisksAndComputeSpace, Settings.get.bufferChanges),
         label, this, Settings.resourceDomain + ":hdd_access", 6).
         asInstanceOf[FileSystem]
-      val nbtToSetAddress = new NBTTagCompound()
+      val nbtToSetAddress = new CompoundTag()
       nbtToSetAddress.setString(NodeData.AddressTag, id)
       fs.node.load(nbtToSetAddress)
       fs.node.setVisibility(Visibility.Network)
@@ -124,7 +124,7 @@ class Raid extends traits.Environment with traits.Inventory with traits.Rotatabl
   private final val PresenceTag = Settings.namespace + "presence"
   private final val LabelTag = Settings.namespace + "label"
 
-  override def readFromNBTForServer(nbt: NBTTagCompound) {
+  override def readFromNBTForServer(nbt: CompoundTag) {
     super.readFromNBTForServer(nbt)
     if (nbt.hasKey(FileSystemTag)) {
       val tag = nbt.getCompoundTag(FileSystemTag)
@@ -134,14 +134,14 @@ class Raid extends traits.Environment with traits.Inventory with traits.Rotatabl
     label.load(nbt)
   }
 
-  override def writeToNBTForServer(nbt: NBTTagCompound) {
+  override def writeToNBTForServer(nbt: CompoundTag) {
     super.writeToNBTForServer(nbt)
     filesystem.foreach(fs => nbt.setNewCompoundTag(FileSystemTag, fs.save))
     label.save(nbt)
   }
 
-  @SideOnly(Side.CLIENT) override
-  def readFromNBTForClient(nbt: NBTTagCompound) {
+  @OnlyIn(Dist.CLIENT) override
+  def readFromNBTForClient(nbt: CompoundTag) {
     super.readFromNBTForClient(nbt)
     nbt.getByteArray(PresenceTag).
       map(_ != 0).
@@ -149,7 +149,7 @@ class Raid extends traits.Environment with traits.Inventory with traits.Rotatabl
     label.setLabel(nbt.getString(LabelTag))
   }
 
-  override def writeToNBTForClient(nbt: NBTTagCompound) {
+  override def writeToNBTForClient(nbt: CompoundTag) {
     super.writeToNBTForClient(nbt)
     nbt.setTag(PresenceTag, items.map(!_.isEmpty))
     if (label.getLabel != null)
@@ -165,13 +165,13 @@ class Raid extends traits.Environment with traits.Inventory with traits.Rotatabl
 
     override def setLabel(value: String) = label = Option(value).map(_.take(16)).orNull
 
-    override def load(nbt: NBTTagCompound) {
+    override def load(nbt: CompoundTag) {
       if (nbt.hasKey(Settings.namespace + "label")) {
         label = nbt.getString(Settings.namespace + "label")
       }
     }
 
-    override def save(nbt: NBTTagCompound) {
+    override def save(nbt: CompoundTag) {
       nbt.setString(Settings.namespace + "label", label)
     }
   }

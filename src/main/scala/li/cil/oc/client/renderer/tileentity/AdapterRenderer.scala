@@ -1,18 +1,32 @@
 package li.cil.oc.client.renderer.tileentity
 
+import com.mojang.blaze3d.vertex.PoseStack
+import com.mojang.blaze3d.vertex.VertexConsumer
 import li.cil.oc.client.Textures
 import li.cil.oc.common.tileentity
 import li.cil.oc.util.RenderState
-import net.minecraft.client.renderer.GlStateManager
-import net.minecraft.client.renderer.Tessellator
-import net.minecraft.client.renderer.texture.TextureMap
-import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats
-import net.minecraft.util.EnumFacing
+import net.minecraft.client.renderer.MultiBufferSource
+import net.minecraft.client.renderer.RenderType
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderer
+import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider
+import net.minecraft.client.renderer.texture.TextureAtlas
+import net.minecraft.core.Direction
 import org.lwjgl.opengl.GL11
 
-object AdapterRenderer extends TileEntitySpecialRenderer[tileentity.Adapter] {
-  override def render(adapter: tileentity.Adapter, x: Double, y: Double, z: Double, f: Float, damage: Int, alpha: Float) {
+/**
+ * Adapter block entity renderer for 1.20.1.
+ * Ported from 1.12.2 TileEntitySpecialRenderer system to modern BlockEntityRenderer.
+ * 
+ * Original functionality:
+ * - Renders adapter side activity indicators
+ * - Shows which sides are open/active
+ * - Uses proper texture mapping and vertex rendering
+ */
+object AdapterRenderer extends BlockEntityRenderer[tileentity.Adapter] {
+  
+  def this(context: BlockEntityRendererProvider.Context) = this
+
+  override def render(adapter: tileentity.Adapter, partialTick: Float, poseStack: PoseStack, bufferSource: MultiBufferSource, packedLight: Int, packedOverlay: Int): Unit = {
     RenderState.checkError(getClass.getName + ".render: entering (aka: wasntme)")
 
     if (adapter.openSides.contains(true)) {
@@ -20,73 +34,80 @@ object AdapterRenderer extends TileEntitySpecialRenderer[tileentity.Adapter] {
       RenderState.disableEntityLighting()
       RenderState.makeItBlend()
 
-      GlStateManager.pushMatrix()
+      poseStack.pushPose()
 
-      GlStateManager.translate(x + 0.5, y + 0.5, z + 0.5)
-      GlStateManager.scale(1.0025, -1.0025, 1.0025)
-      GlStateManager.translate(-0.5f, -0.5f, -0.5f)
+      // Transform to center of block (equivalent to GlStateManager.translate and scale)
+      poseStack.translate(0.5, 0.5, 0.5)
+      poseStack.scale(1.0025f, -1.0025f, 1.0025f)
+      poseStack.translate(-0.5f, -0.5f, -0.5f)
 
-      bindTexture(TextureMap.LOCATION_BLOCKS_TEXTURE)
-
-      val t = Tessellator.getInstance
-      val r = t.getBuffer
-
-      Textures.Block.bind()
-      r.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX)
+      // Get vertex consumer for rendering
+      val vertexConsumer = bufferSource.getBuffer(RenderType.cutout())
 
       val sideActivity = Textures.getSprite(Textures.Block.AdapterOn)
 
-      if (adapter.isSideOpen(EnumFacing.DOWN)) {
-        r.pos(0, 1, 0).tex(sideActivity.getMaxU, sideActivity.getMinV).endVertex()
-        r.pos(1, 1, 0).tex(sideActivity.getMinU, sideActivity.getMinV).endVertex()
-        r.pos(1, 1, 1).tex(sideActivity.getMinU, sideActivity.getMaxV).endVertex()
-        r.pos(0, 1, 1).tex(sideActivity.getMaxU, sideActivity.getMaxV).endVertex()
-      }
-
-      if (adapter.isSideOpen(EnumFacing.UP)) {
-        r.pos(0, 0, 0).tex(sideActivity.getMaxU, sideActivity.getMaxV).endVertex()
-        r.pos(0, 0, 1).tex(sideActivity.getMaxU, sideActivity.getMinV).endVertex()
-        r.pos(1, 0, 1).tex(sideActivity.getMinU, sideActivity.getMinV).endVertex()
-        r.pos(1, 0, 0).tex(sideActivity.getMinU, sideActivity.getMaxV).endVertex()
-      }
-
-      if (adapter.isSideOpen(EnumFacing.NORTH)) {
-        r.pos(1, 1, 0).tex(sideActivity.getMinU, sideActivity.getMaxV).endVertex()
-        r.pos(0, 1, 0).tex(sideActivity.getMaxU, sideActivity.getMaxV).endVertex()
-        r.pos(0, 0, 0).tex(sideActivity.getMaxU, sideActivity.getMinV).endVertex()
-        r.pos(1, 0, 0).tex(sideActivity.getMinU, sideActivity.getMinV).endVertex()
-      }
-
-      if (adapter.isSideOpen(EnumFacing.SOUTH)) {
-        r.pos(0, 1, 1).tex(sideActivity.getMinU, sideActivity.getMaxV).endVertex()
-        r.pos(1, 1, 1).tex(sideActivity.getMaxU, sideActivity.getMaxV).endVertex()
-        r.pos(1, 0, 1).tex(sideActivity.getMaxU, sideActivity.getMinV).endVertex()
-        r.pos(0, 0, 1).tex(sideActivity.getMinU, sideActivity.getMinV).endVertex()
-      }
-
-      if (adapter.isSideOpen(EnumFacing.WEST)) {
-        r.pos(0, 1, 0).tex(sideActivity.getMinU, sideActivity.getMaxV).endVertex()
-        r.pos(0, 1, 1).tex(sideActivity.getMaxU, sideActivity.getMaxV).endVertex()
-        r.pos(0, 0, 1).tex(sideActivity.getMaxU, sideActivity.getMinV).endVertex()
-        r.pos(0, 0, 0).tex(sideActivity.getMinU, sideActivity.getMinV).endVertex()
-      }
-
-      if (adapter.isSideOpen(EnumFacing.EAST)) {
-        r.pos(1, 1, 1).tex(sideActivity.getMinU, sideActivity.getMaxV).endVertex()
-        r.pos(1, 1, 0).tex(sideActivity.getMaxU, sideActivity.getMaxV).endVertex()
-        r.pos(1, 0, 0).tex(sideActivity.getMaxU, sideActivity.getMinV).endVertex()
-        r.pos(1, 0, 1).tex(sideActivity.getMinU, sideActivity.getMinV).endVertex()
-      }
-
-      t.draw()
+      // Render each open side with activity texture
+      renderSide(adapter, vertexConsumer, poseStack, Direction.DOWN, sideActivity)
+      renderSide(adapter, vertexConsumer, poseStack, Direction.UP, sideActivity)
+      renderSide(adapter, vertexConsumer, poseStack, Direction.NORTH, sideActivity)
+      renderSide(adapter, vertexConsumer, poseStack, Direction.SOUTH, sideActivity)
+      renderSide(adapter, vertexConsumer, poseStack, Direction.WEST, sideActivity)
+      renderSide(adapter, vertexConsumer, poseStack, Direction.EAST, sideActivity)
 
       RenderState.disableBlend()
       RenderState.enableEntityLighting()
 
-      GlStateManager.popMatrix()
+      poseStack.popPose()
       RenderState.popAttrib()
     }
 
     RenderState.checkError(getClass.getName + ".render: leaving")
+  }
+
+  /**
+   * Render a single side of the adapter if it's open.
+   */
+  private def renderSide(adapter: tileentity.Adapter, vertexConsumer: VertexConsumer, poseStack: PoseStack, side: Direction, sprite: net.minecraft.client.renderer.texture.TextureAtlasSprite): Unit = {
+    if (adapter.isSideOpen(side)) {
+      val matrix = poseStack.last().pose()
+      
+      side match {
+        case Direction.DOWN =>
+          vertexConsumer.vertex(matrix, 0, 1, 0).uv(sprite.getU1, sprite.getV0).endVertex()
+          vertexConsumer.vertex(matrix, 1, 1, 0).uv(sprite.getU0, sprite.getV0).endVertex()
+          vertexConsumer.vertex(matrix, 1, 1, 1).uv(sprite.getU0, sprite.getV1).endVertex()
+          vertexConsumer.vertex(matrix, 0, 1, 1).uv(sprite.getU1, sprite.getV1).endVertex()
+          
+        case Direction.UP =>
+          vertexConsumer.vertex(matrix, 0, 0, 0).uv(sprite.getU1, sprite.getV1).endVertex()
+          vertexConsumer.vertex(matrix, 0, 0, 1).uv(sprite.getU1, sprite.getV0).endVertex()
+          vertexConsumer.vertex(matrix, 1, 0, 1).uv(sprite.getU0, sprite.getV0).endVertex()
+          vertexConsumer.vertex(matrix, 1, 0, 0).uv(sprite.getU0, sprite.getV1).endVertex()
+          
+        case Direction.NORTH =>
+          vertexConsumer.vertex(matrix, 1, 1, 0).uv(sprite.getU0, sprite.getV1).endVertex()
+          vertexConsumer.vertex(matrix, 0, 1, 0).uv(sprite.getU1, sprite.getV1).endVertex()
+          vertexConsumer.vertex(matrix, 0, 0, 0).uv(sprite.getU1, sprite.getV0).endVertex()
+          vertexConsumer.vertex(matrix, 1, 0, 0).uv(sprite.getU0, sprite.getV0).endVertex()
+          
+        case Direction.SOUTH =>
+          vertexConsumer.vertex(matrix, 0, 1, 1).uv(sprite.getU0, sprite.getV1).endVertex()
+          vertexConsumer.vertex(matrix, 1, 1, 1).uv(sprite.getU1, sprite.getV1).endVertex()
+          vertexConsumer.vertex(matrix, 1, 0, 1).uv(sprite.getU1, sprite.getV0).endVertex()
+          vertexConsumer.vertex(matrix, 0, 0, 1).uv(sprite.getU0, sprite.getV0).endVertex()
+          
+        case Direction.WEST =>
+          vertexConsumer.vertex(matrix, 0, 1, 0).uv(sprite.getU0, sprite.getV1).endVertex()
+          vertexConsumer.vertex(matrix, 0, 1, 1).uv(sprite.getU1, sprite.getV1).endVertex()
+          vertexConsumer.vertex(matrix, 0, 0, 1).uv(sprite.getU1, sprite.getV0).endVertex()
+          vertexConsumer.vertex(matrix, 0, 0, 0).uv(sprite.getU0, sprite.getV0).endVertex()
+          
+        case Direction.EAST =>
+          vertexConsumer.vertex(matrix, 1, 1, 1).uv(sprite.getU0, sprite.getV1).endVertex()
+          vertexConsumer.vertex(matrix, 1, 1, 0).uv(sprite.getU1, sprite.getV1).endVertex()
+          vertexConsumer.vertex(matrix, 1, 0, 0).uv(sprite.getU1, sprite.getV0).endVertex()
+          vertexConsumer.vertex(matrix, 1, 0, 1).uv(sprite.getU0, sprite.getV0).endVertex()
+      }
+    }
   }
 }

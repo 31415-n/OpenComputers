@@ -51,6 +51,9 @@ import net.minecraftforge.fluids.IFluidTank
 import scala.jdk.CollectionConverters._
 
 object Drone {
+  // Entity type for 1.20.1 registration system
+  lazy val ENTITY_TYPE = li.cil.oc.common.init.EntityTypes.DRONE
+  
   val DataRunning: DataParameter[lang.Boolean] = EntityDataManager.createKey(classOf[Drone], DataSerializers.BOOLEAN)
   val DataTargetX: DataParameter[lang.Float] = EntityDataManager.createKey(classOf[Drone], DataSerializers.FLOAT)
   val DataTargetY: DataParameter[lang.Float] = EntityDataManager.createKey(classOf[Drone], DataSerializers.FLOAT)
