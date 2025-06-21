@@ -90,6 +90,21 @@ runs {
     }
 }
 
+// Custom task to run client with only Java compilation (skip Scala)
+task runClientJava {
+    group = 'neoforge runs'
+    description = 'Run Minecraft client with only Java code compiled (skip Scala)'
+    
+    doLast {
+        println '='.repeat(60)
+        println 'To run client with Java-only compilation, use:'
+        println './gradlew runClient -x compileScala'
+        println '='.repeat(60)
+        println 'Note: This will skip Scala compilation and run with Java code only.'
+        println 'Scala features will not be available until Scala compilation is fixed.'
+    }
+}
+
 // Mappings are configured automatically in newer NeoForge versions
 
 jar {

@@ -14,7 +14,7 @@ credits="See GitHub contributors"
 logoFile="logo.png"
 
 [[dependencies.opencomputers]]
-modId="neoforge"
+modId="forge"
 mandatory=true
 versionRange="[47.1.104,)"
 ordering="NONE"
