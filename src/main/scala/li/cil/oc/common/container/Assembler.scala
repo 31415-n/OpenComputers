@@ -5,12 +5,12 @@ import li.cil.oc.common
 import li.cil.oc.common.InventorySlots.InventorySlot
 import li.cil.oc.common.template.AssemblerTemplates
 import li.cil.oc.common.tileentity
-import net.minecraft.entity.player.InventoryPlayer
+import net.minecraft.world.entity.player.Inventory
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraftforge.fml.relauncher.Side
 import net.minecraftforge.fml.relauncher.SideOnly
 
-class Assembler(playerInventory: InventoryPlayer, val assembler: tileentity.Assembler) extends Player(playerInventory, assembler) {
+class Assembler(playerInventory: Inventory, val assembler: tileentity.Assembler) extends Player(playerInventory, assembler) {
   // Computer case.
   {
     val index = inventorySlots.size

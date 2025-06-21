@@ -15,8 +15,7 @@ import li.cil.oc.server.machine.Machine
 import li.cil.oc.util.SideTracker
 import net.minecraft.nbt.NBTTagCompound
 
-import scala.collection.convert.WrapAsJava._
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 
 trait Component extends network.Component with Node {
   def visibility = _visibility

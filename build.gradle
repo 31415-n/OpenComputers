@@ -39,10 +39,14 @@ repositories {
         name "MightyPirates"
         url "https://maven.cil.li/"
     }
-    // Additional repositories for Scala dependencies
+    // REI repository
     maven {
-        name = 'Scala Tools'
-        url = 'https://oss.sonatype.org/content/groups/scala-tools/'
+        name = 'Shedaniel'
+        url = 'https://maven.shedaniel.me/'
+    }
+    maven {
+        name = 'Architectury'
+        url = 'https://maven.architectury.dev/'
     }
 }
 
@@ -61,6 +65,10 @@ dependencies {
     
     // Scala library for Scala compilation
     implementation 'org.scala-lang:scala-library:2.13.12'
+    
+    // REI integration will be added later when we find compatible versions
+    // implementation "me.shedaniel:RoughlyEnoughItems-neoforge:12.0.684"
+    // implementation "me.shedaniel.cloth:cloth-config-neoforge:11.1.118"
 }
 
 runs {

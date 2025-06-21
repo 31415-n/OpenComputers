@@ -8,8 +8,7 @@ import li.cil.oc.api.network.Visibility
 import li.cil.oc.api.network.{Node => ImmutableNode}
 import net.minecraft.nbt.NBTTagCompound
 
-import scala.collection.convert.WrapAsJava._
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 
 trait Node extends ImmutableNode {
   def host: Environment

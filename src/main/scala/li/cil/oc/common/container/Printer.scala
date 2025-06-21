@@ -2,10 +2,10 @@ package li.cil.oc.common.container
 
 import li.cil.oc.common.Slot
 import li.cil.oc.common.tileentity
-import net.minecraft.entity.player.InventoryPlayer
+import net.minecraft.world.entity.player.Inventory
 import net.minecraft.nbt.NBTTagCompound
 
-class Printer(playerInventory: InventoryPlayer, val printer: tileentity.Printer) extends Player(playerInventory, printer) {
+class Printer(playerInventory: Inventory, val printer: tileentity.Printer) extends Player(playerInventory, printer) {
   addSlotToContainer(18, 19, Slot.Filtered)
   addSlotToContainer(18, 51, Slot.Filtered)
   addSlotToContainer(152, 35)

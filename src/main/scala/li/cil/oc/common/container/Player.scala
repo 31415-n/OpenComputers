@@ -5,47 +5,46 @@ import li.cil.oc.common.InventorySlots.InventorySlot
 import li.cil.oc.common.Tier
 import li.cil.oc.server.{PacketSender => ServerPacketSender}
 import li.cil.oc.util.SideTracker
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.entity.player.EntityPlayerMP
-import net.minecraft.entity.player.InventoryPlayer
-import net.minecraft.inventory._
-import net.minecraft.item.ItemStack
-import net.minecraft.nbt.NBTBase
-import net.minecraft.nbt.NBTTagCompound
+import net.minecraft.world.entity.player.Player
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.entity.player.Inventory
+import net.minecraft.world.inventory._
+import net.minecraft.world.item.ItemStack
+import net.minecraft.nbt.Tag
+import net.minecraft.nbt.CompoundTag
 import net.minecraftforge.common.util.FakePlayer
 
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 
-abstract class Player(val playerInventory: InventoryPlayer, val otherInventory: IInventory) extends Container {
+abstract class Player(val playerInventory: Inventory, val otherInventory: net.minecraft.world.Container) extends AbstractContainerMenu(null, 0) {
   /** Number of player inventory slots to display horizontally. */
   protected val playerInventorySizeX = math.min(9, InventoryPlayer.getHotbarSize)
 
   /** Subtract four for armor slots. */
-  protected val playerInventorySizeY = math.min(4, (playerInventory.getSizeInventory - 4) / playerInventorySizeX)
+  protected val playerInventorySizeY = math.min(4, (playerInventory.getContainerSize - 4) / playerInventorySizeX)
 
   /** Render size of slots (width and height). */
   protected val slotSize = 18
 
   private var lastSync = System.currentTimeMillis()
 
-  override def canInteractWith(player: EntityPlayer) = otherInventory.isUsableByPlayer(player)
+  override def stillValid(player: Player) = otherInventory.stillValid(player)
 
-  override def slotClick(slot: Int, dragType: Int, clickType: ClickType, player: EntityPlayer): ItemStack = {
-    val result = super.slotClick(slot, dragType, clickType, player)
+  override def clicked(slot: Int, dragType: Int, clickType: ClickType, player: Player): Unit = {
+    super.clicked(slot, dragType, clickType, player)
     if (SideTracker.isServer) {
-      detectAndSendChanges() // We have to enforce this more than MC does itself
+      broadcastChanges() // We have to enforce this more than MC does itself
       // because stacks can change their... "character" just by being inserted in
       // certain containers - by being assigned an address.
     }
-    result
   }
 
-  override def transferStackInSlot(player: EntityPlayer, index: Int): ItemStack = {
-    val slot = Option(inventorySlots.get(index)).orNull
-    if (slot != null && slot.getHasStack) {
-      tryTransferStackInSlot(slot, slot.inventory == otherInventory)
+  override def quickMoveStack(player: Player, index: Int): ItemStack = {
+    val slot = Option(slots.get(index)).orNull
+    if (slot != null && slot.hasItem()) {
+      tryTransferStackInSlot(slot, slot.container == otherInventory)
       if (SideTracker.isServer) {
-        detectAndSendChanges()
+        broadcastChanges()
       }
     }
     ItemStack.EMPTY
@@ -57,30 +56,30 @@ abstract class Player(val playerInventory: InventoryPlayer, val otherInventory: 
       return false // nowhere to move it
 
     if (from == null ||
-       !from.getHasStack ||
-        from.getStack.isEmpty)
+       !from.hasItem() ||
+        from.getItem.isEmpty)
       return true // all moved because nothing to move
 
     if (to.inventory == from.inventory)
       return false // not intended for moving in the same inventory
 
     // for ghost slots we don't care about stack size
-    val fromStack = from.getStack
-    val toStack = if (to.getHasStack) to.getStack else ItemStack.EMPTY
+    val fromStack = from.getItem
+    val toStack = if (to.hasItem()) to.getItem else ItemStack.EMPTY
     val toStackSize = if (!toStack.isEmpty) toStack.getCount else 0
 
-    val maxStackSize = math.min(fromStack.getMaxStackSize, to.getSlotStackLimit)
+    val maxStackSize = math.min(fromStack.getMaxStackSize, to.getMaxStackSize)
     val itemsMoved = math.min(maxStackSize - toStackSize, fromStack.getCount)
 
     if (!toStack.isEmpty) {
       if (toStackSize < maxStackSize &&
-          fromStack.isItemEqual(toStack) &&
-          ItemStack.areItemStackTagsEqual(fromStack, toStack) &&
+          ItemStack.isSameItem(fromStack, toStack) &&
+          ItemStack.tagMatches(fromStack, toStack) &&
           itemsMoved > 0) {
-        toStack.grow(from.decrStackSize(itemsMoved).getCount)
+        toStack.grow(from.remove(itemsMoved).getCount)
       } else return false
-    } else if (to.isItemValid(fromStack)) {
-      to.putStack(from.decrStackSize(itemsMoved))
+    } else if (to.mayPlace(fromStack)) {
+      to.set(from.remove(itemsMoved))
       if (maxStackSize == 0) {
         // Special case: we have an inventory with "phantom/ghost stacks", i.e.
         // zero size stacks, usually used for configuring machinery. In that
@@ -92,14 +91,14 @@ abstract class Player(val playerInventory: InventoryPlayer, val otherInventory: 
       }
     } else return false
 
-    to.onSlotChanged()
-    from.onSlotChanged()
+    to.setChanged()
+    from.setChanged()
     false
   }
 
   protected def fillOrder(backFill: Boolean): Seq[Int] = {
-    (if (backFill) inventorySlots.indices.reverse else inventorySlots.indices).sortBy(i => inventorySlots(i) match {
-      case s: Slot if s.getHasStack => -1
+    (if (backFill) slots.asScala.indices.reverse else slots.asScala.indices).sortBy(i => slots.get(i) match {
+      case s: Slot if s.hasItem() => -1
       case s: ComponentSlot => s.tier
       case _ => 99
     })
@@ -107,24 +106,24 @@ abstract class Player(val playerInventory: InventoryPlayer, val otherInventory: 
 
   protected def tryTransferStackInSlot(from: Slot, intoPlayerInventory: Boolean) {
     for (i <- fillOrder(intoPlayerInventory)) {
-      if (inventorySlots.get(i) match { case slot: Slot => tryMoveAllSlotToSlot(from, slot) case _ => false })
+      if (slots.get(i) match { case slot: Slot => tryMoveAllSlotToSlot(from, slot) case _ => false })
         return
     }
   }
 
   def addSlotToContainer(x: Int, y: Int, slot: String = common.Slot.Any, tier: Int = common.Tier.Any) {
-    val index = inventorySlots.size
-    addSlotToContainer(new StaticComponentSlot(this, otherInventory, index, x, y, slot, tier))
+    val index = slots.size
+    addSlot(new StaticComponentSlot(this, otherInventory, index, x, y, slot, tier))
   }
 
   def addSlotToContainer(x: Int, y: Int, info: Array[Array[InventorySlot]], containerTierGetter: () => Int) {
-    val index = inventorySlots.size
-    addSlotToContainer(new DynamicComponentSlot(this, otherInventory, index, x, y, slot => info(slot.containerTierGetter())(slot.getSlotIndex), containerTierGetter))
+    val index = slots.size
+    addSlot(new DynamicComponentSlot(this, otherInventory, index, x, y, slot => info(slot.containerTierGetter())(slot.getSlotIndex), containerTierGetter))
   }
 
   def addSlotToContainer(x: Int, y: Int, info: DynamicComponentSlot => InventorySlot) {
-    val index = inventorySlots.size
-    addSlotToContainer(new DynamicComponentSlot(this, otherInventory, index, x, y, info, () => Tier.One))
+    val index = slots.size
+    addSlot(new DynamicComponentSlot(this, otherInventory, index, x, y, info, () => Tier.One))
   }
 
   /** Render player inventory at the specified coordinates. */
@@ -136,7 +135,7 @@ abstract class Player(val playerInventory: InventoryPlayer, val otherInventory: 
         val x = left + slotX * slotSize
         // Compensate for hot bar offset.
         val y = top + (slotY - 1) * slotSize
-        addSlotToContainer(new Slot(playerInventory, index, x, y))
+        addSlot(new Slot(playerInventory, index, x, y))
       }
     }
 
@@ -145,29 +144,29 @@ abstract class Player(val playerInventory: InventoryPlayer, val otherInventory: 
     for (index <- 0 until playerInventorySizeX) {
       val x = left + index * slotSize
       val y = top + slotSize * (playerInventorySizeY - 1) + quickBarSpacing
-      addSlotToContainer(new Slot(playerInventory, index, x, y))
+      addSlot(new Slot(playerInventory, index, x, y))
     }
   }
 
   protected def sendWindowProperty(id: Int, value: Int) {
-    listeners.foreach(_.sendWindowProperty(this, id, value))
+    containerListeners.asScala.foreach(_.dataChanged(this, id, value))
   }
 
-  override def detectAndSendChanges(): Unit = {
-    super.detectAndSendChanges()
+  override def broadcastChanges(): Unit = {
+    super.broadcastChanges()
     if (SideTracker.isServer) {
-      val nbt = new NBTTagCompound()
+      val nbt = new CompoundTag()
       detectCustomDataChanges(nbt)
-      for (entry <- listeners) entry match {
+      for (entry <- containerListeners.asScala) entry match {
         case _: FakePlayer => // Nope
-        case player: EntityPlayerMP => ServerPacketSender.sendContainerUpdate(this, nbt, player)
+        case player: ServerPlayer => ServerPacketSender.sendContainerUpdate(this, nbt, player)
         case _ =>
       }
     }
   }
 
   // Used for custom value synchronization, because shorts simply don't cut it most of the time.
-  protected def detectCustomDataChanges(nbt: NBTTagCompound): Unit = {
+  protected def detectCustomDataChanges(nbt: CompoundTag): Unit = {
     val delta = synchronizedData.getDelta
     if (delta != null && !delta.isEmpty) {
       nbt.setTag("delta", delta)
@@ -178,80 +177,80 @@ abstract class Player(val playerInventory: InventoryPlayer, val otherInventory: 
     }
   }
 
-  def updateCustomData(nbt: NBTTagCompound): Unit = {
-    if (nbt.hasKey("delta")) {
-      val delta = nbt.getCompoundTag("delta")
-      delta.getKeySet.foreach {
-        case key: String => synchronizedData.setTag(key, delta.getTag(key))
+  def updateCustomData(nbt: CompoundTag): Unit = {
+    if (nbt.contains("delta")) {
+      val delta = nbt.getCompound("delta")
+      delta.getAllKeys.asScala.foreach { key =>
+        synchronizedData.put(key, delta.get(key))
       }
     }
   }
 
-  protected class SynchronizedData extends NBTTagCompound {
-    private var delta = new NBTTagCompound()
+  protected class SynchronizedData extends CompoundTag {
+    private var delta = new CompoundTag()
 
-    def getDelta: NBTTagCompound = this.synchronized {
+    def getDelta: CompoundTag = this.synchronized {
       if (delta.isEmpty) null
       else {
         val result = delta
-        delta = new NBTTagCompound()
+        delta = new CompoundTag()
         result
       }
     }
 
-    override def setTag(key: String, value: NBTBase): Unit = this.synchronized {
-      if (!value.equals(getTag(key))) delta.setTag(key, value)
-      super.setTag(key, value)
+    override def put(key: String, value: Tag): Tag = this.synchronized {
+      if (!value.equals(get(key))) delta.put(key, value)
+      super.put(key, value)
     }
 
-    override def setByte(key: String, value: Byte): Unit = this.synchronized {
-      if (value != getByte(key)) delta.setByte(key, value)
-      super.setByte(key, value)
+    override def putByte(key: String, value: Byte): Unit = this.synchronized {
+      if (value != getByte(key)) delta.putByte(key, value)
+      super.putByte(key, value)
     }
 
-    override def setShort(key: String, value: Short): Unit = this.synchronized {
-      if (value != getShort(key)) delta.setShort(key, value)
-      super.setShort(key, value)
+    override def putShort(key: String, value: Short): Unit = this.synchronized {
+      if (value != getShort(key)) delta.putShort(key, value)
+      super.putShort(key, value)
     }
 
-    override def setInteger(key: String, value: Int): Unit = this.synchronized {
-      if (value != getInteger(key)) delta.setInteger(key, value)
-      super.setInteger(key, value)
+    override def putInt(key: String, value: Int): Unit = this.synchronized {
+      if (value != getInt(key)) delta.putInt(key, value)
+      super.putInt(key, value)
     }
 
-    override def setLong(key: String, value: Long): Unit = this.synchronized {
-      if (value != getLong(key)) delta.setLong(key, value)
-      super.setLong(key, value)
+    override def putLong(key: String, value: Long): Unit = this.synchronized {
+      if (value != getLong(key)) delta.putLong(key, value)
+      super.putLong(key, value)
     }
 
-    override def setFloat(key: String, value: Float): Unit = this.synchronized {
-      if (value != getFloat(key)) delta.setFloat(key, value)
-      super.setFloat(key, value)
+    override def putFloat(key: String, value: Float): Unit = this.synchronized {
+      if (value != getFloat(key)) delta.putFloat(key, value)
+      super.putFloat(key, value)
     }
 
-    override def setDouble(key: String, value: Double): Unit = this.synchronized {
-      if (value != getDouble(key)) delta.setDouble(key, value)
-      super.setDouble(key, value)
+    override def putDouble(key: String, value: Double): Unit = this.synchronized {
+      if (value != getDouble(key)) delta.putDouble(key, value)
+      super.putDouble(key, value)
     }
 
-    override def setString(key: String, value: String): Unit = this.synchronized {
-      if (value != getString(key)) delta.setString(key, value)
-      super.setString(key, value)
+    override def putString(key: String, value: String): Unit = this.synchronized {
+      if (value != getString(key)) delta.putString(key, value)
+      super.putString(key, value)
     }
 
-    override def setByteArray(key: String, value: Array[Byte]): Unit = this.synchronized {
-      if (value.deep != getByteArray(key).deep) delta.setByteArray(key, value)
-      super.setByteArray(key, value)
+    override def putByteArray(key: String, value: Array[Byte]): Unit = this.synchronized {
+      if (value.deep != getByteArray(key).deep) delta.putByteArray(key, value)
+      super.putByteArray(key, value)
     }
 
-    override def setIntArray(key: String, value: Array[Int]): Unit = this.synchronized {
-      if (value.deep != getIntArray(key).deep) delta.setIntArray(key, value)
-      super.setIntArray(key, value)
+    override def putIntArray(key: String, value: Array[Int]): Unit = this.synchronized {
+      if (value.deep != getIntArray(key).deep) delta.putIntArray(key, value)
+      super.putIntArray(key, value)
     }
 
-    override def setBoolean(key: String, value: Boolean): Unit = this.synchronized {
-      if (value != getBoolean(key)) delta.setBoolean(key, value)
-      super.setBoolean(key, value)
+    override def putBoolean(key: String, value: Boolean): Unit = this.synchronized {
+      if (value != getBoolean(key)) delta.putBoolean(key, value)
+      super.putBoolean(key, value)
     }
   }
 

@@ -13,7 +13,7 @@ import li.cil.oc.integration.opencomputers.Item
 import net.minecraft.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 trait ComponentInventory extends Inventory with network.Environment {

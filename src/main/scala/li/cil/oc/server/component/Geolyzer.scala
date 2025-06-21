@@ -33,8 +33,7 @@ import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.util.EnumFacing
 import net.minecraftforge.common.MinecraftForge
 
-import scala.collection.convert.WrapAsJava._
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 import scala.language.existentials
 
 class Geolyzer(val host: EnvironmentHost) extends AbstractManagedEnvironment with traits.WorldControl with DeviceInfo {

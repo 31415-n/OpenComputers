@@ -46,8 +46,7 @@ import net.minecraftforge.common.util.Constants.NBT
 import net.minecraftforge.fml.common.FMLCommonHandler
 
 import scala.Array.canBuildFrom
-import scala.collection.convert.WrapAsJava._
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 class Machine(val host: MachineHost) extends AbstractManagedEnvironment with machine.Machine with Runnable with DeviceInfo {

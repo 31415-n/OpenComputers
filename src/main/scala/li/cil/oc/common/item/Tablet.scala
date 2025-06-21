@@ -56,8 +56,7 @@ import net.minecraftforge.fml.common.gameevent.TickEvent.ServerTickEvent
 import net.minecraftforge.fml.relauncher.Side
 import net.minecraftforge.fml.relauncher.SideOnly
 
-import scala.collection.convert.WrapAsJava._
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 
 class Tablet(val parent: Delegator) extends traits.Delegate with CustomModel with traits.Chargeable {
   final val TimeToAnalyze = 10

@@ -11,14 +11,13 @@ import li.cil.oc.common.tileentity
 import li.cil.oc.util.RenderState
 import net.minecraft.client.gui.GuiButton
 import net.minecraft.client.renderer.GlStateManager
-import net.minecraft.entity.player.InventoryPlayer
+import net.minecraft.world.entity.player.Inventory
 import net.minecraft.inventory.Slot
 import net.minecraft.util.text.ITextComponent
 
-import scala.collection.convert.WrapAsJava._
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 
-class Assembler(playerInventory: InventoryPlayer, val assembler: tileentity.Assembler) extends DynamicGuiContainer(new container.Assembler(playerInventory, assembler)) {
+class Assembler(playerInventory: Inventory, val assembler: tileentity.Assembler) extends DynamicGuiContainer(new container.Assembler(playerInventory, assembler)) {
   xSize = 176
   ySize = 192
 

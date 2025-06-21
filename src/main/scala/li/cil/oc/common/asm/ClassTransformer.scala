@@ -12,8 +12,7 @@ import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree._
 
 import scala.annotation.tailrec
-import scala.collection.convert.WrapAsJava._
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 
 object ObfNames {
   final val Class_EntityHanging = Array("net/minecraft/entity/EntityHanging")

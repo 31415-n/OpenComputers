@@ -1,81 +1,81 @@
 package li.cil.oc.util
 
 import li.cil.oc.api.network.EnvironmentHost
-import net.minecraft.block.Block
-import net.minecraft.block.state.IBlockState
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.tileentity.TileEntity
-import net.minecraft.util.EnumFacing
-import net.minecraft.util.math.BlockPos
-import net.minecraft.world.IBlockAccess
-import net.minecraft.world.World
+import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.level.block.entity.BlockEntity
+import net.minecraft.core.Direction
+import net.minecraft.core.BlockPos
+import net.minecraft.world.level.BlockGetter
+import net.minecraft.world.level.Level
 
 import scala.language.implicitConversions
 
 object ExtendedWorld {
 
-  implicit def extendedBlockAccess(world: IBlockAccess): ExtendedBlockAccess = new ExtendedBlockAccess(world)
+  implicit def extendedBlockAccess(world: BlockGetter): ExtendedBlockAccess = new ExtendedBlockAccess(world)
 
-  implicit def extendedWorld(world: World): ExtendedWorld = new ExtendedWorld(world)
+  implicit def extendedWorld(world: Level): ExtendedWorld = new ExtendedWorld(world)
 
-  class ExtendedBlockAccess(val world: IBlockAccess) {
+  class ExtendedBlockAccess(val world: BlockGetter) {
     def getBlock(position: BlockPosition) = world.getBlockState(position.toBlockPos).getBlock
 
     def getBlockMapColor(position: BlockPosition) = getBlockMetadata(position).getMapColor(world, position.toBlockPos)
 
     def getBlockMetadata(position: BlockPosition) = world.getBlockState(position.toBlockPos)
 
-    def getTileEntity(position: BlockPosition): TileEntity = world.getTileEntity(position.toBlockPos)
+    def getTileEntity(position: BlockPosition): BlockEntity = world.getBlockEntity(position.toBlockPos)
 
-    def getTileEntity(host: EnvironmentHost): TileEntity = getTileEntity(BlockPosition(host))
+    def getTileEntity(host: EnvironmentHost): BlockEntity = getTileEntity(BlockPosition(host))
 
-    def isAirBlock(position: BlockPosition) = world.isAirBlock(position.toBlockPos)
+    def isAirBlock(position: BlockPosition) = world.isEmptyBlock(position.toBlockPos)
 
-    def getLightBrightnessForSkyBlocks(position: BlockPosition, minBrightness: Int) = world.getCombinedLight(position.toBlockPos, minBrightness)
+    def getLightBrightnessForSkyBlocks(position: BlockPosition, minBrightness: Int) = world.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, position.toBlockPos)
   }
 
-  class ExtendedWorld(override val world: World) extends ExtendedBlockAccess(world) {
+  class ExtendedWorld(override val world: Level) extends ExtendedBlockAccess(world) {
     def blockExists(position: BlockPosition) = world.isBlockLoaded(position.toBlockPos)
 
-    def breakBlock(position: BlockPosition, drops: Boolean = true) = world.destroyBlock(position.toBlockPos, drops)
+    def breakBlock(position: BlockPosition, drops: Boolean = true) = world.destroyBlock(position.toBlockPos, drops, null)
 
     def destroyBlockInWorldPartially(entityId: Int, position: BlockPosition, progress: Int) = world.sendBlockBreakProgress(entityId, position.toBlockPos, progress)
 
-    def extinguishFire(player: EntityPlayer, position: BlockPosition, side: EnumFacing) = world.extinguishFire(player, position.toBlockPos, side)
+    def extinguishFire(player: Player, position: BlockPosition, side: Direction) = world.removeBlock(position.toBlockPos, false)
 
-    def getBlockHardness(position: BlockPosition) = getBlock(position).getBlockHardness(world.getBlockState(position.toBlockPos), world, position.toBlockPos)
+    def getBlockHardness(position: BlockPosition) = world.getBlockState(position.toBlockPos).getDestroySpeed(world, position.toBlockPos)
 
-    def getBlockHarvestLevel(position: BlockPosition) = getBlock(position).getHarvestLevel(getBlockMetadata(position))
+    def getBlockHarvestLevel(position: BlockPosition) = 0 // Harvest levels removed in 1.20.1
 
-    def getBlockHarvestTool(position: BlockPosition) = getBlock(position).getHarvestTool(getBlockMetadata(position))
+    def getBlockHarvestTool(position: BlockPosition) = "" // Harvest tools changed in 1.20.1
 
-    def computeRedstoneSignal(position: BlockPosition, side: EnumFacing) = math.max(world.isBlockProvidingPowerTo(position.offset(side), side), world.getIndirectPowerLevelTo(position.offset(side), side))
+    def computeRedstoneSignal(position: BlockPosition, side: Direction) = math.max(world.getDirectSignalTo(position.offset(side)), world.getBestNeighborSignal(position.offset(side)))
 
-    def isBlockProvidingPowerTo(position: BlockPosition, side: EnumFacing) = world.getStrongPower(position.toBlockPos, side)
+    def isBlockProvidingPowerTo(position: BlockPosition, side: Direction) = world.getDirectSignalTo(position.toBlockPos)
 
-    def getIndirectPowerLevelTo(position: BlockPosition, side: EnumFacing) = world.getRedstonePower(position.toBlockPos, side)
+    def getIndirectPowerLevelTo(position: BlockPosition, side: Direction) = world.getBestNeighborSignal(position.toBlockPos)
 
     def notifyBlockUpdate(pos: BlockPos): Unit = world.notifyBlockUpdate(pos, world.getBlockState(pos), world.getBlockState(pos), 3)
 
     def notifyBlockUpdate(position: BlockPosition): Unit = notifyBlockUpdate(position, world.getBlockState(position.toBlockPos), world.getBlockState(position.toBlockPos))
 
-    def notifyBlockUpdate(position: BlockPosition, oldState: IBlockState, newState: IBlockState, flags: Int = 3): Unit = world.notifyBlockUpdate(position.toBlockPos, oldState, newState, flags)
+    def notifyBlockUpdate(position: BlockPosition, oldState: BlockState, newState: BlockState, flags: Int = 3): Unit = world.sendBlockUpdated(position.toBlockPos, oldState, newState, flags)
 
     def notifyBlockOfNeighborChange(position: BlockPosition, block: Block) = world.neighborChanged(position.toBlockPos, block, position.toBlockPos)
 
-    def notifyBlocksOfNeighborChange(position: BlockPosition, block: Block, updateObservers: Boolean) = world.notifyNeighborsOfStateChange(position.toBlockPos, block, updateObservers)
+    def notifyBlocksOfNeighborChange(position: BlockPosition, block: Block, updateObservers: Boolean) = world.updateNeighborsAt(position.toBlockPos, block)
 
-    def notifyBlocksOfNeighborChange(position: BlockPosition, block: Block, side: EnumFacing) = world.notifyNeighborsOfStateExcept(position.toBlockPos, block, side)
+    def notifyBlocksOfNeighborChange(position: BlockPosition, block: Block, side: Direction) = world.updateNeighborsAtExceptFromFacing(position.toBlockPos, block, side)
 
-    def playAuxSFX(id: Int, position: BlockPosition, data: Int) = world.playEvent(id, position.toBlockPos, data)
+    def playAuxSFX(id: Int, position: BlockPosition, data: Int) = world.levelEvent(id, position.toBlockPos, data)
 
-    def setBlock(position: BlockPosition, block: Block) = world.setBlockState(position.toBlockPos, block.getDefaultState)
+    def setBlock(position: BlockPosition, block: Block) = world.setBlock(position.toBlockPos, block.defaultBlockState(), 3)
 
-    def setBlock(position: BlockPosition, block: Block, metadata: Int, flag: Int) = world.setBlockState(position.toBlockPos, block.getStateFromMeta(metadata), flag)
+    def setBlock(position: BlockPosition, block: Block, metadata: Int, flag: Int) = world.setBlock(position.toBlockPos, block.defaultBlockState(), flag)
 
-    def setBlockToAir(position: BlockPosition) = world.setBlockToAir(position.toBlockPos)
+    def setBlockToAir(position: BlockPosition) = world.removeBlock(position.toBlockPos, false)
 
-    def isSideSolid(position: BlockPosition, side: EnumFacing) = world.isSideSolid(position.toBlockPos, side)
+    def isSideSolid(position: BlockPosition, side: Direction) = world.getBlockState(position.toBlockPos).isFaceSturdy(world, position.toBlockPos, side)
 
     def isBlockLoaded(position: BlockPosition) = world.isBlockLoaded(position.toBlockPos)
   }

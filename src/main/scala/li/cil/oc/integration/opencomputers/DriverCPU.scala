@@ -13,8 +13,7 @@ import li.cil.oc.server.machine.luac.NativeLuaArchitecture
 import net.minecraft.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 
-import scala.collection.convert.WrapAsJava._
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 
 object DriverCPU extends DriverCPU
 

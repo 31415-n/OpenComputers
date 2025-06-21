@@ -26,8 +26,7 @@ import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.nbt.NBTTagString
 import net.minecraftforge.common.util.Constants.NBT
 
-import scala.collection.convert.WrapAsJava._
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 class UpgradeLeash(val host: Entity) extends AbstractManagedEnvironment with traits.WorldAware with DeviceInfo {

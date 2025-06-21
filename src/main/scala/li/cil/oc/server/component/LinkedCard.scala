@@ -18,8 +18,7 @@ import li.cil.oc.common.Tier
 import li.cil.oc.server.network.QuantumNetwork
 import net.minecraft.nbt.NBTTagCompound
 
-import scala.collection.convert.WrapAsJava._
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 
 class LinkedCard extends AbstractManagedEnvironment with QuantumNetwork.QuantumNode with DeviceInfo with traits.WakeMessageAware {
   override val node = Network.newNode(this, Visibility.Network).

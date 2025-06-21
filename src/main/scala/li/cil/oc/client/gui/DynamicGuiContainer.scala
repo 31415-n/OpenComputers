@@ -6,24 +6,22 @@ import li.cil.oc.common
 import li.cil.oc.common.container.ComponentSlot
 import li.cil.oc.common.container.Player
 import li.cil.oc.integration.Mods
-import li.cil.oc.integration.jei.ModJEI
+import li.cil.oc.integration.rei.ModREI
 import li.cil.oc.integration.util.ItemSearch
 import li.cil.oc.util.RenderState
 import li.cil.oc.util.StackOption
 import li.cil.oc.util.StackOption._
-import net.minecraft.client.gui.Gui
-import net.minecraft.client.renderer.GlStateManager
-import net.minecraft.client.renderer.Tessellator
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats
-import net.minecraft.inventory.Container
-import net.minecraft.inventory.Slot
-import net.minecraftforge.fml.common.Optional
+import net.minecraft.client.gui.GuiGraphics
+import com.mojang.blaze3d.systems.RenderSystem
+import net.minecraft.client.renderer.GameRenderer
+import net.minecraft.world.inventory.AbstractContainerMenu
+import net.minecraft.world.inventory.Slot
+// Optional removed in newer versions
 import org.lwjgl.opengl.GL11
 
-import scala.collection.convert.WrapAsJava._
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 
-abstract class DynamicGuiContainer[C <: Container](container: C) extends CustomGuiContainer(container) {
+abstract class DynamicGuiContainer[C <: AbstractContainerMenu](container: C) extends CustomGuiContainer(container) {
   protected var hoveredSlot: Option[Slot] = None
 
   protected var hoveredStackNEI: StackOption = EmptyStack
@@ -80,8 +78,8 @@ abstract class DynamicGuiContainer[C <: Container](container: C) extends CustomG
 
     super.drawScreen(mouseX, mouseY, dt)
 
-    if (Mods.JustEnoughItems.isModAvailable) {
-      drawJEIHighlights()
+    if (Mods.RoughlyEnoughItems.isModAvailable) {
+      drawREIHighlights()
     }
   }
 
@@ -174,23 +172,27 @@ abstract class DynamicGuiContainer[C <: Container](container: C) extends CustomG
 
   override def onGuiClosed(): Unit = {
     super.onGuiClosed()
-    if(Mods.JustEnoughItems.isModAvailable) {
-      resetJEIHighlights()
+    if(Mods.RoughlyEnoughItems.isModAvailable) {
+      resetREIHighlights()
     }
   }
 
-  @Optional.Method(modid = Mods.IDs.JustEnoughItems)
-  private def drawJEIHighlights(): Unit = {
-    ModJEI.runtime.foreach { runtime =>
-      val overlay = runtime.getItemListOverlay
+  private def drawREIHighlights(): Unit = {
+    if (ModREI.isAvailable) {
       hoveredSlot match {
         case Some(hovered) if !isInPlayerInventory(hovered) && isSelectiveSlot(hovered) =>
-          overlay.highlightStacks(overlay.getVisibleStacks.filter(hovered.isItemValid))
-        case _ => overlay.highlightStacks(List[Nothing]())
+          // Get all valid items for this slot and highlight them
+          val validStacks = new java.util.ArrayList[net.minecraft.world.item.ItemStack]()
+          // This would need to be implemented based on slot requirements
+          ModREI.highlightStacks(validStacks)
+        case _ => ModREI.clearHighlights()
       }
     }
   }
 
-  @Optional.Method(modid = Mods.IDs.JustEnoughItems)
-  private def resetJEIHighlights() = ModJEI.runtime.foreach(_.getItemListOverlay.highlightStacks(List[Nothing]()))
+  private def resetREIHighlights(): Unit = {
+    if (ModREI.isAvailable) {
+      ModREI.clearHighlights()
+    }
+  }
 }

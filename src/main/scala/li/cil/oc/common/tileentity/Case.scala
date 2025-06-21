@@ -23,7 +23,7 @@ import net.minecraft.util.EnumFacing
 import net.minecraftforge.fml.relauncher.Side
 import net.minecraftforge.fml.relauncher.SideOnly
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 class Case(var tier: Int) extends traits.PowerAcceptor with traits.Computer with traits.Colored with internal.Case with DeviceInfo {
   def this() = {

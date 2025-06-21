@@ -25,23 +25,23 @@ object GuiHandler extends CommonGuiHandler {
   def getClientGuiElement(id: Int, player: Player, world: Level, x: Int, y: Int, z: Int): Screen = {
     GuiType.Categories.get(id) match {
       case Some(GuiType.Category.Block) =>
-        world.getBlockEntity(BlockPosition(x, GuiType.extractY(y), z)) match {
+        world.getBlockEntity(BlockPosition(x, GuiType.extractY(y), z).toBlockPos) match {
           case t: tileentity.Adapter if id == GuiType.Adapter.id =>
             new gui.Adapter(player.getInventory, t)
           case t: tileentity.Assembler if id == GuiType.Assembler.id =>
-            new gui.Assembler(player.inventory, t)
+            new gui.Assembler(player.getInventory, t)
           case t: tileentity.Case if id == GuiType.Case.id =>
-            new gui.Case(player.inventory, t)
+            new gui.Case(player.getInventory, t)
           case t: tileentity.Charger if id == GuiType.Charger.id =>
-            new gui.Charger(player.inventory, t)
+            new gui.Charger(player.getInventory, t)
           case t: tileentity.Disassembler if id == GuiType.Disassembler.id =>
-            new gui.Disassembler(player.inventory, t)
+            new gui.Disassembler(player.getInventory, t)
           case t: tileentity.DiskDrive if id == GuiType.DiskDrive.id =>
-            new gui.DiskDrive(player.inventory, t)
+            new gui.DiskDrive(player.getInventory, t)
           case t: tileentity.Printer if id == GuiType.Printer.id =>
-            new gui.Printer(player.inventory, t)
+            new gui.Printer(player.getInventory, t)
           case t: tileentity.Rack if id == GuiType.Rack.id =>
-            new gui.Rack(player.inventory, t)
+            new gui.Rack(player.getInventory, t)
           case t: tileentity.Raid if id == GuiType.Raid.id =>
             new gui.Raid(player.inventory, t)
           case t: tileentity.Relay if id == GuiType.Relay.id =>

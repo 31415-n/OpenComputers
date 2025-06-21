@@ -21,8 +21,7 @@ import net.minecraft.entity.item.EntityXPOrb
 import net.minecraft.init.Items
 import net.minecraft.nbt.NBTTagCompound
 
-import scala.collection.convert.WrapAsJava._
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 
 class UpgradeExperience(val host: EnvironmentHost with internal.Agent) extends AbstractManagedEnvironment with DeviceInfo {
   final val MaxLevel = 30

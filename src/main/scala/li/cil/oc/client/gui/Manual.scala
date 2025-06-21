@@ -13,8 +13,7 @@ import net.minecraft.client.gui.GuiScreen
 import net.minecraft.client.renderer.GlStateManager
 import org.lwjgl.input.Mouse
 
-import scala.collection.convert.WrapAsJava._
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 
 class Manual extends GuiScreen with traits.Window {
   final val documentMaxWidth = 230

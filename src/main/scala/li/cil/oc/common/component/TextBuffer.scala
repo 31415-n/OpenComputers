@@ -40,8 +40,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
 import net.minecraftforge.fml.relauncher.Side
 import net.minecraftforge.fml.relauncher.SideOnly
 
-import scala.collection.convert.WrapAsJava._
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 class TextBuffer(val host: EnvironmentHost) extends AbstractManagedEnvironment with traits.TextBufferProxy with VideoRamRasterizer with DeviceInfo {

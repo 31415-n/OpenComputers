@@ -21,6 +21,7 @@ object Mods {
   val Forge = new SimpleMod(IDs.Forge)
   val Minecraft = new SimpleMod(IDs.Minecraft)
   val OpenComputers = new SimpleMod(IDs.OpenComputers)
+  val RoughlyEnoughItems = new SimpleMod(IDs.RoughlyEnoughItems)
 
   // ----------------------------------------------------------------------- //
 
@@ -54,6 +55,7 @@ object Mods {
     final val Forge = "forge"
     final val Minecraft = "minecraft"
     final val OpenComputers = "opencomputers"
+    final val RoughlyEnoughItems = "roughlyenoughitems"
   }
 
   // ----------------------------------------------------------------------- //

@@ -3,9 +3,9 @@ package li.cil.oc.client.gui
 import li.cil.oc.Localization
 import li.cil.oc.common.container
 import li.cil.oc.common.tileentity
-import net.minecraft.entity.player.InventoryPlayer
+import net.minecraft.world.entity.player.Inventory
 
-class Charger(playerInventory: InventoryPlayer, val charger: tileentity.Charger) extends DynamicGuiContainer(new container.Charger(playerInventory, charger)) {
+class Charger(playerInventory: Inventory, val charger: tileentity.Charger) extends DynamicGuiContainer(new container.Charger(playerInventory, charger)) {
   override def drawSecondaryForegroundLayer(mouseX: Int, mouseY: Int) = {
     super.drawSecondaryForegroundLayer(mouseX, mouseY)
     fontRenderer.drawString(

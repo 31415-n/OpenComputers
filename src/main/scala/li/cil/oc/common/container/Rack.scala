@@ -4,13 +4,13 @@ import li.cil.oc.api.component.RackMountable
 import li.cil.oc.common.Slot
 import li.cil.oc.common.tileentity
 import li.cil.oc.util.ExtendedNBT._
-import net.minecraft.entity.player.InventoryPlayer
+import net.minecraft.world.entity.player.Inventory
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.nbt.NBTTagIntArray
 import net.minecraft.util.EnumFacing
 import net.minecraftforge.common.util.Constants.NBT
 
-class Rack(playerInventory: InventoryPlayer, val rack: tileentity.Rack) extends Player(playerInventory, rack) {
+class Rack(playerInventory: Inventory, val rack: tileentity.Rack) extends Player(playerInventory, rack) {
   addSlotToContainer(20, 23, Slot.RackMountable)
   addSlotToContainer(20, 43, Slot.RackMountable)
   addSlotToContainer(20, 63, Slot.RackMountable)

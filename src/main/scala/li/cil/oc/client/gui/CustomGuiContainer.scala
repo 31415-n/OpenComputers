@@ -4,40 +4,36 @@ import java.util
 
 import li.cil.oc.client.gui.widget.WidgetContainer
 import li.cil.oc.util.RenderState
-import net.minecraft.client.gui.FontRenderer
-import net.minecraft.client.gui.inventory.GuiContainer
-import net.minecraft.client.renderer.GlStateManager
-import net.minecraft.client.renderer.RenderHelper
-import net.minecraft.inventory.Container
+import net.minecraft.client.gui.Font
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
+import com.mojang.blaze3d.systems.RenderSystem
+import net.minecraft.world.inventory.AbstractContainerMenu
 
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 
 // Workaround because certain other mods *cough*TMI*cough* do base class
 // transformations that break things! Such fun. Many annoyed. And yes, this
 // is a common issue, have a look at EnderIO and Enchanting Plus. They have
 // to work around this, too.
-abstract class CustomGuiContainer[C <: Container](val inventoryContainer: C) extends GuiContainer(inventoryContainer) with WidgetContainer {
-  override def windowX = guiLeft
+abstract class CustomGuiContainer[C <: AbstractContainerMenu](val inventoryContainer: C) extends AbstractContainerScreen[C](inventoryContainer, net.minecraft.world.entity.player.Player.createAttributes().build(), net.minecraft.network.chat.Component.empty()) with WidgetContainer {
+  override def windowX = leftPos
 
-  override def windowY = guiTop
+  override def windowY = topPos
 
-  override def windowZ = zLevel
+  override def windowZ = 0
 
   override def doesGuiPauseGame = false
 
   protected def add[T](list: util.List[T], value: Any) = list.add(value.asInstanceOf[T])
 
   // Pretty much Scalaified copy-pasta from base-class.
-  override def drawHoveringText(text: util.List[String], x: Int, y: Int, font: FontRenderer): Unit = {
+  def drawHoveringText(text: util.List[String], x: Int, y: Int, font: Font): Unit = {
     copiedDrawHoveringText(text, x, y, font)
   }
 
-  protected def copiedDrawHoveringText(text: util.List[String], x: Int, y: Int, font: FontRenderer): Unit = {
+  protected def copiedDrawHoveringText(text: util.List[String], x: Int, y: Int, font: Font): Unit = {
     if (!text.isEmpty) {
-      GlStateManager.disableRescaleNormal()
-      RenderHelper.disableStandardItemLighting()
-      GlStateManager.disableLighting()
-      GlStateManager.disableDepth()
+      RenderSystem.disableDepthTest()
 
       val textWidth = text.map(line => font.getStringWidth(line)).max
 
@@ -54,8 +50,7 @@ abstract class CustomGuiContainer[C <: Container](val inventoryContainer: C) ext
         posY = height - textHeight - 6
       }
 
-      zLevel = 300f
-      itemRender.zLevel = 300f
+      // Z-level handling changed in 1.20.1
       val bg = 0xF0100010
       drawGradientRect(posX - 3, posY - 4, posX + textWidth + 3, posY - 3, bg, bg)
       drawGradientRect(posX - 3, posY + textHeight + 3, posX + textWidth + 3, posY + textHeight + 4, bg, bg)
@@ -76,13 +71,7 @@ abstract class CustomGuiContainer[C <: Container](val inventoryContainer: C) ext
         }
         posY += 10
       }
-      zLevel = 0f
-      itemRender.zLevel = 0f
-
-      GlStateManager.enableLighting()
-      GlStateManager.enableDepth()
-      RenderHelper.enableStandardItemLighting()
-      GlStateManager.enableRescaleNormal()
+      RenderSystem.enableDepthTest()
     }
   }
 
@@ -91,9 +80,9 @@ abstract class CustomGuiContainer[C <: Container](val inventoryContainer: C) ext
     RenderState.makeItBlend()
   }
 
-  override def drawScreen(mouseX: Int, mouseY: Int, partialTicks: Float): Unit = {
-    this.drawDefaultBackground()
-    super.drawScreen(mouseX, mouseY, partialTicks)
-    this.renderHoveredToolTip(mouseX, mouseY)
+  override def render(guiGraphics: net.minecraft.client.gui.GuiGraphics, mouseX: Int, mouseY: Int, partialTicks: Float): Unit = {
+    this.renderBackground(guiGraphics)
+    super.render(guiGraphics, mouseX, mouseY, partialTicks)
+    this.renderTooltip(guiGraphics, mouseX, mouseY)
   }
 }

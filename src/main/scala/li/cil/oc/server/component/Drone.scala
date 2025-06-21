@@ -22,8 +22,7 @@ import net.minecraft.init.SoundEvents
 import net.minecraft.util.EnumFacing
 import net.minecraft.util.SoundCategory
 
-import scala.collection.convert.WrapAsJava._
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 
 class Drone(val agent: entity.Drone) extends AbstractManagedEnvironment with Agent with DeviceInfo {
   override val node = Network.newNode(this, Visibility.Network).
