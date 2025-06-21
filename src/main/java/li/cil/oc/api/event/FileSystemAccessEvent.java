@@ -4,8 +4,8 @@ import li.cil.oc.api.network.Node;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.fml.common.eventhandler.Cancelable;
-import net.minecraftforge.fml.common.eventhandler.Event;
+import net.neoforged.bus.api.Cancelable;
+import net.neoforged.bus.api.Event;
 
 /**
  * Events for handling file system access and representing it on the client.
@@ -19,8 +19,8 @@ import net.minecraftforge.fml.common.eventhandler.Event;
  * Canceling this event is provided to allow registering higher priority
  * event handlers that override default behavior.
  */
-@Cancelable
-public class FileSystemAccessEvent extends Event {
+@Cancellable
+public class FileSystemAccessEvent extends net.neoforged.bus.api.Event {
     protected String sound;
 
     protected Level world;

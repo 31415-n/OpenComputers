@@ -6,8 +6,8 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 /**
- * This interface is like {@link net.minecraft.world.inventory.ISidedInventory} is to
- * {@link net.minecraft.world.inventory.IInventory}, it allows an environment to
+ * This interface is like {@link net.minecraft.world.inventory.WorldlyContainer} is to
+ * {@link net.minecraft.world.inventory.Container}, it allows an environment to
  * specify different node access for its different sides.
  * <br>
  * This interface is intended to be used on tile entities that are environments.
@@ -50,6 +50,6 @@ public interface SidedEnvironment {
      * @param side the side to check for.
      * @return whether the environment provides a node for the specified side.
      */
-    @SideOnly(Side.CLIENT)
+    @OnlyIn(Dist.CLIENT)
     boolean canConnect(Direction side);
 }

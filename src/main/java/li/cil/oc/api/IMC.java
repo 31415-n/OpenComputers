@@ -62,8 +62,8 @@ public final class IMC {
      * Signature of callbacks must be:
      * <pre>
      * boolean select(ItemStack stack)
-     * Object[] validate(IInventory inventory)
-     * Object[] assemble(IInventory inventory)
+     * Object[] validate(Container inventory)
+     * Object[] assemble(Container inventory)
      * </pre>
      * Values in the array returned by <tt>validate</tt> must be one of the following:
      * <pre>

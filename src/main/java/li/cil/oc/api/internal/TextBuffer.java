@@ -495,7 +495,7 @@ public interface TextBuffer extends ManagedEnvironment, Persistable {
      * @return <tt>true</tt> if the displayed content changed since the last
      * call to this method.
      */
-    @SideOnly(Side.CLIENT)
+    @OnlyIn(Dist.CLIENT)
     boolean renderText();
 
     /**
@@ -507,7 +507,7 @@ public interface TextBuffer extends ManagedEnvironment, Persistable {
      *
      * @return the total width of the rendered buffer, in pixels.
      */
-    @SideOnly(Side.CLIENT)
+    @OnlyIn(Dist.CLIENT)
     int renderWidth();
 
     /**
@@ -519,7 +519,7 @@ public interface TextBuffer extends ManagedEnvironment, Persistable {
      *
      * @return the total height of the rendered buffer, in pixels.
      */
-    @SideOnly(Side.CLIENT)
+    @OnlyIn(Dist.CLIENT)
     int renderHeight();
 
     /**
@@ -530,7 +530,7 @@ public interface TextBuffer extends ManagedEnvironment, Persistable {
      *
      * @param enabled whether the text buffer should be rendered.
      */
-    @SideOnly(Side.CLIENT)
+    @OnlyIn(Dist.CLIENT)
     void setRenderingEnabled(boolean enabled);
 
     /**
@@ -538,7 +538,7 @@ public interface TextBuffer extends ManagedEnvironment, Persistable {
      *
      * @see #setRenderingEnabled(boolean)
      */
-    @SideOnly(Side.CLIENT)
+    @OnlyIn(Dist.CLIENT)
     boolean isRenderingEnabled();
 
     // ----------------------------------------------------------------------- //

@@ -20,7 +20,7 @@ public class ItemStackTabIconRenderer implements TabIconRenderer {
         this.stack = stack;
     }
 
-    @SideOnly(Side.CLIENT)
+    @OnlyIn(Dist.CLIENT)
     @Override
     public void render() {
         GlStateManager.enableRescaleNormal();

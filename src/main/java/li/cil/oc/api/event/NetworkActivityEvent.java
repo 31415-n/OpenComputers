@@ -4,7 +4,7 @@ import li.cil.oc.api.network.Node;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.fml.common.eventhandler.Event;
+import net.neoforged.bus.api.Event;
 
 /**
  * Events for handling network activity and representing it on the client.
@@ -18,7 +18,7 @@ import net.minecraftforge.fml.common.eventhandler.Event;
  * Canceling this event is provided to allow registering higher priority
  * event handlers that override default behavior.
  */
-public class NetworkActivityEvent extends Event {
+public class NetworkActivityEvent extends net.neoforged.bus.api.Event {
     protected Level world;
 
     protected double x;

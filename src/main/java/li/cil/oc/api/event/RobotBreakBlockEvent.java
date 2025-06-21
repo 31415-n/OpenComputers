@@ -1,9 +1,9 @@
 package li.cil.oc.api.event;
 
 import li.cil.oc.api.internal.Agent;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.fml.common.eventhandler.Cancelable;
+import net.neoforged.bus.api.Cancelable;
 
 public abstract class RobotBreakBlockEvent extends RobotEvent {
     protected RobotBreakBlockEvent(Agent agent) {
@@ -15,7 +15,7 @@ public abstract class RobotBreakBlockEvent extends RobotEvent {
      * <br>
      * Canceling this event will prevent the block from getting broken.
      */
-    @Cancelable
+    @Cancellable
     public static class Pre extends RobotBreakBlockEvent {
         /**
          * The world in which the block will be broken.

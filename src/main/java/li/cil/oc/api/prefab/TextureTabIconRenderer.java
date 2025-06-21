@@ -23,7 +23,7 @@ public class TextureTabIconRenderer implements TabIconRenderer {
     }
 
     @Override
-    @SideOnly(Side.CLIENT)
+    @OnlyIn(Dist.CLIENT)
     public void render() {
         Minecraft.getMinecraft().getTextureManager().bindTexture(location);
         GlStateManager.bindTexture(Minecraft.getMinecraft().getTextureManager().getTexture(location).getGlTextureId());

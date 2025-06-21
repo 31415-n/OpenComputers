@@ -2,7 +2,7 @@ package li.cil.oc.api.event;
 
 import li.cil.oc.api.internal.Agent;
 import net.minecraft.entity.Entity;
-import net.minecraftforge.fml.common.eventhandler.Cancelable;
+import net.neoforged.bus.api.Cancelable;
 
 public class RobotAttackEntityEvent extends RobotEvent {
     /**
@@ -20,7 +20,7 @@ public class RobotAttackEntityEvent extends RobotEvent {
      * <br>
      * Canceling this event will prevent the attack.
      */
-    @Cancelable
+    @Cancellable
     public static class Pre extends RobotAttackEntityEvent {
         public Pre(Agent agent, Entity target) {
             super(agent, target);

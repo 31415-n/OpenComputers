@@ -47,6 +47,9 @@ dependencies {
     implementation files('libs/OC-LuaJ-20220907.1.jar')
     implementation files('libs/OC-JNLua-20230530.0.jar')
     implementation files('libs/OC-JNLua-Natives-20220928.1.jar')
+    
+    // JOML for vector math (replaces LWJGL vectors)
+    implementation 'org.joml:joml:1.10.5'
 }
 
 runs {

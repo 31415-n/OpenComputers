@@ -1,6 +1,6 @@
 package li.cil.oc.api.driver;
 
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
 
 /**
  * This interface can be implemented by environments to enforce a method
@@ -14,7 +14,7 @@ import net.minecraft.util.math.BlockPos;
  * <br>
  * In some scenarios you may not want this to happen. Instead, only a select
  * list of methods should be shown for a block - for example, you may want to
- * suppress inventory functionality if your TileEntity implements IInventory.
+ * suppress inventory functionality if your TileEntity implements Container.
  * <br>
  * To do so, implement this interface in the <em>environment</em> that you
  * return from your driver's {@link DriverBlock#createEnvironment(net.minecraft.world.level.Level, BlockPos, net.minecraft.util.Direction)}

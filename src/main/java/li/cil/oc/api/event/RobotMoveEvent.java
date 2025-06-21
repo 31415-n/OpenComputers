@@ -2,7 +2,7 @@ package li.cil.oc.api.event;
 
 import li.cil.oc.api.internal.Agent;
 import net.minecraft.util.Direction;
-import net.minecraftforge.fml.common.eventhandler.Cancelable;
+import net.neoforged.bus.api.Cancelable;
 
 public abstract class RobotMoveEvent extends RobotEvent {
     /**
@@ -20,7 +20,7 @@ public abstract class RobotMoveEvent extends RobotEvent {
      * <br>
      * Canceling the event will prevent the robot from moving.
      */
-    @Cancelable
+    @Cancellable
     public static class Pre extends RobotMoveEvent {
         public Pre(Agent agent, Direction direction) {
             super(agent, direction);

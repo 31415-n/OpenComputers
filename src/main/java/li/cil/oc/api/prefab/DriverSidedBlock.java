@@ -5,7 +5,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.world.item.ItemBlock;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
 import net.minecraft.util.Direction;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.oredict.OreDictionary;

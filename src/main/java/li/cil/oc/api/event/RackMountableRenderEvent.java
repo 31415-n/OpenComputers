@@ -11,8 +11,8 @@ import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Direction;
 import net.minecraft.util.ResourceLocation;
-import net.minecraftforge.fml.common.eventhandler.Cancelable;
-import net.minecraftforge.fml.common.eventhandler.Event;
+import net.neoforged.bus.api.Cancelable;
+import net.neoforged.bus.api.Event;
 import org.lwjgl.opengl.GL11;
 
 /**
@@ -23,7 +23,7 @@ import org.lwjgl.opengl.GL11;
  * event handler's responsibility to not render outside the are of the
  * mountable (unless that's explicitly what they're going for, of course).
  */
-public abstract class RackMountableRenderEvent extends Event {
+public abstract class RackMountableRenderEvent extends net.neoforged.bus.api.Event {
     /**
      * The rack that house the mountable this event is fired for.
      */
@@ -57,7 +57,7 @@ public abstract class RackMountableRenderEvent extends Event {
      * <br>
      * The bounds will be set up before this call, so you may adjust those, if you wish.
      */
-    @Cancelable
+    @Cancellable
     public static class Block extends RackMountableRenderEvent {
         /**
          * The front-facing side, i.e. where the mountable is visible on the rack.

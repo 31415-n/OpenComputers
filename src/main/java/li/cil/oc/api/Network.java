@@ -8,7 +8,7 @@ import li.cil.oc.api.network.Visibility;
 import li.cil.oc.api.network.WirelessEndpoint;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.IBlockAccess;
 
 /**

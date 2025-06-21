@@ -2,7 +2,7 @@ package li.cil.oc.api.prefab;
 
 import li.cil.oc.api.driver.DriverBlock;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
 import net.minecraft.util.Direction;
 import net.minecraft.world.level.Level;
 
