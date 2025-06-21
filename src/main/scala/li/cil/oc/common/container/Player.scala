@@ -18,7 +18,7 @@ import scala.jdk.CollectionConverters._
 
 abstract class Player(val playerInventory: Inventory, val otherInventory: net.minecraft.world.Container) extends AbstractContainerMenu(null, 0) {
   /** Number of player inventory slots to display horizontally. */
-  protected val playerInventorySizeX = math.min(9, InventoryPlayer.getHotbarSize)
+  protected val playerInventorySizeX = math.min(9, 9) // Hotbar size is always 9 in 1.20.1
 
   /** Subtract four for armor slots. */
   protected val playerInventorySizeY = math.min(4, (playerInventory.getContainerSize - 4) / playerInventorySizeX)

@@ -4,11 +4,11 @@ import java.util
 
 import li.cil.oc.util.OldScaledResolution
 import net.minecraft.client.gui.Gui
-import net.minecraft.client.gui.GuiScreen
-import net.minecraft.client.gui.ScaledResolution
-import net.minecraft.util.ResourceLocation
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.resources.ResourceLocation
 
-trait Window extends GuiScreen {
+trait Window extends Screen {
   var guiLeft = 0
   var guiTop = 0
   var xSize = 0
@@ -21,25 +21,23 @@ trait Window extends GuiScreen {
 
   protected def add[T](list: util.List[T], value: Any) = list.add(value.asInstanceOf[T])
 
-  override def doesGuiPauseGame = false
+  override def isPauseScreen(): Boolean = false
 
-  override def initGui(): Unit = {
-    super.initGui()
+  override def init(): Unit = {
+    super.init()
 
-    val screenSize = new ScaledResolution(mc)
-    val guiSize = new OldScaledResolution(mc, windowWidth, windowHeight)
-    val (midX, midY) = (screenSize.getScaledWidth / 2, screenSize.getScaledHeight / 2)
+    val guiSize = new OldScaledResolution(minecraft, windowWidth, windowHeight)
+    val (midX, midY) = (width / 2, height / 2)
     guiLeft = midX - guiSize.getScaledWidth / 2
     guiTop = midY - guiSize.getScaledHeight / 2
     xSize = guiSize.getScaledWidth
     ySize = guiSize.getScaledHeight
   }
 
-  override def drawScreen(mouseX: Int, mouseY: Int, dt: Float): Unit = {
-    mc.renderEngine.bindTexture(backgroundImage)
-    Gui.drawModalRectWithCustomSizedTexture(guiLeft, guiTop, 0, 0, xSize, ySize, windowWidth, windowHeight)
+  override def render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float): Unit = {
+    guiGraphics.blit(backgroundImage, guiLeft, guiTop, 0, 0, xSize, ySize, windowWidth, windowHeight)
 
-    super.drawScreen(mouseX, mouseY, dt)
+    super.render(guiGraphics, mouseX, mouseY, partialTick)
   }
 
 }

@@ -1,13 +1,13 @@
 package li.cil.oc.common.container
 
 import li.cil.oc.common.inventory.DatabaseInventory
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.entity.player.InventoryPlayer
-import net.minecraft.inventory._
-import net.minecraft.item.ItemStack
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.entity.player.Inventory
+import net.minecraft.world.inventory._
+import net.minecraft.world.item.ItemStack
 
-class Database(playerInventory: InventoryPlayer, databaseInventory: DatabaseInventory) extends Player(playerInventory, databaseInventory) {
-  val rows = math.sqrt(databaseInventory.getSizeInventory).ceil.toInt
+class Database(playerInventory: Inventory, databaseInventory: DatabaseInventory) extends li.cil.oc.common.container.Player(playerInventory, databaseInventory) {
+  val rows = math.sqrt(databaseInventory.getContainerSize).ceil.toInt
   val offset = 8 + Array(3, 2, 0)(databaseInventory.tier) * slotSize
 
   for (row <- 0 until rows; col <- 0 until rows) {
@@ -17,49 +17,48 @@ class Database(playerInventory: InventoryPlayer, databaseInventory: DatabaseInve
   // Show the player's inventory.
   addPlayerInventorySlots(8, 174)
 
-  override def canInteractWith(player: EntityPlayer) = player == playerInventory.player
+  override def stillValid(player: Player) = player == playerInventory.player
 
-  override def slotClick(slot: Int, dragType: Int, clickType: ClickType, player: EntityPlayer): ItemStack = {
-    if (slot >= databaseInventory.getSizeInventory() || slot < 0) {
-      // if the slot interaction is with the user inventory use
-      // default behavior
-      return super.slotClick(slot, dragType, clickType, player)
+  override def clicked(slot: Int, dragType: Int, clickType: ClickType, player: Player): Unit = {
+    if (slot >= databaseInventory.getContainerSize() || slot < 0) {
+      // if the slot interaction is with the user inventory use default behavior
+      super.clicked(slot, dragType, clickType, player)
+      return
     }
     // remove the ghost item
-    val ghostSlot = this.inventorySlots.get(slot);
+    val ghostSlot = this.slots.get(slot)
     if (ghostSlot != null) {
-      val inventoryPlayer = player.inventory
-      val hand = inventoryPlayer.getItemStack()
+      val inventoryPlayer = player.getInventory
+      val hand = inventoryPlayer.getCarried
       var itemToAdd = ItemStack.EMPTY
       // if the player is holding an item, place a copy
-      if (!hand.isEmpty()) {
+      if (!hand.isEmpty) {
         itemToAdd = hand.copy()
       }
-      ghostSlot.putStack(itemToAdd)
+      ghostSlot.set(itemToAdd)
     }
-    ItemStack.EMPTY
   }
 
-  override protected def tryTransferStackInSlot(from: Slot, intoPlayerInventory: Boolean) {
+  override protected def tryTransferStackInSlot(from: Slot, intoPlayerInventory: Boolean): Unit = {
     if (intoPlayerInventory) {
-      from.onSlotChanged()
+      from.setChanged()
       return
     }
   
-    val fromStack = from.getStack().copy()
+    val fromStack = from.getItem.copy()
     if (fromStack.isEmpty) {
       return
     }
 
     fromStack.setCount(1)
-    val (begin, end) = (0, inventorySlots.size - 1)
+    val (begin, end) = (0, slots.size - 1)
 
     for (i <- begin to end) {
-      val intoSlot = inventorySlots.get(i)
-      if (intoSlot.inventory != from.inventory) {
-        if (!intoSlot.getHasStack && intoSlot.isItemValid(fromStack)) {
-          if (intoSlot.getSlotStackLimit > 0) {
-            intoSlot.putStack(fromStack)
+      val intoSlot = slots.get(i)
+      if (intoSlot.container != from.container) {
+        if (!intoSlot.hasItem && intoSlot.mayPlace(fromStack)) {
+          if (intoSlot.getMaxStackSize > 0) {
+            intoSlot.set(fromStack)
             return
           }
         }

@@ -1,13 +1,13 @@
 package li.cil.oc.common.inventory
 
-import net.minecraft.item.ItemStack
-import net.minecraft.nbt.NBTTagCompound
+import net.minecraft.world.item.ItemStack
+import net.minecraft.nbt.CompoundTag
 
 trait ItemStackInventory extends Inventory {
   // The item stack that provides the inventory.
   def container: ItemStack
 
-  private lazy val inventory = Array.fill[ItemStack](getSizeInventory)(ItemStack.EMPTY)
+  private lazy val inventory = Array.fill[ItemStack](getContainerSize)(ItemStack.EMPTY)
 
   override def items = inventory
 
@@ -24,17 +24,17 @@ trait ItemStackInventory extends Inventory {
     for (i <- items.indices) {
       updateItems(i, ItemStack.EMPTY)
     }
-    if (!container.hasTagCompound) {
-      container.setTagCompound(new NBTTagCompound())
+    if (!container.hasTag) {
+      container.setTag(new CompoundTag())
     }
-    load(container.getTagCompound)
+    load(container.getTag)
   }
 
   // Write items back to tag.
   override def markDirty() {
-    if (!container.hasTagCompound) {
-      container.setTagCompound(new NBTTagCompound())
+    if (!container.hasTag) {
+      container.setTag(new CompoundTag())
     }
-    save(container.getTagCompound)
+    save(container.getTag)
   }
 }

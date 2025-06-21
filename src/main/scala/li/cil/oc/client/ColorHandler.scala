@@ -46,7 +46,10 @@ object ColorHandler {
       api.Items.get(Constants.BlockName.CaseTier3).block(),
       api.Items.get(Constants.BlockName.CaseCreative).block())
 
-    register((state, world, pos, tintIndex) => Color.rgbValues(Color.byOreName(Color.dyes(state.getBlock.asInstanceOf[block.ChameliumBlock].getMetaFromState(state) max 0 min Color.dyes.length))),
+    register((state, world, pos, tintIndex) => {
+      val dyeColor = state.getValue(block.ChameliumBlock.Color)
+      Color.rgbValues(Color.byOreName(Color.dyes(dyeColor.getId max 0 min Color.dyes.length)))
+    },
       api.Items.get(Constants.BlockName.ChameliumBlock).block())
 
     register((state, world, pos, tintIndex) => tintIndex,

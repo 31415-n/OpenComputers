@@ -4,75 +4,70 @@ import li.cil.oc.client.PacketSender
 import li.cil.oc.client.Textures
 import li.cil.oc.common.tileentity
 import li.cil.oc.util.OldScaledResolution
-import net.minecraft.client.gui.GuiScreen
-import net.minecraft.client.gui.GuiTextField
-import net.minecraft.client.gui.ScaledResolution
-import net.minecraft.client.renderer.GlStateManager
-import org.lwjgl.input.Keyboard
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.gui.components.EditBox
+import net.minecraft.client.gui.GuiGraphics
+import com.mojang.blaze3d.systems.RenderSystem
+import org.lwjgl.glfw.GLFW
 
-class Waypoint(val waypoint: tileentity.Waypoint) extends GuiScreen {
+class Waypoint(val waypoint: tileentity.Waypoint) extends Screen(net.minecraft.network.chat.Component.literal("Waypoint")) {
   var guiLeft = 0
   var guiTop = 0
   var xSize = 0
   var ySize = 0
 
-  var textField: GuiTextField = _
+  var textField: EditBox = _
 
-  override def updateScreen(): Unit = {
-    super.updateScreen()
-    if (mc.player.getDistanceSq(waypoint.x + 0.5, waypoint.y + 0.5, waypoint.z + 0.5) > 64) {
-      mc.player.closeScreen()
+  override def tick(): Unit = {
+    super.tick()
+    if (minecraft.player.distanceToSqr(waypoint.getBlockPos.getX + 0.5, waypoint.getBlockPos.getY + 0.5, waypoint.getBlockPos.getZ + 0.5) > 64) {
+      minecraft.player.closeContainer()
     }
   }
 
-  override def doesGuiPauseGame(): Boolean = false
+  override def isPauseScreen(): Boolean = false
 
-  override def initGui(): Unit = {
-    super.initGui()
+  override def init(): Unit = {
+    super.init()
 
-    val screenSize = new ScaledResolution(mc)
-    val guiSize = new OldScaledResolution(mc, 176, 24)
-    val (midX, midY) = (screenSize.getScaledWidth / 2, screenSize.getScaledHeight / 2)
-    guiLeft = midX - guiSize.getScaledWidth / 2
-    guiTop = midY - guiSize.getScaledHeight / 2
-    xSize = guiSize.getScaledWidth
-    ySize = guiSize.getScaledHeight
+    val (midX, midY) = (width / 2, height / 2)
+    guiLeft = midX - 88
+    guiTop = midY - 12
+    xSize = 176
+    ySize = 24
 
-    textField = new GuiTextField(0, fontRenderer, guiLeft + 7, guiTop + 8, 164 - 12, 12)
-    textField.setMaxStringLength(32)
-    textField.setEnableBackgroundDrawing(false)
+    textField = new EditBox(font, guiLeft + 7, guiTop + 8, 164 - 12, 12, net.minecraft.network.chat.Component.literal("waypoint"))
+    textField.setMaxLength(32)
+    textField.setBordered(false)
     textField.setCanLoseFocus(false)
     textField.setFocused(true)
     textField.setTextColor(0xFFFFFF)
-    textField.setText(waypoint.label)
-
-    Keyboard.enableRepeatEvents(true)
+    textField.setValue(waypoint.label)
+    addRenderableWidget(textField)
   }
 
-  override def onGuiClosed(): Unit = {
-    super.onGuiClosed()
-    Keyboard.enableRepeatEvents(false)
+  override def removed(): Unit = {
+    super.removed()
   }
 
-  override def keyTyped(char: Char, code: Int): Unit = {
-    if (!textField.textboxKeyTyped(char, code)) {
-      if (code == Keyboard.KEY_RETURN) {
-        val label = textField.getText.take(32)
-        if (label != waypoint.label) {
-          waypoint.label = label
-          PacketSender.sendWaypointLabel(waypoint)
-          mc.player.closeScreen()
-        }
+  override def keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean = {
+    if (keyCode == GLFW.GLFW_KEY_ENTER) {
+      val label = textField.getValue.take(32)
+      if (label != waypoint.label) {
+        waypoint.label = label
+        PacketSender.sendWaypointLabel(waypoint)
+        minecraft.player.closeContainer()
       }
-      else super.keyTyped(char, code)
+      true
+    } else {
+      textField.keyPressed(keyCode, scanCode, modifiers) || super.keyPressed(keyCode, scanCode, modifiers)
     }
   }
 
-  override def drawScreen(mouseX: Int, mouseY: Int, dt: Float): Unit = {
-    super.drawScreen(mouseX, mouseY, dt)
-    GlStateManager.color(1, 1, 1) // Required under Linux.
-    mc.renderEngine.bindTexture(Textures.GUI.Waypoint)
-    drawTexturedModalRect(guiLeft, guiTop, 0, 0, xSize, ySize)
-    textField.drawTextBox()
+  override def render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float): Unit = {
+    renderBackground(guiGraphics)
+    RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
+    guiGraphics.blit(Textures.GUI.Waypoint, guiLeft, guiTop, 0, 0, xSize, ySize)
+    super.render(guiGraphics, mouseX, mouseY, partialTick)
   }
 }

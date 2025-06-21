@@ -1,18 +1,18 @@
 package li.cil.oc.client.gui.traits
 
-import net.minecraft.client.gui.inventory.GuiContainer
-import net.minecraft.inventory.ClickType
-import net.minecraft.inventory.Slot
-import net.minecraft.item.ItemStack
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
+import net.minecraft.world.inventory.ClickType
+import net.minecraft.world.inventory.Slot
+import net.minecraft.world.item.ItemStack
 
-trait LockedHotbar extends GuiContainer {
+trait LockedHotbar extends AbstractContainerScreen[_] {
   def lockedStack: ItemStack
 
-  override def handleMouseClick(slot: Slot, slotId: Int, mouseButton: Int, clickType: ClickType): Unit = {
-    if (slot == null || !slot.getStack.isItemEqual(lockedStack)) {
-      super.handleMouseClick(slot, slotId, mouseButton, clickType)
+  override def slotClicked(slot: Slot, slotId: Int, mouseButton: Int, clickType: ClickType): Unit = {
+    if (slot == null || !ItemStack.isSameItem(slot.getItem, lockedStack)) {
+      super.slotClicked(slot, slotId, mouseButton, clickType)
     }
   }
 
-  protected override def checkHotbarKeys(keyCode: Int) = false
+  override def checkHotbarKeyPressed(keyCode: Int, scanCode: Int): Boolean = false
 }

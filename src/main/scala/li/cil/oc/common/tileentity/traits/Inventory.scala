@@ -3,44 +3,44 @@ package li.cil.oc.common.tileentity.traits
 import li.cil.oc.common.inventory
 import li.cil.oc.util.BlockPosition
 import li.cil.oc.util.InventoryUtils
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.util.EnumFacing
-import net.minecraft.util.text.ITextComponent
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.ItemStack
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.core.Direction
+import net.minecraft.network.chat.Component
 
 trait Inventory extends TileEntity with inventory.Inventory {
-  private lazy val inventory = Array.fill[ItemStack](getSizeInventory)(ItemStack.EMPTY)
+  private lazy val inventory = Array.fill[ItemStack](getContainerSize)(ItemStack.EMPTY)
 
   def items = inventory
 
   // ----------------------------------------------------------------------- //
 
-  override def getDisplayName: ITextComponent = super[Inventory].getDisplayName
+  override def getDisplayName: Component = super[Inventory].getDisplayName
 
-  override def readFromNBTForServer(nbt: NBTTagCompound) {
-    super.readFromNBTForServer(nbt)
+  override def loadForServer(nbt: CompoundTag): Unit = {
+    super.loadForServer(nbt)
     load(nbt)
   }
 
-  override def writeToNBTForServer(nbt: NBTTagCompound) {
-    super.writeToNBTForServer(nbt)
+  override def saveForServer(nbt: CompoundTag): Unit = {
+    super.saveForServer(nbt)
     save(nbt)
   }
 
   // ----------------------------------------------------------------------- //
 
-  override def isUsableByPlayer(player: EntityPlayer) =
-    player.getDistanceSq(x + 0.5, y + 0.5, z + 0.5) <= 64
+  override def stillValid(player: Player) =
+    player.distanceToSqr(getBlockPos.getX + 0.5, getBlockPos.getY + 0.5, getBlockPos.getZ + 0.5) <= 64
 
   // ----------------------------------------------------------------------- //
 
-  def dropSlot(slot: Int, count: Int = getInventoryStackLimit, direction: Option[EnumFacing] = None) =
-    InventoryUtils.dropSlot(BlockPosition(x, y, z, getWorld), this, slot, count, direction)
+  def dropSlot(slot: Int, count: Int = getMaxStackSize, direction: Option[Direction] = None) =
+    InventoryUtils.dropSlot(BlockPosition(getBlockPos.getX, getBlockPos.getY, getBlockPos.getZ, getLevel), this, slot, count, direction)
 
   def dropAllSlots() =
-    InventoryUtils.dropAllSlots(BlockPosition(x, y, z, getWorld), this)
+    InventoryUtils.dropAllSlots(BlockPosition(getBlockPos.getX, getBlockPos.getY, getBlockPos.getZ, getLevel), this)
 
-  def spawnStackInWorld(stack: ItemStack, direction: Option[EnumFacing] = None) =
-    InventoryUtils.spawnStackInWorld(BlockPosition(x, y, z, getWorld), stack, direction)
+  def spawnStackInWorld(stack: ItemStack, direction: Option[Direction] = None) =
+    InventoryUtils.spawnStackInWorld(BlockPosition(getBlockPos.getX, getBlockPos.getY, getBlockPos.getZ, getLevel), stack, direction)
 }

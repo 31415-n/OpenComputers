@@ -11,16 +11,16 @@ import li.cil.oc.common.entity
 import li.cil.oc.util.PackedColor
 import li.cil.oc.util.RenderState
 import li.cil.oc.util.TextBuffer
-import net.minecraft.client.gui.GuiButton
-import net.minecraft.client.renderer.GlStateManager
-import net.minecraft.client.renderer.Tessellator
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats
-import net.minecraft.entity.player.InventoryPlayer
+import net.minecraft.client.gui.components.Button
+import com.mojang.blaze3d.systems.RenderSystem
+import net.minecraft.client.renderer.Tesselator
+import com.mojang.blaze3d.vertex.DefaultVertexFormat
+import net.minecraft.world.entity.player.Inventory
 import org.lwjgl.opengl.GL11
 
 import scala.jdk.CollectionConverters._
 
-class Drone(playerInventory: InventoryPlayer, val drone: entity.Drone) extends DynamicGuiContainer(new container.Drone(playerInventory, drone)) with traits.DisplayBuffer {
+class Drone(playerInventory: Inventory, val drone: entity.Drone) extends DynamicGuiContainer(new container.Drone(playerInventory, drone)) with traits.DisplayBuffer {
   xSize = 176
   ySize = 148
 
@@ -53,7 +53,7 @@ class Drone(playerInventory: InventoryPlayer, val drone: entity.Drone) extends D
   private val selectionsStates = 17
   private val selectionStepV = 1 / selectionsStates.toDouble
 
-  protected override def actionPerformed(button: GuiButton) {
+  protected override def actionPerformed(button: Button): Unit = {
     if (button.id == 0) {
       ClientPacketSender.sendDronePower(drone, !drone.isRunning)
     }
@@ -70,17 +70,18 @@ class Drone(playerInventory: InventoryPlayer, val drone: entity.Drone) extends D
   override def initGui() {
     super.initGui()
     powerButton = new ImageButton(0, guiLeft + 7, guiTop + 45, 18, 18, Textures.GUI.ButtonPower, canToggle = true)
-    add(buttonList, powerButton)
+    addRenderableWidget(powerButton)
   }
 
   override protected def drawBuffer() {
-    GlStateManager.translate(bufferX, bufferY, 0)
+    RenderSystem.getModelViewStack().pushPose()
+    RenderSystem.getModelViewStack().translate(bufferX, bufferY, 0)
     RenderState.disableEntityLighting()
     RenderState.makeItBlend()
-    GlStateManager.scale(scale, scale, 1)
+    RenderSystem.getModelViewStack().scale(scale.toFloat, scale.toFloat, 1.0f)
     RenderState.pushAttrib()
-    GlStateManager.depthMask(false)
-    GlStateManager.color(0.5f, 0.5f, 1f)
+    RenderSystem.depthMask(false)
+    RenderSystem.setShaderColor(0.5f, 0.5f, 1f, 1.0f)
     TextBufferRenderCache.render(bufferRenderer)
     RenderState.popAttrib()
   }
@@ -101,19 +102,19 @@ class Drone(playerInventory: InventoryPlayer, val drone: entity.Drone) extends D
     }
     if (powerButton.isMouseOver) {
       val tooltip = new java.util.ArrayList[String]
-      tooltip.addAll(asJavaCollection(if (drone.isRunning) Localization.Computer.TurnOff.lines.toIterable else Localization.Computer.TurnOn.lines.toIterable))
+      tooltip.addAll((if (drone.isRunning) Localization.Computer.TurnOff.lines else Localization.Computer.TurnOn.lines).asJava)
       copiedDrawHoveringText(tooltip, mouseX - guiLeft, mouseY - guiTop, fontRenderer)
     }
     RenderState.popAttrib()
   }
 
   override protected def drawGuiContainerBackgroundLayer(dt: Float, mouseX: Int, mouseY: Int) {
-    GlStateManager.color(1, 1, 1)
+    RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
     Textures.bind(Textures.GUI.Drone)
     drawTexturedModalRect(guiLeft, guiTop, 0, 0, xSize, ySize)
     power.level = drone.globalBuffer.toDouble / math.max(drone.globalBufferSize.toDouble, 1.0)
     drawWidgets()
-    if (drone.mainInventory.getSizeInventory > 0) {
+    if (drone.mainInventory.getContainerSize > 0) {
       drawSelection()
     }
 
