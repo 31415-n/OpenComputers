@@ -5,7 +5,7 @@ import java.security.InvalidParameterException
 
 import li.cil.oc.api.network.{Environment, Message, Node}
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.nbt.NBTTagCompound
+import net.minecraft.nbt.CompoundTag
 import li.cil.oc.api.internal.TextBuffer.ColorDepth
 import li.cil.oc.api
 import li.cil.oc.common.component.traits.{TextBufferProxy, VideoRamDevice, VideoRamRasterizer}
@@ -30,13 +30,13 @@ class GpuTextBuffer(val owner: String, val id: Int, val data: li.cil.oc.util.Tex
   override def onBufferCopy(col: Int, row: Int, w: Int, h: Int, tx: Int, ty: Int): Unit = dirty = true
   override def onBufferFill(col: Int, row: Int, w: Int, h: Int, c: Int): Unit = dirty = true
 
-  override def load(nbt: NBTTagCompound): Unit = {
+  override def load(nbt: CompoundTag): Unit = {
     // the data is initially dirty because other devices don't know about it yet
     data.load(nbt)
     dirty = true
   }
 
-  override def save(nbt: NBTTagCompound): Unit = {
+  override def save(nbt: CompoundTag): Unit = {
     data.save(nbt)
     dirty = false
   }
@@ -91,7 +91,7 @@ object ClientGpuTextBufferHandler {
     }
   }
 
-  def loadBuffer(buffer: api.internal.TextBuffer, owner: String, id: Int, nbt: NBTTagCompound): Boolean = {
+  def loadBuffer(buffer: api.internal.TextBuffer, owner: String, id: Int, nbt: CompoundTag): Boolean = {
     buffer match {
       case screen: VideoRamRasterizer => screen.loadBuffer(owner, id, nbt)
       case _ => false // ignore, not compatible with bitblts

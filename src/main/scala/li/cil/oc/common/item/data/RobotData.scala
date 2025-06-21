@@ -9,7 +9,7 @@ import li.cil.oc.api
 import li.cil.oc.integration.opencomputers.DriverScreen
 import li.cil.oc.util.ExtendedNBT._
 import li.cil.oc.util.ItemUtils
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraftforge.common.util.Constants.NBT
 
@@ -68,9 +68,9 @@ class RobotData extends ItemData(Constants.BlockName.Robot) {
     robotEnergy = nbt.getInteger(RobotEnergyTag)
     tier = nbt.getInteger(TierTag)
     components = nbt.getTagList(ComponentsTag, NBT.TAG_COMPOUND).
-      toArray[NBTTagCompound].map(new ItemStack(_))
+      toArray[net.minecraft.nbt.CompoundTag].map(ItemStack.of(_))
     containers = nbt.getTagList(ContainersTag, NBT.TAG_COMPOUND).
-      toArray[NBTTagCompound].map(new ItemStack(_))
+      toArray[net.minecraft.nbt.CompoundTag].map(ItemStack.of(_))
     if (nbt.hasKey(LightColorTag)) {
       lightColor = nbt.getInteger(LightColorTag)
     }

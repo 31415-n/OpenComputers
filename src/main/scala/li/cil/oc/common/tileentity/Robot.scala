@@ -40,7 +40,7 @@ import net.minecraft.init.SoundEvents
 import net.minecraft.inventory.EntityEquipmentSlot
 import net.minecraft.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.util.EnumFacing
+import net.minecraft.core.Direction
 import net.minecraft.util.SoundCategory
 import net.minecraft.util.math.AxisAlignedBB
 import net.minecraft.util.math.BlockPos
@@ -196,14 +196,14 @@ class Robot extends traits.Computer with traits.PowerInformation with traits.Rot
 
   override def setName(name: String): Unit = info.name = name
 
-  override def onAnalyze(player: EntityPlayer, side: EnumFacing, hitX: Float, hitY: Float, hitZ: Float): Array[Node] = {
+  override def onAnalyze(player: net.minecraft.world.entity.player.Player, side: Direction, hitX: Float, hitY: Float, hitZ: Float): Array[Node] = {
     player.sendMessage(Localization.Analyzer.RobotOwner(ownerName))
     player.sendMessage(Localization.Analyzer.RobotName(player_.getName))
     MinecraftForge.EVENT_BUS.post(new RobotAnalyzeEvent(this, player))
     super.onAnalyze(player, side, hitX, hitY, hitZ)
   }
 
-  def move(direction: EnumFacing): Boolean = {
+  def move(direction: Direction): Boolean = {
     val oldPosition = getPos
     val newPosition = oldPosition.offset(direction)
     if (!getWorld.isBlockLoaded(newPosition)) {
@@ -774,7 +774,7 @@ class Robot extends traits.Computer with traits.PowerInformation with traits.Rot
 
   // ----------------------------------------------------------------------- //
 
-  override def dropSlot(slot: Int, count: Int, direction: Option[EnumFacing]): Boolean =
+  override def dropSlot(slot: Int, count: Int, direction: Option[Direction]): Boolean =
     InventoryUtils.dropSlot(BlockPosition(x, y, z, getWorld), mainInventory, slot, count, direction)
 
   override def dropAllSlots(): Unit = {
@@ -787,17 +787,17 @@ class Robot extends traits.Computer with traits.PowerInformation with traits.Rot
 
   // ----------------------------------------------------------------------- //
 
-  override def canExtractItem(slot: Int, stack: ItemStack, side: EnumFacing): Boolean =
+  override def canExtractItem(slot: Int, stack: ItemStack, side: Direction): Boolean =
     getSlotsForFace(side).contains(slot)
 
-  override def canInsertItem(slot: Int, stack: ItemStack, side: EnumFacing): Boolean =
+  override def canInsertItem(slot: Int, stack: ItemStack, side: Direction): Boolean =
     getSlotsForFace(side).contains(slot) &&
       isItemValidForSlot(slot, stack)
 
-  override def getSlotsForFace(side: EnumFacing): Array[Int] =
+  override def getSlotsForFace(side: Direction): Array[Int] =
     toLocal(side) match {
-      case EnumFacing.WEST => Array(0) // Tool
-      case EnumFacing.EAST => containerSlots.toArray
+      case Direction.WEST => Array(0) // Tool
+      case Direction.EAST => containerSlots.toArray
       case _ => inventorySlots.toArray
     }
 

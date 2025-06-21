@@ -24,8 +24,8 @@ import li.cil.oc.util.ExtendedNBT._
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.inventory.IInventory
 import net.minecraft.item.ItemStack
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.nbt.NBTTagIntArray
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.IntArrayTag
 import net.minecraft.util.EnumFacing
 import net.minecraftforge.common.util.Constants.NBT
 import net.minecraftforge.fml.relauncher.Side
@@ -33,7 +33,7 @@ import net.minecraftforge.fml.relauncher.SideOnly
 
 class Rack extends traits.PowerAcceptor with traits.Hub with traits.PowerBalancer with traits.ComponentInventory with traits.Rotatable with traits.BundledRedstoneAware with Analyzable with internal.Rack with traits.StateAware {
   var isRelayEnabled = false
-  val lastData = new Array[NBTTagCompound](getSizeInventory)
+  val lastData = new Array[CompoundTag](getSizeInventory)
   val hasChanged: Array[Boolean] = Array.fill(getSizeInventory)(true)
 
   // Map node connections for each installed mountable. Each mountable may
@@ -273,7 +273,7 @@ class Rack extends traits.PowerAcceptor with traits.Hub with traits.PowerBalance
     case _ => null
   }
 
-  override def getMountableData(slot: Int): NBTTagCompound = lastData(slot)
+  override def getMountableData(slot: Int): CompoundTag = lastData(slot)
 
   override def markChanged(slot: Int): Unit = {
     hasChanged.synchronized(hasChanged(slot) = true)
@@ -409,19 +409,19 @@ class Rack extends traits.PowerAcceptor with traits.Hub with traits.PowerBalance
   private final val LastDataTag = Settings.namespace + "lastData"
   private final val RackDataTag = Settings.namespace + "rackData"
 
-  override def readFromNBTForServer(nbt: NBTTagCompound): Unit = {
+  override def readFromNBTForServer(nbt: CompoundTag): Unit = {
     super.readFromNBTForServer(nbt)
 
     isRelayEnabled = nbt.getBoolean(IsRelayEnabledTag)
-    nbt.getTagList(NodeMappingTag, NBT.TAG_INT_ARRAY).map((buses: NBTTagIntArray) =>
-      buses.getIntArray.map(id => if (id < 0 || id == EnumFacing.SOUTH.ordinal()) None else Option(EnumFacing.byIndex(id)))).
+    nbt.getTagList(NodeMappingTag, NBT.TAG_INT_ARRAY).map((buses: IntArrayTag) =>
+      buses.getAsIntArray.map(id => if (id < 0 || id == Direction.SOUTH.ordinal()) None else Option(Direction.from3DDataValue(id)))).
       copyToArray(nodeMapping)
 
     // Kickstart initialization.
     _isOutputEnabled = hasRedstoneCard
   }
 
-  override def writeToNBTForServer(nbt: NBTTagCompound): Unit = {
+  override def writeToNBTForServer(nbt: CompoundTag): Unit = {
     super.writeToNBTForServer(nbt)
 
     nbt.setBoolean(IsRelayEnabledTag, isRelayEnabled)
@@ -430,20 +430,20 @@ class Rack extends traits.PowerAcceptor with traits.Hub with traits.PowerBalance
   }
 
   @SideOnly(Side.CLIENT) override
-  def readFromNBTForClient(nbt: NBTTagCompound): Unit = {
+  def readFromNBTForClient(nbt: CompoundTag): Unit = {
     super.readFromNBTForClient(nbt)
 
     val data = nbt.getTagList(LastDataTag, NBT.TAG_COMPOUND).
-      toArray[NBTTagCompound]
+      toArray[CompoundTag]
     data.copyToArray(lastData)
     load(nbt.getCompoundTag(RackDataTag))
     connectComponents()
   }
 
-  override def writeToNBTForClient(nbt: NBTTagCompound): Unit = {
+  override def writeToNBTForClient(nbt: CompoundTag): Unit = {
     super.writeToNBTForClient(nbt)
 
-    val data = lastData.map(tag => if (tag == null) new NBTTagCompound() else tag)
+    val data = lastData.map(tag => if (tag == null) new CompoundTag() else tag)
     nbt.setNewTagList(LastDataTag, data)
     nbt.setNewCompoundTag(RackDataTag, save)
   }

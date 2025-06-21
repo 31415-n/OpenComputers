@@ -23,7 +23,7 @@ import li.cil.oc.util.InventoryUtils
 import li.cil.oc.util.PlayerUtils
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.entity.player.EntityPlayerMP
-import net.minecraft.nbt.NBTTagCompound
+import net.minecraft.nbt.CompoundTag
 import net.minecraft.potion.Potion
 import net.minecraft.potion.PotionEffect
 import net.minecraft.util.EnumParticleTypes
@@ -339,18 +339,18 @@ class ControllerImpl(val player: EntityPlayer) extends Controller with WirelessE
 
   // ----------------------------------------------------------------------- //
 
-  def save(nbt: NBTTagCompound): Unit = configuration.synchronized {
-    nbt.setString("uuid", uuid)
-    nbt.setInteger("port", responsePort)
-    nbt.setDouble("energy", storedEnergy)
+  def save(nbt: CompoundTag): Unit = configuration.synchronized {
+    nbt.putString("uuid", uuid)
+    nbt.putInt("port", responsePort)
+    nbt.putDouble("energy", storedEnergy)
     nbt.setNewCompoundTag("configuration", configuration.save)
   }
 
-  def load(nbt: NBTTagCompound): Unit = configuration.synchronized {
+  def load(nbt: CompoundTag): Unit = configuration.synchronized {
     uuid = nbt.getString("uuid")
-    responsePort = nbt.getInteger("port")
+    responsePort = nbt.getInt("port")
     storedEnergy = nbt.getDouble("energy")
-    configuration.load(nbt.getCompoundTag("configuration"))
+    configuration.load(nbt.getCompound("configuration"))
     activeBehaviorsDirty = true
   }
 

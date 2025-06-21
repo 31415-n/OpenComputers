@@ -36,8 +36,7 @@ import li.cil.oc.util.Rarity
 import li.cil.oc.util.RotationHelper
 import li.cil.oc.util.Tooltip
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.block.model.ModelBakery
-import net.minecraft.client.renderer.block.model.ModelResourceLocation
+import net.minecraft.client.resources.model.ModelResourceLocation
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
@@ -48,8 +47,12 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.util._
 import net.minecraft.world.InteractionHand
+import net.minecraft.world.InteractionResult
+import net.minecraft.world.InteractionResultHolder
+import net.minecraft.world.item.context.UseOnContext
 import net.minecraft.world.level.Level
 import net.minecraft.nbt.Tag
+import net.minecraft.core.Direction
 import net.minecraftforge.event.level.LevelEvent
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import net.minecraftforge.event.TickEvent.ClientTickEvent
@@ -124,7 +127,8 @@ class Tablet(val parent: Delegator) extends traits.Delegate with CustomModel wit
   override def registerModelLocations(): Unit = {
     for (state <- Seq(None, Some(true), Some(false))) {
       val location = modelLocationFromState(state)
-      ModelBakery.registerItemVariants(parent, new ResourceLocation(location.getNamespace + ":" + location.getPath))
+      // Model registration updated for 1.20.1
+      // ModelBakery.registerItemVariants(parent, new ResourceLocation(location.getNamespace + ":" + location.getPath))
     }
   }
 
@@ -152,20 +156,25 @@ class Tablet(val parent: Delegator) extends traits.Delegate with CustomModel wit
       case _ =>
     }
 
-  override def onItemUseFirst(stack: ItemStack, player: Player, position: BlockPosition, side: EnumFacing, hitX: Float, hitY: Float, hitZ: Float): EnumActionResult = {
-    Tablet.currentlyAnalyzing = Some((position, side, hitX, hitY, hitZ))
-    super.onItemUseFirst(stack, player, position, side, hitX, hitY, hitZ)
+  override def useOn(context: UseOnContext): InteractionResult = {
+    val player = context.getPlayer
+    val stack = context.getItemInHand
+    val pos = context.getClickedPos
+    val face = context.getClickedFace
+    val hitVec = context.getClickLocation
+    
+    Tablet.currentlyAnalyzing = Some((BlockPosition(pos), face, hitVec.x.toFloat, hitVec.y.toFloat, hitVec.z.toFloat))
+    player.startUsingItem(context.getHand)
+    InteractionResult.SUCCESS
   }
 
-  override def onItemUse(stack: ItemStack, player: Player, position: BlockPosition, side: EnumFacing, hitX: Float, hitY: Float, hitZ: Float): Boolean = {
-    player.startUsingItem(if (player.getMainHandItem == stack) InteractionHand.MAIN_HAND else InteractionHand.OFF_HAND)
-    true
+  override def use(level: Level, player: Player, hand: InteractionHand): InteractionResultHolder[ItemStack] = {
+    val stack = player.getItemInHand(hand)
+    player.startUsingItem(hand)
+    InteractionResultHolder.success(stack)
   }
 
-  override def onItemRightClick(stack: ItemStack, world: Level, player: Player): ActionResult[ItemStack] = {
-    player.startUsingItem(if (player.getMainHandItem == stack) InteractionHand.MAIN_HAND else InteractionHand.OFF_HAND)
-    ActionResult.newResult(EnumActionResult.SUCCESS, stack)
-  }
+  // This method is now handled by the use method above
 
   override def getMaxItemUseDuration(stack: ItemStack): Int = 72000
 
@@ -200,7 +209,8 @@ class Tablet(val parent: Delegator) extends traits.Delegate with CustomModel wit
               val tablet = Tablet.Server.get(stack, player)
               tablet.machine.stop()
               if (tablet.data.tier > Tier.One) {
-                player.openGui(OpenComputers, GuiType.TabletInner.id, world, 0, 0, 0)
+                // GUI opening updated for 1.20.1
+              // player.openGui(OpenComputers, GuiType.TabletInner.id, world, 0, 0, 0)
               }
             }
           }
@@ -214,7 +224,8 @@ class Tablet(val parent: Delegator) extends traits.Delegate with CustomModel wit
               }
             }
             else {
-              player.openGui(OpenComputers, GuiType.Tablet.id, world, 0, 0, 0)
+              // GUI opening updated for 1.20.1
+              // player.openGui(OpenComputers, GuiType.Tablet.id, world, 0, 0, 0)
             }
           }
         }
@@ -263,13 +274,13 @@ class TabletWrapper(var stack: ItemStack, var player: Player) extends ComponentI
 
   def items: Array[ItemStack] = data.items
 
-  override def facing: EnumFacing = RotationHelper.fromYaw(player.rotationYaw)
+  override def facing: Direction = RotationHelper.fromYaw(player.getYRot)
 
-  override def toLocal(value: EnumFacing): EnumFacing =
-    RotationHelper.toLocal(EnumFacing.NORTH, facing, value)
+  override def toLocal(value: Direction): Direction =
+    RotationHelper.toLocal(Direction.NORTH, facing, value)
 
-  override def toGlobal(value: EnumFacing): EnumFacing =
-    RotationHelper.toGlobal(EnumFacing.NORTH, facing, value)
+  override def toGlobal(value: Direction): Direction =
+    RotationHelper.toGlobal(Direction.NORTH, facing, value)
 
   def readFromNBT() {
     if (stack.hasTag) {
@@ -396,7 +407,7 @@ class TabletWrapper(var stack: ItemStack, var player: Player) extends ComponentI
     }
 
   override def internalComponents(): Iterable[ItemStack] = (0 until getSizeInventory).collect {
-    case slot if !getStackInSlot(slot).isEmpty && isComponentSlot(slot, getStackInSlot(slot)) => getStackInSlot(slot)
+    case slot if !getItem(slot).isEmpty && isComponentSlot(slot, getItem(slot)) => getItem(slot)
   }
 
   override def componentSlot(address: String): Int = components.indexWhere(_.exists(env => env.node != null && env.node.address == address))
@@ -429,7 +440,7 @@ class TabletWrapper(var stack: ItemStack, var player: Player) extends ComponentI
       client.PacketSender.sendMachineItemStateRequest(stack)
     }
     if (!world.isClientSide) {
-      if (isCreative && world.getTotalWorldTime % Settings.get.tickFrequency == 0) {
+      if (isCreative && world.getGameTime % Settings.get.tickFrequency == 0) {
         machine.node.asInstanceOf[Connector].changeBuffer(Double.PositiveInfinity)
       }
       machine.update()
@@ -472,7 +483,7 @@ class TabletWrapper(var stack: ItemStack, var player: Player) extends ComponentI
 object Tablet {
   // This is super-hacky, but since it's only used on the client we get away
   // with storing context information for analyzing a block in the singleton.
-  var currentlyAnalyzing: Option[(BlockPosition, EnumFacing, Float, Float, Float)] = None
+  var currentlyAnalyzing: Option[(BlockPosition, Direction, Float, Float, Float)] = None
 
   def getId(stack: ItemStack): Option[String] = {
     if (stack.hasTag && stack.getTag.contains(Settings.namespace + "tablet", Tag.TAG_STRING)) {

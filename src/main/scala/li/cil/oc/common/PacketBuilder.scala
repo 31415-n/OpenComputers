@@ -9,34 +9,33 @@ import java.util.zip.DeflaterOutputStream
 import io.netty.buffer.Unpooled
 import li.cil.oc.{OpenComputers, Settings}
 import li.cil.oc.api.network.EnvironmentHost
-import net.minecraft.entity.Entity
-import net.minecraft.entity.player.EntityPlayerMP
-import net.minecraft.item.ItemStack
-import net.minecraft.nbt.CompressedStreamTools
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.network.PacketBuffer
-import net.minecraft.tileentity.TileEntity
-import net.minecraft.util.EnumFacing
-import net.minecraft.world.{World, WorldServer}
-import net.minecraftforge.fml.common.FMLCommonHandler
-import net.minecraftforge.fml.common.network.internal.FMLProxyPacket
+import net.minecraft.world.entity.Entity
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.item.ItemStack
+import net.minecraft.nbt.NbtIo
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.network.FriendlyByteBuf
+import net.minecraft.world.level.block.entity.BlockEntity
+import net.minecraft.core.Direction
+import net.minecraft.world.level.Level
+import net.minecraft.server.level.ServerLevel
 
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 
 abstract class PacketBuilder(stream: OutputStream) extends DataOutputStream(stream) {
-  def writeTileEntity(t: TileEntity) {
-    writeInt(t.getWorld.provider.getDimension)
-    writeInt(t.getPos.getX)
-    writeInt(t.getPos.getY)
-    writeInt(t.getPos.getZ)
+  def writeTileEntity(t: BlockEntity): Unit = {
+    writeInt(t.getLevel.dimension().location().toString.hashCode)
+    writeInt(t.getBlockPos.getX)
+    writeInt(t.getBlockPos.getY)
+    writeInt(t.getBlockPos.getZ)
   }
 
-  def writeEntity(e: Entity) {
-    writeInt(e.world.provider.getDimension)
-    writeInt(e.getEntityId)
+  def writeEntity(e: Entity): Unit = {
+    writeInt(e.level.dimension().location().toString.hashCode)
+    writeInt(e.getId)
   }
 
-  def writeDirection(d: Option[EnumFacing]) = d match {
+  def writeDirection(d: Option[Direction]) = d match {
     case Some(side) => writeByte(side.ordinal.toByte)
     case _ => writeByte(-1: Byte)
   }
@@ -45,15 +44,15 @@ abstract class PacketBuilder(stream: OutputStream) extends DataOutputStream(stre
     val haveStack = !stack.isEmpty && stack.getCount > 0
     writeBoolean(haveStack)
     if (haveStack) {
-      writeNBT(stack.writeToNBT(new NBTTagCompound()))
+      writeNBT(stack.save(new CompoundTag()))
     }
   }
 
-  def writeNBT(nbt: NBTTagCompound) = {
+  def writeNBT(nbt: CompoundTag) = {
     val haveNbt = nbt != null
     writeBoolean(haveNbt)
     if (haveNbt) {
-      CompressedStreamTools.write(nbt, this)
+      NbtIo.write(nbt, this)
     }
   }
 
@@ -65,24 +64,33 @@ abstract class PacketBuilder(stream: OutputStream) extends DataOutputStream(stre
 
   def writePacketType(pt: PacketType.Value) = writeByte(pt.id)
 
-  def sendToAllPlayers() = OpenComputers.channel.sendToAll(packet)
+  def sendToAllPlayers() = {
+    val server = net.minecraftforge.server.ServerLifecycleHooks.getCurrentServer
+    if (server != null) {
+      val packetData = packet
+      server.getPlayerList.getPlayers.asScala.foreach(player => {
+        sendToPlayer(player)
+      })
+    }
+  }
 
-  def sendToPlayersNearEntity(e: Entity, range: Option[Double] = None): Unit = sendToNearbyPlayers(e.getEntityWorld, e.posX, e.posY, e.posZ, range)
+  def sendToPlayersNearEntity(e: Entity, range: Option[Double] = None): Unit = sendToNearbyPlayers(e.level, e.getX, e.getY, e.getZ, range)
 
   def sendToPlayersNearHost(host: EnvironmentHost, range: Option[Double] = None): Unit = {
     host match {
-      case t: TileEntity => sendToPlayersNearTileEntity(t, range)
+      case t: BlockEntity => sendToPlayersNearTileEntity(t, range)
       case _ => sendToNearbyPlayers(host.world, host.xPosition, host.yPosition, host.zPosition, range)
     }
   }
 
-  def sendToPlayersNearTileEntity(t: TileEntity, range: Option[Double] = None) {
-    t.getWorld match {
-      case w: WorldServer =>
-        val chunkX = t.getPos.getX >> 4
-        val chunkZ = t.getPos.getZ >> 4
+  def sendToPlayersNearTileEntity(t: BlockEntity, range: Option[Double] = None): Unit = {
+    t.getLevel match {
+      case w: ServerLevel =>
+        val chunkX = t.getBlockPos.getX >> 4
+        val chunkZ = t.getBlockPos.getZ >> 4
 
-        val manager = FMLCommonHandler.instance.getMinecraftServerInstance.getPlayerList
+        val server = net.minecraftforge.server.ServerLifecycleHooks.getCurrentServer
+        val manager = server.getPlayerList
         var maxPacketRange = range.getOrElse((manager.getViewDistance + 1) * 16.0)
         val maxPacketRangeConfig = Settings.get.maxNetworkClientPacketDistance
         if (maxPacketRangeConfig > 0.0D) {
@@ -90,20 +98,24 @@ abstract class PacketBuilder(stream: OutputStream) extends DataOutputStream(stre
         }
         val maxPacketRangeSq = maxPacketRange * maxPacketRange
 
-        for (e <- w.playerEntities) e match {
-          case player: EntityPlayerMP =>
-            if (w.getPlayerChunkMap.isPlayerWatchingChunk(player, chunkX, chunkZ)) {
-              if (player.getDistanceSq(t.getPos.getX + 0.5D, t.getPos.getY + 0.5D, t.getPos.getZ + 0.5D) <= maxPacketRangeSq)
-                sendToPlayer(player)
-            }
+        for (player <- w.players().asScala) {
+          player match {
+            case serverPlayer: ServerPlayer =>
+              val chunkPos = new net.minecraft.world.level.ChunkPos(chunkX, chunkZ)
+              if (w.getChunkSource.chunkMap.getPlayers(chunkPos, false).contains(serverPlayer)) {
+                if (serverPlayer.distanceToSqr(t.getBlockPos.getX + 0.5D, t.getBlockPos.getY + 0.5D, t.getBlockPos.getZ + 0.5D) <= maxPacketRangeSq)
+                  sendToPlayer(serverPlayer)
+              }
+            case _ =>
+          }
         }
-      case _ => sendToNearbyPlayers(t.getWorld, t.getPos.getX + 0.5D, t.getPos.getY + 0.5D, t.getPos.getZ + 0.5D, range)
+      case _ => sendToNearbyPlayers(t.getLevel, t.getBlockPos.getX + 0.5D, t.getBlockPos.getY + 0.5D, t.getBlockPos.getZ + 0.5D, range)
     }
   }
 
-  def sendToNearbyPlayers(world: World, x: Double, y: Double, z: Double, range: Option[Double]) {
-    val dimension = world.provider.getDimension
-    val server = FMLCommonHandler.instance.getMinecraftServerInstance
+  def sendToNearbyPlayers(world: Level, x: Double, y: Double, z: Double, range: Option[Double]): Unit = {
+    val dimensionKey = world.dimension()
+    val server = net.minecraftforge.server.ServerLifecycleHooks.getCurrentServer
     val manager = server.getPlayerList
 
     var maxPacketRange = range.getOrElse((manager.getViewDistance + 1) * 16.0)
@@ -113,18 +125,35 @@ abstract class PacketBuilder(stream: OutputStream) extends DataOutputStream(stre
     }
     val maxPacketRangeSq = maxPacketRange * maxPacketRange
 
-    for (player <- manager.getPlayers if player.dimension == dimension) {
-      if (player.getDistanceSq(x, y, z) <= maxPacketRangeSq) {
+    for (player <- manager.getPlayers.asScala if player.level.dimension() == dimensionKey) {
+      if (player.distanceToSqr(x, y, z) <= maxPacketRangeSq) {
         sendToPlayer(player)
       }
     }
   }
 
-  def sendToPlayer(player: EntityPlayerMP) = OpenComputers.channel.sendTo(packet, player)
+  def sendToPlayer(player: ServerPlayer): Unit = {
+    // Create custom packet for OpenComputers networking
+    val packetData = packet
+    if (packetData != null) {
+      // Use Forge's networking system to send custom packet
+      val buf = new FriendlyByteBuf(io.netty.buffer.Unpooled.wrappedBuffer(packetData.asInstanceOf[Array[Byte]]))
+      val customPacket = new net.minecraftforge.network.NetworkEvent.Context(() => player, () => net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
+      // Send through OpenComputers channel
+      OpenComputers.networkHandler.sendToPlayer(buf, player)
+    }
+  }
 
-  def sendToServer() = OpenComputers.channel.sendToServer(packet)
+  def sendToServer(): Unit = {
+    // Send packet to server using Forge networking
+    val packetData = packet
+    if (packetData != null) {
+      val buf = new FriendlyByteBuf(io.netty.buffer.Unpooled.wrappedBuffer(packetData.asInstanceOf[Array[Byte]]))
+      OpenComputers.networkHandler.sendToServer(buf)
+    }
+  }
 
-  protected def packet: FMLProxyPacket
+  protected def packet: Array[Byte]
 }
 
 // Necessary to keep track of the GZIP stream.
@@ -135,7 +164,7 @@ class SimplePacketBuilder(val packetType: PacketType.Value) extends PacketBuilde
 
   override protected def packet = {
     flush()
-    new FMLProxyPacket(new PacketBuffer(Unpooled.wrappedBuffer(stream.toByteArray)), "OpenComputers")
+    stream.toByteArray
   }
 }
 
@@ -145,7 +174,7 @@ class CompressedPacketBuilder(val packetType: PacketType.Value, private val data
   override protected def packet = {
     flush()
     stream.finish()
-    new FMLProxyPacket(new PacketBuffer(Unpooled.wrappedBuffer(data.toByteArray)), "OpenComputers")
+    data.toByteArray
   }
 }
 

@@ -10,8 +10,8 @@ import li.cil.oc.api.network.ManagedEnvironment
 import li.cil.oc.api.network.Node
 import li.cil.oc.api.util.Lifecycle
 import li.cil.oc.integration.opencomputers.Item
-import net.minecraft.item.ItemStack
-import net.minecraft.nbt.NBTTagCompound
+import net.minecraft.world.item.ItemStack
+import net.minecraft.nbt.CompoundTag
 
 import scala.jdk.CollectionConverters._
 import scala.collection.mutable
@@ -54,7 +54,7 @@ trait ComponentInventory extends Inventory with network.Environment {
 
   def connectComponents() {
     for (slot <- 0 until getSizeInventory if slot >= 0 && slot < components.length) {
-      val stack = getStackInSlot(slot)
+      val stack = getItem(slot)
       if (!stack.isEmpty && components(slot).isEmpty && isComponentSlot(slot, stack)) {
         components(slot) = Option(Driver.driverFor(stack)) match {
           case Some(driver) =>
@@ -99,14 +99,14 @@ trait ComponentInventory extends Inventory with network.Environment {
 
   // ----------------------------------------------------------------------- //
 
-  override def save(nbt: NBTTagCompound) = {
+  override def save(nbt: CompoundTag) = {
     saveComponents()
     super.save(nbt) // Save items after updating their tags.
   }
 
   def saveComponents() {
     for (slot <- 0 until getSizeInventory) {
-      val stack = getStackInSlot(slot)
+      val stack = getItem(slot)
       if (!stack.isEmpty) {
         if (slot >= components.length) {
           // isSizeInventoryReady was added to resolve issues where an inventory was used before its
@@ -194,8 +194,8 @@ trait ComponentInventory extends Inventory with network.Environment {
       val tag = dataTag(driver, stack)
       // Clear the tag compound before saving to get the same behavior as
       // in tile entities (otherwise entries have to be cleared manually).
-      for (key <- tag.getKeySet.map(_.asInstanceOf[String])) {
-        tag.removeTag(key)
+      for (key <- tag.getAllKeys.asScala) {
+        tag.remove(key)
       }
       component.save(tag)
     } catch {

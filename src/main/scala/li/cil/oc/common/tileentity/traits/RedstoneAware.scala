@@ -6,11 +6,11 @@ import li.cil.oc.common.EventHandler
 import li.cil.oc.integration.util.BundledRedstone
 import li.cil.oc.server.{PacketSender => ServerPacketSender}
 import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.util.EnumFacing
+import net.minecraft.core.Direction
 import net.minecraftforge.fml.relauncher.Side
 import net.minecraftforge.fml.relauncher.SideOnly
 
-case class RedstoneChangedEventArgs (side: EnumFacing, oldValue: Int, newValue: Int, color: Int = -1)
+case class RedstoneChangedEventArgs (side: Direction, oldValue: Int, newValue: Int, color: Int = -1)
 
 trait RedstoneAware extends RotationAware {
   protected[tileentity] val _input: Array[Int] = Array.fill(6)(-1)
@@ -59,9 +59,9 @@ trait RedstoneAware extends RotationAware {
 
   def getInput: Array[Int] = _input.map(math.max(_, 0))
 
-  def getInput(side: EnumFacing): Int = _input(side.ordinal) max 0
+  def getInput(side: Direction): Int = _input(side.ordinal) max 0
 
-  def setInput(side: EnumFacing, newInput: Int): Unit = {
+  def setInput(side: Direction, newInput: Int): Unit = {
     val oldInput = _input(side.ordinal())
     _input(side.ordinal()) = newInput
     if (oldInput >= 0 && newInput != oldInput) {
@@ -70,7 +70,7 @@ trait RedstoneAware extends RotationAware {
   }
 
   def setInput(values: Array[Int]): Unit = {
-    for (side <- EnumFacing.values) {
+    for (side <- Direction.values) {
       val value = if (side.ordinal <= values.length) values(side.ordinal) else 0
       setInput(side, value)
     }
@@ -78,13 +78,13 @@ trait RedstoneAware extends RotationAware {
 
   def maxInput: Int = _input.map(math.max(_, 0)).max
 
-  def getOutput: Array[Int] = EnumFacing.values.map{ side: EnumFacing => _output(toLocal(side).ordinal) }
+  def getOutput: Array[Int] = Direction.values.map{ side: Direction => _output(toLocal(side).ordinal) }
 
-  def getOutput(side: EnumFacing) = if (_output != null && _output.length > toLocal(side).ordinal())
+  def getOutput(side: Direction) = if (_output != null && _output.length > toLocal(side).ordinal())
     _output(toLocal(side).ordinal())
   else 0
 
-  def setOutput(side: EnumFacing, value: Int): Boolean = {
+  def setOutput(side: Direction, value: Int): Boolean = {
     if (value == getOutput(side)) return false
     _output(toLocal(side).ordinal()) = value
     onRedstoneOutputChanged(side)
@@ -93,7 +93,7 @@ trait RedstoneAware extends RotationAware {
 
   def setOutput(values: util.Map[_, _]): Boolean = {
     var changed: Boolean = false
-    EnumFacing.values.foreach(side => {
+    Direction.values.foreach(side => {
       val sideIndex = toLocal(side).ordinal
       // due to a bug in our jnlua layer, I cannot loop the map
       valueToInt(getObjectFuzzy(values, sideIndex)) match {
@@ -119,7 +119,7 @@ trait RedstoneAware extends RotationAware {
     if (isServer) {
       if (shouldUpdateInput) {
         shouldUpdateInput = false
-        EnumFacing.values().foreach(updateRedstoneInput)
+        Direction.values().foreach(updateRedstoneInput)
       }
     }
   }
@@ -127,11 +127,11 @@ trait RedstoneAware extends RotationAware {
   override def validate(): Unit = {
     super.validate()
     if (!this.isInstanceOf[Tickable] && isServer) {
-      EventHandler.scheduleServer(() => EnumFacing.values().foreach(updateRedstoneInput))
+      EventHandler.scheduleServer(() => Direction.values().foreach(updateRedstoneInput))
     }
   }
 
-  def updateRedstoneInput(side: EnumFacing): Unit = setInput(side, BundledRedstone.computeInput(position, side))
+  def updateRedstoneInput(side: Direction): Unit = setInput(side, BundledRedstone.computeInput(position, side))
 
   // ----------------------------------------------------------------------- //
 
@@ -169,19 +169,19 @@ trait RedstoneAware extends RotationAware {
   protected def onRedstoneInputChanged(args: RedstoneChangedEventArgs) {}
 
   protected def onRedstoneOutputEnabledChanged() {
-    if (getWorld != null) {
-      getWorld.notifyNeighborsOfStateChange(getPos, getBlockType, true)
+    if (getLevel != null) {
+      getLevel.updateNeighborsAt(getBlockPos, getBlockState.getBlock)
       if (isServer) ServerPacketSender.sendRedstoneState(this)
-      else getWorld.notifyBlockUpdate(getPos, getWorld.getBlockState(getPos), getWorld.getBlockState(getPos), 3)
+      else getLevel.sendBlockUpdated(getBlockPos, getBlockState, getBlockState, 3)
     }
   }
 
-  protected def onRedstoneOutputChanged(side: EnumFacing) {
-    val blockPos = getPos.offset(side)
-    getWorld.neighborChanged(blockPos, getBlockType, blockPos)
-    getWorld.notifyNeighborsOfStateExcept(blockPos, getWorld.getBlockState(blockPos).getBlock, side.getOpposite)
+  protected def onRedstoneOutputChanged(side: Direction): Unit = {
+    val blockPos = getBlockPos.relative(side)
+    getLevel.neighborChanged(blockPos, getBlockState.getBlock, getBlockPos)
+    getLevel.updateNeighborsAtExceptFromFacing(blockPos, getLevel.getBlockState(blockPos).getBlock, side.getOpposite)
 
     if (isServer) ServerPacketSender.sendRedstoneState(this)
-    else getWorld.notifyBlockUpdate(getPos, getWorld.getBlockState(getPos), getWorld.getBlockState(getPos), 3)
+    else getLevel.sendBlockUpdated(getBlockPos, getBlockState, getBlockState, 3)
   }
 }

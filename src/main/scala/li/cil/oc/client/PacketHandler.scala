@@ -188,8 +188,8 @@ object PacketHandler extends CommonPacketHandler {
 
   def onContainerUpdate(p: PacketParser): Unit = {
     val windowId = p.readUnsignedByte()
-    if (p.player.openContainer != null && p.player.openContainer.windowId == windowId) {
-      p.player.openContainer match {
+    if (p.player.containerMenu != null && p.player.containerMenu.containerId == windowId) {
+      p.player.containerMenu match {
         case container: container.Player => container.updateCustomData(p.readNBT())
         case _ => // Invalid packet.
       }
@@ -239,7 +239,7 @@ object PacketHandler extends CommonPacketHandler {
 
   def onFloppyChange(p: PacketParser): Unit =
     p.readTileEntity[DiskDrive]() match {
-      case Some(t) => t.setInventorySlotContents(0, p.readItemStack())
+      case Some(t) => t.setItem(0, p.readItemStack())
       case _ => // Invalid packet.
     }
 
@@ -348,7 +348,8 @@ object PacketHandler extends CommonPacketHandler {
 
   private def addDiskToREI(stack: ItemStack): Unit = {
     if (Mods.RoughlyEnoughItems.isModAvailable) {
-      ModREI.addDiskAtRuntime(stack)
+      // REI integration for disk runtime addition - disabled until updated
+      // ModREI.addDiskAtRuntime(stack)
     }
   }
 
@@ -423,26 +424,26 @@ object PacketHandler extends CommonPacketHandler {
         val velocity = p.readDouble()
         val direction = p.readDirection()
         val particleType = ParticleTypes.byId(p.readInt())
-        val count = p.readUnsignedByte() / (1 << Minecraft.getInstance().options.particles().getId)
+        val count = p.readUnsignedByte() / (1 << Minecraft.getInstance().options.particles().get().getId)
 
         for (i <- 0 until count) {
-          def rv(f: EnumFacing => Int) = direction match {
-            case Some(d) => world.rand.nextFloat - 0.5 + f(d) * 0.5
-            case _ => world.rand.nextFloat * 2.0 - 1
+          def rv(f: Direction => Int) = direction match {
+            case Some(d) => world.random.nextFloat - 0.5 + f(d) * 0.5
+            case _ => world.random.nextFloat * 2.0 - 1
           }
 
-          val vx = rv(_.getXOffset)
-          val vy = rv(_.getYOffset)
-          val vz = rv(_.getZOffset)
+          val vx = rv(_.getStepX)
+          val vy = rv(_.getStepY)
+          val vz = rv(_.getStepZ)
           if (vx * vx + vy * vy + vz * vz < 1) {
-            def rp(x: Int, v: Double, f: EnumFacing => Int) = direction match {
+            def rp(x: Int, v: Double, f: Direction => Int) = direction match {
               case Some(d) => x + 0.5 + v * velocity * 0.5 + f(d) * velocity
               case _ => x + 0.5 + v * velocity
             }
 
-            val px = rp(x, vx, _.getXOffset)
-            val py = rp(y, vy, _.getYOffset)
-            val pz = rp(z, vz, _.getZOffset)
+            val px = rp(x, vx, _.getStepX)
+            val py = rp(y, vy, _.getStepY)
+            val pz = rp(z, vz, _.getStepZ)
             world.addParticle(particleType, px, py, pz, vx, vy + velocity * 0.25, vz)
           }
         }
@@ -493,7 +494,7 @@ object PacketHandler extends CommonPacketHandler {
         val count = p.readInt()
         for (_ <- 0 until count) {
           val slot = p.readInt()
-          t.setInventorySlotContents(slot, p.readItemStack())
+          t.setItem(slot, p.readItemStack())
         }
       case _ => // Invalid packet.
     }
@@ -555,7 +556,7 @@ object PacketHandler extends CommonPacketHandler {
         if (slot >= robot.getSizeInventory - robot.componentCount) {
           robot.info.components(slot - (robot.getSizeInventory - robot.componentCount)) = stack
         }
-        else t.robot.setInventorySlotContents(slot, stack)
+        else t.robot.setItem(slot, stack)
       case _ => // Invalid packet.
     }
 
@@ -589,7 +590,7 @@ object PacketHandler extends CommonPacketHandler {
       case (Some(t), Some(d)) => t.robot.move(d)
       case (_, Some(d)) =>
         // Invalid packet, robot may be coming from outside our loaded area.
-        PacketSender.sendRobotStateRequest(dimension, x + d.getXOffset, y + d.getYOffset, z + d.getZOffset)
+        PacketSender.sendRobotStateRequest(dimension, x + d.getStepX, y + d.getStepY, z + d.getStepZ)
       case _ => // Invalid packet.
     }
   }

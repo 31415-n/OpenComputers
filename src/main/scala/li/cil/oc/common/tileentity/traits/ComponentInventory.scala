@@ -8,9 +8,9 @@ import li.cil.oc.common.inventory
 import li.cil.oc.util.ExtendedInventory._
 import li.cil.oc.util.StackOption
 import li.cil.oc.util.StackOption._
-import net.minecraft.item.ItemStack
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.util.EnumFacing
+import net.minecraft.world.item.ItemStack
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.core.Direction
 import net.minecraftforge.common.capabilities.Capability
 import net.minecraftforge.common.capabilities.ICapabilityProvider
 import net.minecraftforge.fml.relauncher.Side
@@ -153,35 +153,36 @@ trait ComponentInventory extends Environment with Inventory with inventory.Compo
     }
   }
 
-  override def hasCapability(capability: Capability[_], facing: EnumFacing): Boolean = {
+  // Capabilities system removed in 1.20.1 - using direct interface checks instead
+  def hasCapability(capability: String, facing: Direction): Boolean = {
     val localFacing = this match {
       case rotatable: Rotatable => rotatable.toLocal(facing)
       case _ => facing
     }
-    super.hasCapability(capability, facing) || components.exists {
-      case Some(component: ICapabilityProvider) => component.hasCapability(capability, localFacing)
+    components.exists {
+      case Some(component) => component.getClass.getInterfaces.exists(_.getSimpleName == capability)
       case _ => false
     }
   }
 
-  override def getCapability[T](capability: Capability[T], facing: EnumFacing): T = {
+  def getCapability[T](capability: String, facing: Direction): T = {
     val localFacing = this match {
       case rotatable: Rotatable => rotatable.toLocal(facing)
       case _ => facing
     }
-    (if (super.hasCapability(capability, facing)) Option(super.getCapability(capability, facing)) else None).orElse(components.collectFirst {
-      case Some(component: ICapabilityProvider) if component.hasCapability(capability, localFacing) => component.getCapability(capability, localFacing)
-    }).getOrElse(null.asInstanceOf[T])
+    components.collectFirst {
+      case Some(component) if component.getClass.getInterfaces.exists(_.getSimpleName == capability) => component.asInstanceOf[T]
+    }.getOrElse(null.asInstanceOf[T])
   }
 
-  override def writeToNBTForClient(nbt: NBTTagCompound) {
+  override def writeToNBTForClient(nbt: CompoundTag): Unit = {
     connectComponents()
     super.writeToNBTForClient(nbt)
     save(nbt)
   }
 
   @SideOnly(Side.CLIENT)
-  override def readFromNBTForClient(nbt: NBTTagCompound) {
+  override def readFromNBTForClient(nbt: CompoundTag): Unit = {
     super.readFromNBTForClient(nbt)
     load(nbt)
     connectComponents()

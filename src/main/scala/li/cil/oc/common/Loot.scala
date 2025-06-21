@@ -11,16 +11,16 @@ import li.cil.oc.api
 import li.cil.oc.api.fs.FileSystem
 import li.cil.oc.common.init.Items
 import li.cil.oc.util.Color
-import net.minecraft.item.EnumDyeColor
-import net.minecraft.item.ItemStack
-import net.minecraft.nbt.NBTTagCompound
+import net.minecraft.world.item.DyeColor
+import net.minecraft.world.item.ItemStack
+import net.minecraft.nbt.CompoundTag
 import net.minecraftforge.common.DimensionManager
 import net.minecraftforge.common.util.Constants.NBT
 import net.minecraftforge.event.world.WorldEvent
 import net.minecraftforge.fml.common.Loader
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
 
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 //class Loot extends WeightedRandomChestContent(api.Items.get(Constants.ItemName.Floppy).item(), api.Items.get(Constants.ItemName.Floppy).createItemStack(1).getItemDamage, 1, 1, Settings.get.lootProbability) {
@@ -55,31 +55,31 @@ object Loot {
 
   val disksForClient = mutable.ArrayBuffer.empty[ItemStack]
 
-  def isLootDisk(stack: ItemStack): Boolean = api.Items.get(stack) == api.Items.get(Constants.ItemName.Floppy) && stack.hasTagCompound && stack.getTagCompound.hasKey(Settings.namespace + "lootFactory", NBT.TAG_STRING)
+  def isLootDisk(stack: ItemStack): Boolean = api.Items.get(stack) == api.Items.get(Constants.ItemName.Floppy) && stack.hasTag && stack.getTag.contains(Settings.namespace + "lootFactory", NBT.TAG_STRING)
 
   def randomDisk(rng: Random) =
     if (disksForSampling.nonEmpty) Some(disksForSampling(rng.nextInt(disksForSampling.length)))
     else None
 
-  def registerLootDisk(name: String, color: EnumDyeColor, factory: Callable[FileSystem], doRecipeCycling: Boolean): ItemStack = {
+  def registerLootDisk(name: String, color: DyeColor, factory: Callable[FileSystem], doRecipeCycling: Boolean): ItemStack = {
     val mod = Loader.instance.activeModContainer.getModId
 
     OpenComputers.log.debug(s"Registering loot disk '$name' from mod $mod.")
 
     val modSpecificName = mod + ":" + name
 
-    val data = new NBTTagCompound()
-    data.setString(Settings.namespace + "fs.label", name)
+    val data = new CompoundTag()
+    data.putString(Settings.namespace + "fs.label", name)
 
-    val nbt = new NBTTagCompound()
-    nbt.setTag(Settings.namespace + "data", data)
+    val nbt = new CompoundTag()
+    nbt.put(Settings.namespace + "data", data)
 
     // Store this top level, so it won't get wiped on save.
-    nbt.setString(Settings.namespace + "lootFactory", modSpecificName)
-    nbt.setInteger(Settings.namespace + "color", color.getDyeDamage)
+    nbt.putString(Settings.namespace + "lootFactory", modSpecificName)
+    nbt.putInt(Settings.namespace + "color", color.getId)
 
     val stack = Items.get(Constants.ItemName.Floppy).createItemStack(1)
-    stack.setTagCompound(nbt)
+    stack.setTag(nbt)
 
     Loot.factories += modSpecificName -> factory
 
@@ -135,7 +135,7 @@ object Loot {
   }
 
   private def parseLootDisks(list: java.util.Properties, acc: mutable.ArrayBuffer[(ItemStack, Int)], external: Boolean) {
-    for (key <- list.stringPropertyNames) {
+    for (key <- list.stringPropertyNames.asScala) {
       val value = list.getProperty(key)
       try value.split(":") match {
         case Array(name, count, color) =>
@@ -151,14 +151,14 @@ object Loot {
     }
   }
 
-  def createLootDisk(name: String, path: String, external: Boolean, color: Option[EnumDyeColor] = None) = {
+  def createLootDisk(name: String, path: String, external: Boolean, color: Option[DyeColor] = None) = {
     val callable = if (external) new Callable[FileSystem] {
       override def call(): FileSystem = api.FileSystem.asReadOnly(api.FileSystem.fromSaveDirectory("loot/" + path, 0, false))
     } else new Callable[FileSystem] {
       override def call(): FileSystem = api.FileSystem.fromClass(OpenComputers.getClass, Settings.resourceDomain, "loot/" + path)
     }
-    val stack = registerLootDisk(path, color.getOrElse(EnumDyeColor.SILVER), callable, doRecipeCycling = true)
-    stack.setStackDisplayName(name)
+    val stack = registerLootDisk(path, color.getOrElse(DyeColor.LIGHT_GRAY), callable, doRecipeCycling = true)
+    stack.setHoverName(net.minecraft.network.chat.Component.literal(name))
     if (!external) {
       Items.registerStack(stack, path)
     }

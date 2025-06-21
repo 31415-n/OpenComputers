@@ -21,10 +21,10 @@ import li.cil.oc.common.Sound
 import li.cil.oc.server.{PacketSender => ServerPacketSender}
 import li.cil.oc.util.ExtendedNBT._
 import li.cil.oc.util.InventoryUtils
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.util.EnumFacing
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.ItemStack
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.core.Direction
 import net.minecraftforge.fml.relauncher.Side
 import net.minecraftforge.fml.relauncher.SideOnly
 
@@ -88,7 +88,7 @@ class DiskDrive extends traits.Environment with traits.ComponentInventory with t
   // ----------------------------------------------------------------------- //
   // Analyzable
 
-  override def onAnalyze(player: EntityPlayer, side: EnumFacing, hitX: Float, hitY: Float, hitZ: Float): Array[Node] = filesystemNode.fold(null: Array[Node])(Array(_))
+  override def onAnalyze(player: Player, side: Direction, hitX: Float, hitY: Float, hitZ: Float): Array[Node] = filesystemNode.fold(null: Array[Node])(Array(_))
 
   // ----------------------------------------------------------------------- //
   // IInventory
@@ -131,15 +131,15 @@ class DiskDrive extends traits.Environment with traits.ComponentInventory with t
   private final val DiskTag = Settings.namespace + "disk"
 
   @SideOnly(Side.CLIENT) override
-  def readFromNBTForClient(nbt: NBTTagCompound) {
+  def readFromNBTForClient(nbt: CompoundTag): Unit = {
     super.readFromNBTForClient(nbt)
-    if (nbt.hasKey(DiskTag)) {
-      setInventorySlotContents(0, new ItemStack(nbt.getCompoundTag(DiskTag)))
+    if (nbt.contains(DiskTag)) {
+      setItem(0, ItemStack.of(nbt.getCompound(DiskTag)))
     }
   }
 
-  override def writeToNBTForClient(nbt: NBTTagCompound) {
+  override def writeToNBTForClient(nbt: CompoundTag): Unit = {
     super.writeToNBTForClient(nbt)
-    if (!items(0).isEmpty) nbt.setNewCompoundTag(DiskTag, items(0).writeToNBT)
+    if (!getItem(0).isEmpty) nbt.put(DiskTag, getItem(0).save(new CompoundTag()))
   }
 }
