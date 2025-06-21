@@ -15,7 +15,7 @@ import li.cil.oc.api.prefab.AbstractManagedEnvironment
 import li.cil.oc.util.BlockPosition
 import net.minecraft.util.EnumFacing
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 class UpgradeSolarGenerator(val host: EnvironmentHost) extends AbstractManagedEnvironment with DeviceInfo {
   override val node = Network.newNode(this, Visibility.Network).

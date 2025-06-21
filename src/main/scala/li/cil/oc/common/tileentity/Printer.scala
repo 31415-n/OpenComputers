@@ -18,7 +18,7 @@ import li.cil.oc.server.{PacketSender => ServerPacketSender}
 import li.cil.oc.util.ExtendedNBT._
 import li.cil.oc.util.StackOption
 import li.cil.oc.util.StackOption._
-import net.minecraft.inventory.ISidedInventory
+import net.minecraft.world.WorldlyContainer
 import net.minecraft.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.util.EnumFacing
@@ -26,9 +26,9 @@ import net.minecraft.util.math.AxisAlignedBB
 import net.minecraftforge.fml.relauncher.Side
 import net.minecraftforge.fml.relauncher.SideOnly
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
-class Printer extends traits.Environment with traits.Inventory with traits.Rotatable with SidedEnvironment with traits.StateAware with traits.Tickable with ISidedInventory with DeviceInfo {
+class Printer extends traits.Environment with traits.Inventory with traits.Rotatable with SidedEnvironment with traits.StateAware with traits.Tickable with WorldlyContainer with DeviceInfo {
   val node: ComponentConnector = api.Network.newNode(this, Visibility.Network).
     withComponent("printer3d").
     withConnector(Settings.get.bufferConverter).

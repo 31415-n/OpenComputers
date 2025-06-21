@@ -22,7 +22,7 @@ import net.minecraft.tileentity.TileEntity
 import net.minecraft.util.EnumFacing
 import net.minecraft.util.math.Vec3d
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 /**
   * Mostly stolen from {@link li.cil.oc.common.tileentity.Adapter}

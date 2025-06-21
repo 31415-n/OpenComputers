@@ -8,7 +8,7 @@ import li.cil.oc.server.PacketSender
 import li.cil.oc.util.PlayerUtils
 import net.minecraft.entity.player.EntityPlayer
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 object Nanomachines extends api.detail.NanomachinesAPI {

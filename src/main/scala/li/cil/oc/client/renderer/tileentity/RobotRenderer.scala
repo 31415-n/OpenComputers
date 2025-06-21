@@ -30,7 +30,7 @@ import net.minecraftforge.client.MinecraftForgeClient
 import net.minecraftforge.common.MinecraftForge
 import org.lwjgl.opengl.GL11
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.language.implicitConversions
 

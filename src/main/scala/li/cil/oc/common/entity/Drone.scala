@@ -48,7 +48,7 @@ import net.minecraft.util.math.Vec3d
 import net.minecraft.world.World
 import net.minecraftforge.fluids.IFluidTank
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 object Drone {
   val DataRunning: DataParameter[lang.Boolean] = EntityDataManager.createKey(classOf[Drone], DataSerializers.BOOLEAN)

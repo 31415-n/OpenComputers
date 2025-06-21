@@ -10,11 +10,11 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.GlStateManager
 import net.minecraft.client.renderer.Tessellator
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats
-import net.minecraft.entity.player.InventoryPlayer
+import net.minecraft.world.entity.player.Inventory
 import org.lwjgl.opengl.GL11
 import org.lwjgl.util.Rectangle
 
-class Relay(playerInventory: InventoryPlayer, val relay: tileentity.Relay) extends DynamicGuiContainer(new container.Relay(playerInventory, relay)) {
+class Relay(playerInventory: Inventory, val relay: tileentity.Relay) extends DynamicGuiContainer(new container.Relay(playerInventory, relay)) {
   private val format = new DecimalFormat("#.##hz")
 
   val tabPosition = new Rectangle(xSize, 10, 23, 26)

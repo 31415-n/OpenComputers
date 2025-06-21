@@ -4,7 +4,7 @@ import li.cil.oc.Settings
 import li.cil.oc.integration.util.BundledRedstone
 import li.cil.oc.util.ExtendedNBT._
 import li.cil.oc.integration.Mods
-import mrtjp.projectred.api.IBundledTile
+// ProjectRed integration temporarily disabled for 1.20.1 port
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.nbt.NBTTagIntArray
 import net.minecraft.util.EnumFacing
@@ -16,7 +16,7 @@ import li.cil.oc.integration.charset.{CapabilitiesCharset, ModCharset}
 import net.minecraftforge.common.capabilities.Capability
 
 @Optional.Interface(iface = "mrtjp.projectred.api.IBundledTile", modid = Mods.IDs.ProjectRedCore)
-trait BundledRedstoneAware extends RedstoneAware with IBundledTile {
+trait BundledRedstoneAware extends RedstoneAware {
 
   protected[tileentity] val _bundledInput: Array[Array[Int]] = Array.fill(6)(Array.fill(16)(-1))
 

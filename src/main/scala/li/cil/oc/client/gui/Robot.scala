@@ -17,14 +17,14 @@ import net.minecraft.client.gui.GuiButton
 import net.minecraft.client.renderer.GlStateManager
 import net.minecraft.client.renderer.Tessellator
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats
-import net.minecraft.entity.player.InventoryPlayer
+import net.minecraft.world.entity.player.Inventory
 import org.lwjgl.input.Keyboard
 import org.lwjgl.input.Mouse
 import org.lwjgl.opengl.GL11
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
-class Robot(playerInventory: InventoryPlayer, val robot: tileentity.Robot) extends DynamicGuiContainer(new container.Robot(playerInventory, robot)) with traits.InputBuffer {
+class Robot(playerInventory: Inventory, val robot: tileentity.Robot) extends DynamicGuiContainer(new container.Robot(playerInventory, robot)) with traits.InputBuffer {
   override protected val buffer: TextBuffer = robot.components.collect {
     case Some(buffer: api.internal.TextBuffer) => buffer
   }.headOption.orNull
@@ -141,7 +141,7 @@ class Robot(playerInventory: InventoryPlayer, val robot: tileentity.Robot) exten
     }
     if (powerButton.isMouseOver) {
       val tooltip = new java.util.ArrayList[String]
-      tooltip.addAll(asJavaCollection(if (robot.isRunning) Localization.Computer.TurnOff.lines.toIterable else Localization.Computer.TurnOn.lines.toIterable))
+      tooltip.addAll((if (robot.isRunning) Localization.Computer.TurnOff.lines.toIterable else Localization.Computer.TurnOn.lines.toIterable).asJava)
       copiedDrawHoveringText(tooltip, mouseX - guiLeft, mouseY - guiTop, fontRenderer)
     }
     RenderState.popAttrib()

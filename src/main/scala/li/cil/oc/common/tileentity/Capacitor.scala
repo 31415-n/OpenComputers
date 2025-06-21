@@ -12,7 +12,7 @@ import li.cil.oc.api.network.Node
 import li.cil.oc.api.network.Visibility
 import net.minecraft.util.EnumFacing
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 class Capacitor extends traits.Environment with DeviceInfo {
   // Start with maximum theoretical capacity, gets reduced after validation.

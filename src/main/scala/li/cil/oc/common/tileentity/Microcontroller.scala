@@ -28,7 +28,7 @@ import net.minecraftforge.common.util.Constants.NBT
 import net.minecraftforge.fml.relauncher.Side
 import net.minecraftforge.fml.relauncher.SideOnly
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 class Microcontroller extends traits.PowerAcceptor with traits.Hub with traits.Computer with ISidedInventory with internal.Microcontroller with DeviceInfo {
   val info = new MicrocontrollerData()

@@ -18,7 +18,7 @@ import li.cil.oc.util.ExtendedBlock._
 import li.cil.oc.util.ExtendedWorld._
 import net.minecraft.util.EnumFacing
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 trait RedstoneVanilla extends RedstoneSignaller with DeviceInfo {
   def redstone: EnvironmentHost with RedstoneAware

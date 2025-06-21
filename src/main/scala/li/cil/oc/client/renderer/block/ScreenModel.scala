@@ -20,7 +20,7 @@ import net.minecraft.util.EnumFacing
 import net.minecraft.world.World
 import net.minecraftforge.common.property.IExtendedBlockState
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 object ScreenModel extends SmartBlockModelBase {
   override def getOverrides: ItemOverrideList = ItemOverride

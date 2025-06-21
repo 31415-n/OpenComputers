@@ -43,11 +43,11 @@ object GuiHandler extends CommonGuiHandler {
           case t: tileentity.Rack if id == GuiType.Rack.id =>
             new gui.Rack(player.getInventory, t)
           case t: tileentity.Raid if id == GuiType.Raid.id =>
-            new gui.Raid(player.inventory, t)
+            new gui.Raid(player.getInventory, t)
           case t: tileentity.Relay if id == GuiType.Relay.id =>
-            new gui.Relay(player.inventory, t)
+            new gui.Relay(player.getInventory, t)
           case t: tileentity.RobotProxy if id == GuiType.Robot.id =>
-            new gui.Robot(player.inventory, t.robot)
+            new gui.Robot(player.getInventory, t.robot)
           case t: tileentity.Screen if id == GuiType.Screen.id =>
             new gui.Screen(t.origin.buffer, t.tier > 0, () => t.origin.hasKeyboard, () => t.origin.buffer.isRenderingEnabled)
           case t: tileentity.Rack if id == GuiType.ServerInRack.id =>

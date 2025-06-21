@@ -8,9 +8,9 @@ import li.cil.oc.common.container.ComponentSlot
 import li.cil.oc.common.tileentity
 import li.cil.oc.util.RenderState
 import net.minecraft.client.renderer.GlStateManager
-import net.minecraft.entity.player.InventoryPlayer
+import net.minecraft.world.entity.player.Inventory
 
-class Printer(playerInventory: InventoryPlayer, val printer: tileentity.Printer) extends DynamicGuiContainer(new container.Printer(playerInventory, printer)) {
+class Printer(playerInventory: Inventory, val printer: tileentity.Printer) extends DynamicGuiContainer(new container.Printer(playerInventory, printer)) {
   xSize = 176
   ySize = 166
 

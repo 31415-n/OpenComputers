@@ -23,7 +23,7 @@ import net.minecraft.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.tileentity.TileEntityFurnace
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 class UpgradeGenerator(val host: EnvironmentHost with internal.Agent) extends AbstractManagedEnvironment with DeviceInfo {
   override val node = Network.newNode(this, Visibility.Network).

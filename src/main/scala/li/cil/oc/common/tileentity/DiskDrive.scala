@@ -28,7 +28,7 @@ import net.minecraft.util.EnumFacing
 import net.minecraftforge.fml.relauncher.Side
 import net.minecraftforge.fml.relauncher.SideOnly
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 class DiskDrive extends traits.Environment with traits.ComponentInventory with traits.Rotatable with Analyzable with DeviceInfo {
   // Used on client side to check whether to render disk activity indicators.

@@ -22,7 +22,7 @@ import net.minecraft.util.{EnumFacing, SoundCategory}
 import li.cil.oc.server.{PacketSender => ServerPacketSender}
 import net.minecraft.block.material.EnumPushReaction
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 protected object PistonTraits {
   trait ExtendAware {

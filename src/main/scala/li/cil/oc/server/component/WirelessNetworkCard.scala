@@ -19,7 +19,7 @@ import li.cil.oc.util.BlockPosition
 import li.cil.oc.util.ExtendedWorld._
 import net.minecraft.nbt.NBTTagCompound
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 import scala.language.implicitConversions
 
 abstract class WirelessNetworkCard(host: EnvironmentHost) extends NetworkCard(host) with WirelessEndpoint {

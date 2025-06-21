@@ -6,9 +6,9 @@ import li.cil.oc.client.gui.widget.ProgressBar
 import li.cil.oc.common.container
 import li.cil.oc.common.tileentity
 import net.minecraft.client.renderer.GlStateManager
-import net.minecraft.entity.player.InventoryPlayer
+import net.minecraft.world.entity.player.Inventory
 
-class Disassembler(playerInventory: InventoryPlayer, val disassembler: tileentity.Disassembler) extends DynamicGuiContainer(new container.Disassembler(playerInventory, disassembler)) {
+class Disassembler(playerInventory: Inventory, val disassembler: tileentity.Disassembler) extends DynamicGuiContainer(new container.Disassembler(playerInventory, disassembler)) {
   val progress = addWidget(new ProgressBar(18, 65))
 
   override def drawSecondaryForegroundLayer(mouseX: Int, mouseY: Int) = {

@@ -13,7 +13,7 @@ import li.cil.oc.api.machine.Context
 import li.cil.oc.common.tileentity.traits.BundledRedstoneAware
 import net.minecraft.util.EnumFacing
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 trait RedstoneBundled extends RedstoneVanilla {
   private final lazy val deviceInfo = Map(

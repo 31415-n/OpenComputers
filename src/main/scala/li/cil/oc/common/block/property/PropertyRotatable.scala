@@ -5,7 +5,7 @@ import com.google.common.base.Predicates
 import net.minecraft.block.properties.PropertyDirection
 import net.minecraft.util.EnumFacing
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 object PropertyRotatable {
   final val Facing = PropertyDirection.create("facing", EnumFacing.Plane.HORIZONTAL.asInstanceOf[Predicate[EnumFacing]])

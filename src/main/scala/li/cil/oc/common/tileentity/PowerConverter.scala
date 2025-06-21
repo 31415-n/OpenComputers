@@ -13,7 +13,7 @@ import net.minecraft.util.EnumFacing
 import net.minecraftforge.fml.relauncher.Side
 import net.minecraftforge.fml.relauncher.SideOnly
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 class PowerConverter extends traits.PowerAcceptor with traits.Environment with traits.NotAnalyzable with DeviceInfo {
   val node = api.Network.newNode(this, Visibility.None).

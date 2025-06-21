@@ -7,7 +7,7 @@ import li.cil.oc.api.driver.DeviceInfo.DeviceAttribute
 import li.cil.oc.api.driver.DeviceInfo.DeviceClass
 import li.cil.oc.Settings
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 class APU(tier: Int) extends GraphicsCard(tier) {
   private final lazy val deviceInfo = Map(

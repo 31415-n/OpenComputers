@@ -17,7 +17,7 @@ import net.minecraft.util.SoundCategory
 import net.minecraftforge.fml.relauncher.Side
 import net.minecraftforge.fml.relauncher.SideOnly
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 class NetSplitter extends traits.Environment with traits.OpenSides with traits.RedstoneAware with api.network.SidedEnvironment with DeviceInfo {

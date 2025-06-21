@@ -28,7 +28,7 @@ import net.minecraft.nbt.NBTTagCompound
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.io.output.ByteArrayOutputStream
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 abstract class DataCard extends prefab.AbstractManagedEnvironment with DeviceInfo {
   override val node = Network.newNode(this, Visibility.Neighbors).

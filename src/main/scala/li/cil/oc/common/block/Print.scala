@@ -27,7 +27,7 @@ import net.minecraft.world.World
 import net.minecraftforge.common.property.ExtendedBlockState
 import net.minecraftforge.common.property.IExtendedBlockState
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
 
 class Print(protected implicit val tileTag: ClassTag[tileentity.Print]) extends RedstoneAware with traits.CustomDrops[tileentity.Print] {

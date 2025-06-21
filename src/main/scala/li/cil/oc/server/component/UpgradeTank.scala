@@ -16,7 +16,7 @@ import net.minecraftforge.fluids.FluidStack
 import net.minecraftforge.fluids.FluidTank
 import net.minecraftforge.fluids.IFluidTank
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 class UpgradeTank(val owner: EnvironmentHost, val capacity: Int) extends AbstractManagedEnvironment with IFluidTank with DeviceInfo {
   override val node = Network.newNode(this, Visibility.None).create()

@@ -27,7 +27,7 @@ import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.util.EnumFacing
 import net.minecraft.util.EnumParticleTypes
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 class Robot(val agent: tileentity.Robot) extends AbstractManagedEnvironment with Agent with DeviceInfo {
   override val node = api.Network.newNode(this, Visibility.Network).

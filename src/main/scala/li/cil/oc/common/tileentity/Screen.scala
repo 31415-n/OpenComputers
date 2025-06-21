@@ -10,14 +10,14 @@ import li.cil.oc.common.tileentity.traits.RedstoneChangedEventArgs
 import li.cil.oc.util.Color
 import li.cil.oc.util.ExtendedWorld._
 import net.minecraft.client.Minecraft
-import net.minecraft.entity.Entity
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.entity.projectile.EntityArrow
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.util.EnumFacing
-import net.minecraft.util.math.AxisAlignedBB
-import net.minecraftforge.fml.relauncher.Side
-import net.minecraftforge.fml.relauncher.SideOnly
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.entity.projectile.Arrow
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.core.Direction
+import net.minecraft.world.phys.AABB
+import net.minecraftforge.api.distmarker.Dist
+import net.minecraftforge.api.distmarker.OnlyIn
 
 import scala.collection.mutable
 import scala.language.postfixOps
@@ -28,7 +28,7 @@ class Screen(var tier: Int) extends traits.TextBuffer with SidedEnvironment with
   // Enable redstone functionality.
   _isOutputEnabled = true
 
-  override def validFacings = EnumFacing.values
+  override def validFacings = Direction.values
 
   // ----------------------------------------------------------------------- //
 
@@ -53,21 +53,21 @@ class Screen(var tier: Int) extends traits.TextBuffer with SidedEnvironment with
 
   var hadRedstoneInput = false
 
-  var cachedBounds: Option[AxisAlignedBB] = None
+  var cachedBounds: Option[AABB] = None
 
   var invertTouchMode = false
 
-  private val arrows = mutable.Set.empty[EntityArrow]
+  private val arrows = mutable.Set.empty[Arrow]
 
   private val lastWalked = mutable.WeakHashMap.empty[Entity, (Int, Int)]
 
   setColor(Color.rgbValues(Color.byTier(tier)))
 
-  @SideOnly(Side.CLIENT)
-  override def canConnect(side: EnumFacing) = side != facing
+  @OnlyIn(Dist.CLIENT)
+  override def canConnect(side: Direction) = side != facing
 
   // Allow connections from front for keyboards, and keyboards only...
-  override def sidedNode(side: EnumFacing) = if (side != facing || (getWorld.isBlockLoaded(getPos.offset(side)) && getWorld.getTileEntity(getPos.offset(side)).isInstanceOf[Keyboard])) node else null
+  override def sidedNode(side: Direction) = if (side != facing || (level.isLoaded(getBlockPos.relative(side)) && level.getBlockEntity(getBlockPos.relative(side)).isInstanceOf[Keyboard])) node else null
 
   // ----------------------------------------------------------------------- //
 
@@ -80,9 +80,9 @@ class Screen(var tier: Int) extends traits.TextBuffer with SidedEnvironment with
   }
 
   def hasKeyboard = screens.exists(screen =>
-    EnumFacing.values.map(side => (side, {
+    Direction.values.map(side => (side, {
       val blockPos = BlockPosition(screen).offset(side)
-      if (getWorld.blockExists(blockPos)) getWorld.getTileEntity(blockPos)
+      if (level.isLoaded(blockPos.toBlockPos)) level.getBlockEntity(blockPos.toBlockPos)
       else null
     })).exists {
       case (side, keyboard: Keyboard) => keyboard.hasNodeOnSide(side.getOpposite)

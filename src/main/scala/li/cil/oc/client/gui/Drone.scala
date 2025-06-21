@@ -18,7 +18,7 @@ import net.minecraft.client.renderer.vertex.DefaultVertexFormats
 import net.minecraft.entity.player.InventoryPlayer
 import org.lwjgl.opengl.GL11
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 class Drone(playerInventory: InventoryPlayer, val drone: entity.Drone) extends DynamicGuiContainer(new container.Drone(playerInventory, drone)) with traits.DisplayBuffer {
   xSize = 176

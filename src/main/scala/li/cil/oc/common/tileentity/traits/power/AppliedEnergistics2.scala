@@ -1,12 +1,7 @@
 package li.cil.oc.common.tileentity.traits.power
 import java.util
 
-import appeng.api.AEApi
-import appeng.api.config.Actionable
-import appeng.api.config.PowerMultiplier
-import appeng.api.networking._
-import appeng.api.networking.energy.IEnergyGrid
-import appeng.api.util.{AECableType, AEColor, AEPartLocation, DimensionalCoord}
+// AppliedEnergistics2 integration temporarily disabled for 1.20.1 port
 import li.cil.oc.Settings
 import li.cil.oc.common.EventHandler
 import li.cil.oc.integration.Mods
@@ -19,7 +14,7 @@ import net.minecraftforge.fml.common._
 
 import scala.collection.JavaConversions
 
-trait AppliedEnergistics2 extends Common with IGridHost {
+trait AppliedEnergistics2 extends Common {
   private def useAppliedEnergistics2Power() = isServer && Mods.AppliedEnergistics2.isModAvailable
 
   // 'Manual' lazy val, because lazy vals mess up the class loader, leading to class not found exceptions.
@@ -132,7 +127,8 @@ trait AppliedEnergistics2 extends Common with IGridHost {
   }
 }
 
-class AppliedEnergistics2GridBlock(val tileEntity: AppliedEnergistics2) extends IGridBlock {
+// AppliedEnergistics2GridBlock temporarily disabled
+class AppliedEnergistics2GridBlock(val tileEntity: AppliedEnergistics2) {
   override def getIdlePowerUsage: Double = 0.0
 
   override def getFlags: util.EnumSet[GridFlags] = util.EnumSet.noneOf(classOf[GridFlags])

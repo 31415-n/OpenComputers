@@ -29,7 +29,7 @@ import net.minecraft.nbt.NBTTagIntArray
 import net.minecraft.nbt.NBTTagList
 import net.minecraftforge.common.util.Constants.NBT
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 class FileSystem(val fileSystem: IFileSystem, var label: Label, val host: Option[EnvironmentHost], val sound: Option[String], val speed: Int) extends AbstractManagedEnvironment with DeviceInfo {

@@ -5,14 +5,14 @@ import li.cil.oc.client.Textures
 import li.cil.oc.common
 import li.cil.oc.common.tileentity
 import li.cil.oc.util.SideTracker
-import net.minecraft.entity.player.InventoryPlayer
-import net.minecraft.inventory.IInventory
-import net.minecraft.item.ItemStack
-import net.minecraft.util.ResourceLocation
-import net.minecraftforge.fml.relauncher.Side
-import net.minecraftforge.fml.relauncher.SideOnly
+import net.minecraft.world.entity.player.Inventory
+import net.minecraft.world.Container
+import net.minecraft.world.item.ItemStack
+import net.minecraft.resources.ResourceLocation
+import net.minecraftforge.api.distmarker.Dist
+import net.minecraftforge.api.distmarker.OnlyIn
 
-class Robot(playerInventory: InventoryPlayer, robot: tileentity.Robot) extends Player(playerInventory, robot) {
+class Robot(playerInventory: Inventory, robot: tileentity.Robot) extends Player(playerInventory, robot) {
   val hasScreen: Boolean = robot.components.exists {
     case Some(buffer: api.internal.TextBuffer) => true
     case _ => false

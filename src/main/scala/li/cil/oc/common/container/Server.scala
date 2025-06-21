@@ -3,11 +3,11 @@ package li.cil.oc.common.container
 import li.cil.oc.common.InventorySlots
 import li.cil.oc.common.inventory.ServerInventory
 import li.cil.oc.server.component
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.entity.player.InventoryPlayer
-import net.minecraft.nbt.NBTTagCompound
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.entity.player.Inventory
+import net.minecraft.nbt.CompoundTag
 
-class Server(playerInventory: InventoryPlayer, serverInventory: ServerInventory, val server: Option[component.Server] = None) extends Player(playerInventory, serverInventory) {
+class Server(playerInventory: Inventory, serverInventory: ServerInventory, val server: Option[component.Server] = None) extends Player(playerInventory, serverInventory) {
   for (i <- 0 to 1) {
     val slot = InventorySlots.server(serverInventory.tier)(getInventory.size)
     addSlotToContainer(76, 7 + i * slotSize, slot.slot, slot.tier)
@@ -42,25 +42,25 @@ class Server(playerInventory: InventoryPlayer, serverInventory: ServerInventory,
   // Show the player's inventory.
   addPlayerInventorySlots(8, 84)
 
-  override def canInteractWith(player: EntityPlayer) = {
-    if (server.isDefined) super.canInteractWith(player)
+  override def stillValid(player: Player) = {
+    if (server.isDefined) super.stillValid(player)
     else player == playerInventory.player
   }
 
   var isRunning = false
   var isItem = true
 
-  override def updateCustomData(nbt: NBTTagCompound): Unit = {
+  override def updateCustomData(nbt: CompoundTag): Unit = {
     super.updateCustomData(nbt)
     isRunning = nbt.getBoolean("isRunning")
     isItem = nbt.getBoolean("isItem")
   }
 
-  override protected def detectCustomDataChanges(nbt: NBTTagCompound): Unit = {
+  override protected def detectCustomDataChanges(nbt: CompoundTag): Unit = {
     super.detectCustomDataChanges(nbt)
     server match {
-      case Some(s) => nbt.setBoolean("isRunning", s.machine.isRunning)
-      case _ => nbt.setBoolean("isItem", true)
+      case Some(s) => nbt.putBoolean("isRunning", s.machine.isRunning)
+      case _ => nbt.putBoolean("isItem", true)
     }
   }
 }

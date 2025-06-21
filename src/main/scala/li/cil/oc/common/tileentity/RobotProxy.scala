@@ -21,7 +21,7 @@ import net.minecraftforge.fml.relauncher.Side
 import net.minecraftforge.fml.relauncher.SideOnly
 import net.minecraft.entity.Entity
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.inventory.ISidedInventory
+import net.minecraft.world.WorldlyContainer
 import net.minecraft.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.util.EnumFacing
@@ -31,7 +31,7 @@ import net.minecraftforge.fluids.FluidStack
 import net.minecraftforge.fluids.IFluidTank
 import net.minecraftforge.fluids.capability.IFluidTankProperties
 
-class RobotProxy(val robot: Robot) extends traits.Computer with traits.PowerInformation with traits.RotatableTile with ISidedInventory with IFluidHandler with internal.Robot {
+class RobotProxy(val robot: Robot) extends traits.Computer with traits.PowerInformation with traits.RotatableTile with WorldlyContainer with IFluidHandler with internal.Robot {
   def this() = this(new Robot())
 
   // ----------------------------------------------------------------------- //

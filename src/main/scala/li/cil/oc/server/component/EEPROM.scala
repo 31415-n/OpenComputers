@@ -17,7 +17,7 @@ import li.cil.oc.api.prefab
 import li.cil.oc.api.prefab.AbstractManagedEnvironment
 import net.minecraft.nbt.NBTTagCompound
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 class EEPROM extends AbstractManagedEnvironment with DeviceInfo {
   override val node = Network.newNode(this, Visibility.Neighbors).

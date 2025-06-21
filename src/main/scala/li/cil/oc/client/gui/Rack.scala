@@ -10,13 +10,13 @@ import net.minecraft.client.gui.GuiButton
 import net.minecraft.client.renderer.GlStateManager
 import net.minecraft.client.renderer.Tessellator
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats
-import net.minecraft.entity.player.InventoryPlayer
+import net.minecraft.world.entity.player.Inventory
 import net.minecraft.util.EnumFacing
 import org.lwjgl.opengl.GL11
 
 import scala.collection.convert.WrapAsJava.asJavaCollection
 
-class Rack(playerInventory: InventoryPlayer, val rack: tileentity.Rack) extends DynamicGuiContainer(new container.Rack(playerInventory, rack)) {
+class Rack(playerInventory: Inventory, val rack: tileentity.Rack) extends DynamicGuiContainer(new container.Rack(playerInventory, rack)) {
   ySize = 210
 
   final val busMasterBlankUVs = (195, 14, 3, 5)

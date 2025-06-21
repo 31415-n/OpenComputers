@@ -20,7 +20,7 @@ import li.cil.oc.integration.util
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraftforge.fml.common.Optional
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 @Optional.InterfaceList(Array(
   new Optional.Interface(iface = "codechicken.wirelessredstone.api.WirelessReceivingDevice", modid = Mods.IDs.WirelessRedstoneCBE),

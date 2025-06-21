@@ -3,10 +3,10 @@ package li.cil.oc.client.gui.traits
 import li.cil.oc.client.renderer.gui.BufferRenderer
 import li.cil.oc.util.RenderState
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiScreen
+import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.renderer.GlStateManager
 
-trait DisplayBuffer extends GuiScreen {
+trait DisplayBuffer extends Screen {
   protected def bufferX: Int
 
   protected def bufferY: Int

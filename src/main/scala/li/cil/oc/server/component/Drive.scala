@@ -27,7 +27,7 @@ import li.cil.oc.server.{PacketSender => ServerPacketSender}
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraftforge.common.DimensionManager
 
-import scala.collection.convert.WrapAsJava._
+import scala.jdk.CollectionConverters._
 
 class Drive(val capacity: Int, val platterCount: Int, val label: Label, host: Option[EnvironmentHost], val sound: Option[String], val speed: Int, val isLocked: Boolean) extends AbstractManagedEnvironment with DeviceInfo {
   override val node = Network.newNode(this, Visibility.Network).
