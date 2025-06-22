@@ -9,11 +9,12 @@ import li.cil.oc.common.item.data.PrintData.Shape
 import li.cil.oc.util.ExtendedAABB._
 import li.cil.oc.util.ExtendedNBT._
 import net.minecraft.world.item.ItemStack
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.util.math.AxisAlignedBB
-import net.minecraftforge.common.util.Constants.NBT
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.world.phys.AABB
+import net.minecraft.nbt.Tag
 
 import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 
 class PrintData extends ItemData(Constants.BlockName.Print) {
   def this(stack: ItemStack) {
@@ -72,17 +73,17 @@ class PrintData extends ItemData(Constants.BlockName.Print) {
   private final val NoclipOffTag = "noclipOff"
   private final val NoclipOnTag = "noclipOn"
 
-  override def load(nbt: NBTTagCompound): Unit = {
-    if (nbt.hasKey(LabelTag)) label = Option(nbt.getString(LabelTag)) else label = None
-    if (nbt.hasKey(TooltipTag)) tooltip = Option(nbt.getString(TooltipTag)) else tooltip = None
+  override def load(nbt: CompoundTag): Unit = {
+    if (nbt.contains(LabelTag)) label = Option(nbt.getString(LabelTag)) else label = None
+    if (nbt.contains(TooltipTag)) tooltip = Option(nbt.getString(TooltipTag)) else tooltip = None
     isButtonMode = nbt.getBoolean(IsButtonModeTag)
-    redstoneLevel = nbt.getInteger(RedstoneLevelTag) max 0 min 15
+    redstoneLevel = nbt.getInt(RedstoneLevelTag) max 0 min 15
     if (nbt.getBoolean(RedstoneLevelTagCompat)) redstoneLevel = 15
     pressurePlate = nbt.getBoolean(PressurePlateTag)
     stateOff.clear()
-    stateOff ++= nbt.getTagList(StateOffTag, NBT.TAG_COMPOUND).map(PrintData.nbtToShape)
+    stateOff ++= nbt.getList(StateOffTag, Tag.TAG_COMPOUND).asScala.map(tag => PrintData.nbtToShape(tag.asInstanceOf[CompoundTag]))
     stateOn.clear()
-    stateOn ++= nbt.getTagList(StateOnTag, NBT.TAG_COMPOUND).map(PrintData.nbtToShape)
+    stateOn ++= nbt.getList(StateOnTag, Tag.TAG_COMPOUND).asScala.map(tag => PrintData.nbtToShape(tag.asInstanceOf[CompoundTag]))
     isBeaconBase = nbt.getBoolean(IsBeaconBaseTag)
     lightLevel = (nbt.getByte(LightLevelTag) & 0xFF) max 0 min 15
     noclipOff = nbt.getBoolean(NoclipOffTag)
@@ -91,25 +92,25 @@ class PrintData extends ItemData(Constants.BlockName.Print) {
     opacityDirty = true
   }
 
-  override def save(nbt: NBTTagCompound): Unit = {
-    label.foreach(nbt.setString("label", _))
-    tooltip.foreach(nbt.setString("tooltip", _))
-    nbt.setBoolean("isButtonMode", isButtonMode)
-    nbt.setInteger("redstoneLevel", redstoneLevel)
-    nbt.setBoolean("pressurePlate", pressurePlate)
+  override def save(nbt: CompoundTag): Unit = {
+    label.foreach(nbt.putString("label", _))
+    tooltip.foreach(nbt.putString("tooltip", _))
+    nbt.putBoolean("isButtonMode", isButtonMode)
+    nbt.putInt("redstoneLevel", redstoneLevel)
+    nbt.putBoolean("pressurePlate", pressurePlate)
     setNewShapeSet(nbt, StateOffTag, stateOff)
     setNewShapeSet(nbt, StateOnTag, stateOn)
-    nbt.setBoolean("isBeaconBase", isBeaconBase)
-    nbt.setByte("lightLevel", lightLevel.toByte)
-    nbt.setBoolean("noclipOff", noclipOff)
-    nbt.setBoolean("noclipOn", noclipOn)
+    nbt.putBoolean("isBeaconBase", isBeaconBase)
+    nbt.putByte("lightLevel", lightLevel.toByte)
+    nbt.putBoolean("noclipOff", noclipOff)
+    nbt.putBoolean("noclipOn", noclipOn)
   }
 
   // Shapes are stored in a set and sets do not have an order, that means NBT shape lists may be in any order.
   // Because NBT list comparison considers order of tags in a list, and prints may have arbitrarily ordered list of shapes,
   // the comparison fails and minecraft considers two identical prints different.
   // One possible solution is to sort the shapes before serializing them to NBT
-  private def setNewShapeSet(nbt: NBTTagCompound, name: String, values: Iterable[Shape]) = {
+  private def setNewShapeSet(nbt: CompoundTag, name: String, values: Iterable[Shape]) = {
     val seq = values.toSeq.sortWith(compareShape);
     nbt.setNewTagList(name, seq.map(PrintData.shapeToNBT))
   }
@@ -149,7 +150,7 @@ object PrintData {
   def computeApproximateOpacity(shapes: Iterable[PrintData.Shape]): Float = {
     var volume = 1f
     if (shapes.nonEmpty) for (x <- 0 until 16 / stepping; y <- 0 until 16 / stepping; z <- 0 until 16 / stepping) {
-      val bounds = new AxisAlignedBB(
+      val bounds = new AABB(
         x * step, y * step, z * step,
         (x + 1) * step, (y + 1) * step, (z + 1) * step)
       if (!shapes.exists(_.bounds.intersects(bounds))) {
@@ -201,9 +202,9 @@ object PrintData {
     0
   }
 
-  def nbtToShape(nbt: NBTTagCompound): Shape = {
+  def nbtToShape(nbt: CompoundTag): Shape = {
     val aabb =
-      if (nbt.hasKey("minX")) {
+      if (nbt.contains("minX")) {
         // Compatibility with shapes created with earlier dev-builds.
         val minX = nbt.getByte("minX") / 16f
         val minY = nbt.getByte("minY") / 16f
@@ -211,7 +212,7 @@ object PrintData {
         val maxX = nbt.getByte("maxX") / 16f
         val maxY = nbt.getByte("maxY") / 16f
         val maxZ = nbt.getByte("maxZ") / 16f
-        new AxisAlignedBB(minX, minY, minZ, maxX, maxY, maxZ)
+        new AABB(minX, minY, minZ, maxX, maxY, maxZ)
       }
       else {
         val bounds = nbt.getByteArray("bounds").padTo(6, 0.toByte)
@@ -221,16 +222,16 @@ object PrintData {
         val maxX = bounds(3) / 16f
         val maxY = bounds(4) / 16f
         val maxZ = bounds(5) / 16f
-        new AxisAlignedBB(minX, minY, minZ, maxX, maxY, maxZ)
+        new AABB(minX, minY, minZ, maxX, maxY, maxZ)
       }
     val texture = nbt.getString("texture")
-    val tint = if (nbt.hasKey("tint")) Option(nbt.getInteger("tint")) else None
+    val tint = if (nbt.contains("tint")) Option(nbt.getInt("tint")) else None
     new Shape(aabb, texture, tint)
   }
 
-  def shapeToNBT(shape: Shape): NBTTagCompound = {
-    val nbt = new NBTTagCompound()
-    nbt.setByteArray("bounds", Array(
+  def shapeToNBT(shape: Shape): CompoundTag = {
+    val nbt = new CompoundTag()
+    nbt.putByteArray("bounds", Array(
       (shape.bounds.minX * 16).round.toByte,
       (shape.bounds.minY * 16).round.toByte,
       (shape.bounds.minZ * 16).round.toByte,
@@ -238,11 +239,11 @@ object PrintData {
       (shape.bounds.maxY * 16).round.toByte,
       (shape.bounds.maxZ * 16).round.toByte
     ))
-    nbt.setString("texture", shape.texture)
-    shape.tint.foreach(nbt.setInteger("tint", _))
+    nbt.putString("texture", shape.texture)
+    shape.tint.foreach(nbt.putInt("tint", _))
     nbt
   }
 
-  class Shape(val bounds: AxisAlignedBB, val texture: String, val tint: Option[Int])
+  class Shape(val bounds: AABB, val texture: String, val tint: Option[Int])
 
 }

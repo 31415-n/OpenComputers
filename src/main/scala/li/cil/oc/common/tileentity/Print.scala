@@ -11,15 +11,13 @@ import li.cil.oc.common.tileentity.traits.RedstoneChangedEventArgs
 import li.cil.oc.util.ExtendedAABB
 import li.cil.oc.util.ExtendedAABB._
 import li.cil.oc.util.ExtendedNBT._
-import net.minecraft.init.SoundEvents
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.util._
-import net.minecraft.util.math.AxisAlignedBB
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.RayTraceResult
-import net.minecraft.util.math.Vec3d
-import net.minecraftforge.fml.relauncher.Side
-import net.minecraftforge.fml.relauncher.SideOnly
+import net.minecraft.sounds.SoundEvents
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.sounds.SoundSource
+import net.minecraft.world.phys.AABB
+import net.minecraft.core.{BlockPos, Direction}
+import net.minecraft.world.phys.{BlockHitResult, Vec3}
+import net.minecraftforge.api.distmarker.{Dist, OnlyIn}
 import scala.jdk.CollectionConverters._
 
 class Print(val canToggle: Option[() => Boolean], val scheduleUpdate: Option[Int => Unit], val onStateChange: Option[() => Unit]) extends traits.TileEntity with traits.RedstoneAware with traits.RotatableTile {
@@ -38,35 +36,35 @@ class Print(val canToggle: Option[() => Boolean], val scheduleUpdate: Option[Int
   def noclip = if (state) data.noclipOn else data.noclipOff
   def shapes = if (state) data.stateOn else data.stateOff
 
-  def isSideSolid(side: EnumFacing): Boolean = {
+  def isSideSolid(side: Direction): Boolean = {
     for (shape <- shapes if !Strings.isNullOrEmpty(shape.texture)) {
       val bounds = shape.bounds.rotateTowards(facing)
       val fullX = bounds.minX == 0 && bounds.maxX == 1
       val fullY = bounds.minY == 0 && bounds.maxY == 1
       val fullZ = bounds.minZ == 0 && bounds.maxZ == 1
       if (side match {
-        case EnumFacing.DOWN => bounds.minY == 0 && fullX && fullZ
-        case EnumFacing.UP => bounds.maxY == 1 && fullX && fullZ
-        case EnumFacing.NORTH => bounds.minZ == 0 && fullX && fullY
-        case EnumFacing.SOUTH => bounds.maxZ == 1 && fullX && fullY
-        case EnumFacing.WEST => bounds.minX == 0 && fullY && fullZ
-        case EnumFacing.EAST => bounds.maxX == 1 && fullY && fullZ
+        case Direction.DOWN => bounds.minY == 0 && fullX && fullZ
+        case Direction.UP => bounds.maxY == 1 && fullX && fullZ
+        case Direction.NORTH => bounds.minZ == 0 && fullX && fullY
+        case Direction.SOUTH => bounds.maxZ == 1 && fullX && fullY
+        case Direction.WEST => bounds.minX == 0 && fullY && fullZ
+        case Direction.EAST => bounds.maxX == 1 && fullY && fullZ
         case _ => false
       }) return true
     }
     false
   }
 
-  def addCollisionBoxesToList(mask: AxisAlignedBB, list: util.List[AxisAlignedBB], pos: BlockPos = BlockPos.ORIGIN): Unit = {
+  def addCollisionBoxesToList(mask: AABB, list: util.List[AABB], pos: BlockPos = BlockPos.ZERO): Unit = {
     if (!noclip) {
       if (shapes.isEmpty) {
-        val unitBounds = new AxisAlignedBB(0, 0, 0, 1, 1, 1).offset(pos)
+        val unitBounds = new AABB(0, 0, 0, 1, 1, 1).move(pos.getX, pos.getY, pos.getZ)
         if (mask == null || unitBounds.intersects(mask)) {
           list.add(unitBounds)
         }
       } else {
         for (shape <- shapes) {
-          val bounds = shape.bounds.rotateTowards(facing).offset(pos)
+          val bounds = shape.bounds.rotateTowards(facing).move(pos.getX, pos.getY, pos.getZ)
           if (mask == null || bounds.intersects(mask)) {
             list.add(bounds)
           }
@@ -75,33 +73,38 @@ class Print(val canToggle: Option[() => Boolean], val scheduleUpdate: Option[Int
     }
   }
 
-  def rayTrace(start: Vec3d, end: Vec3d, pos: BlockPos = BlockPos.ORIGIN): RayTraceResult = {
+  def rayTrace(start: Vec3, end: Vec3, pos: BlockPos = BlockPos.ZERO): BlockHitResult = {
     var closestDistance = Double.PositiveInfinity
-    var closest: Option[RayTraceResult] = None
+    var closest: Option[Vec3] = None
+    var closestDirection: Direction = Direction.UP
     if (shapes.isEmpty) {
-      val bounds = new AxisAlignedBB(0, 0, 0, 1, 1, 1).offset(pos)
-      val hit = bounds.calculateIntercept(start, end)
-      if (hit != null) {
-        val distance = hit.hitVec.distanceTo(start)
+      val bounds = new AABB(0, 0, 0, 1, 1, 1).move(pos.getX, pos.getY, pos.getZ)
+      val hit = bounds.clip(start, end)
+      if (hit.isPresent) {
+        val hitVec = hit.get()
+        val distance = hitVec.distanceTo(start)
         if (distance < closestDistance) {
           closestDistance = distance
-          closest = Option(hit)
+          closest = Option(hitVec)
+          closestDirection = Direction.getNearest(hitVec.x - pos.getX - 0.5, hitVec.y - pos.getY - 0.5, hitVec.z - pos.getZ - 0.5)
         }
       }
     } else {
       for (shape <- shapes) {
-        val bounds = shape.bounds.rotateTowards(facing).offset(pos)
-        val hit = bounds.calculateIntercept(start, end)
-        if (hit != null) {
-          val distance = hit.hitVec.distanceTo(start)
+        val bounds = shape.bounds.rotateTowards(facing).move(pos.getX, pos.getY, pos.getZ)
+        val hit = bounds.clip(start, end)
+        if (hit.isPresent) {
+          val hitVec = hit.get()
+          val distance = hitVec.distanceTo(start)
           if (distance < closestDistance) {
             closestDistance = distance
-            closest = Option(hit)
+            closest = Option(hitVec)
+            closestDirection = Direction.getNearest(hitVec.x - pos.getX - 0.5, hitVec.y - pos.getY - 0.5, hitVec.z - pos.getZ - 0.5)
           }
         }
       }
     }
-    closest.map(hit => new RayTraceResult(hit.hitVec, hit.sideHit, pos)).orNull
+    closest.map(hitVec => new BlockHitResult(hitVec, closestDirection, pos, false)).orNull
   }
 
   def activate(): Boolean = {
@@ -116,7 +119,7 @@ class Print(val canToggle: Option[() => Boolean], val scheduleUpdate: Option[Int
 
   private def buildValueSet(value: Int): util.Map[AnyRef, AnyRef] = {
     val map: util.Map[AnyRef, AnyRef] = new util.HashMap[AnyRef, AnyRef]()
-    EnumFacing.values.foreach {
+    Direction.values().foreach {
       side => map.put(new java.lang.Integer(side.ordinal), new java.lang.Integer(value))
     }
     map
@@ -125,7 +128,7 @@ class Print(val canToggle: Option[() => Boolean], val scheduleUpdate: Option[Int
   def toggleState(): Unit = {
     if (canToggle.fold(true)(_.apply())) {
       state = !state
-      world.playSound(null, x + 0.5, y + 0.5, z + 0.5, SoundEvents.BLOCK_LEVER_CLICK, SoundCategory.BLOCKS, 0.3F, if (state) 0.6F else 0.5F)
+      world.playSound(null, x + 0.5, y + 0.5, z + 0.5, SoundEvents.LEVER_CLICK, SoundSource.BLOCKS, 0.3F, if (state) 0.6F else 0.5F)
       world.notifyBlockUpdate(getPos, getWorld.getBlockState(getPos), getWorld.getBlockState(getPos), 3)
       updateRedstone()
       if (state && data.isButtonMode) {
@@ -174,40 +177,40 @@ class Print(val canToggle: Option[() => Boolean], val scheduleUpdate: Option[Int
   private final val StateTag = Settings.namespace + "state"
   private final val StateTagCompat = "state"
 
-  override def readFromNBTForServer(nbt: NBTTagCompound): Unit = {
+  override def readFromNBTForServer(nbt: CompoundTag): Unit = {
     super.readFromNBTForServer(nbt)
-    if (nbt.hasKey(DataTagCompat))
-      data.load(nbt.getCompoundTag(DataTagCompat))
+    if (nbt.contains(DataTagCompat))
+      data.load(nbt.getCompound(DataTagCompat))
     else
-      data.load(nbt.getCompoundTag(DataTag))
-    if (nbt.hasKey(StateTagCompat))
+      data.load(nbt.getCompound(DataTag))
+    if (nbt.contains(StateTagCompat))
       state = nbt.getBoolean(StateTagCompat)
     else
       state = nbt.getBoolean(StateTag)
     updateBounds()
   }
 
-  override def writeToNBTForServer(nbt: NBTTagCompound): Unit = {
+  override def writeToNBTForServer(nbt: CompoundTag): Unit = {
     super.writeToNBTForServer(nbt)
     nbt.setNewCompoundTag(DataTag, data.save)
-    nbt.setBoolean(StateTag, state)
+    nbt.putBoolean(StateTag, state)
   }
 
-  @SideOnly(Side.CLIENT)
-  override def readFromNBTForClient(nbt: NBTTagCompound): Unit = {
+  @OnlyIn(Dist.CLIENT)
+  override def readFromNBTForClient(nbt: CompoundTag): Unit = {
     super.readFromNBTForClient(nbt)
-    data.load(nbt.getCompoundTag(DataTag))
+    data.load(nbt.getCompound(DataTag))
     state = nbt.getBoolean(StateTag)
     updateBounds()
     if (world != null) {
-      world.notifyBlockUpdate(getPos, getWorld.getBlockState(getPos), getWorld.getBlockState(getPos), 3)
-      if (data.emitLight) world.checkLight(getPos)
+      world.sendBlockUpdated(getPos, getLevel.getBlockState(getPos), getLevel.getBlockState(getPos), 3)
+      if (data.emitLight) world.getChunkSource.getLightEngine.checkBlock(getPos)
     }
   }
 
-  override def writeToNBTForClient(nbt: NBTTagCompound): Unit = {
+  override def writeToNBTForClient(nbt: CompoundTag): Unit = {
     super.writeToNBTForClient(nbt)
     nbt.setNewCompoundTag(DataTag, data.save)
-    nbt.setBoolean(StateTag, state)
+    nbt.putBoolean(StateTag, state)
   }
 }

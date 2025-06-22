@@ -5,12 +5,13 @@ import li.cil.oc.util.ExtendedAABB._
 import li.cil.oc.util.ExtendedWorld._
 import li.cil.oc.util.{BlockPosition, RenderState}
 import li.cil.oc.{Constants, Settings, api, common}
-import net.minecraft.client.renderer._
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats
-import net.minecraft.util.EnumFacing
-import net.minecraft.util.math.{RayTraceResult, Vec3d}
-import net.minecraftforge.client.event.DrawBlockHighlightEvent
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
+import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.blaze3d.vertex.{DefaultVertexFormat, PoseStack, Tesselator, VertexConsumer}
+import net.minecraft.client.renderer.{GameRenderer, LevelRenderer, MultiBufferSource, RenderType}
+import net.minecraft.core.Direction
+import net.minecraft.world.phys.{BlockHitResult, HitResult, Vec3}
+import net.minecraftforge.client.event.RenderHighlightEvent
+import net.minecraftforge.eventbus.api.SubscribeEvent
 import org.lwjgl.opengl.GL11
 
 import scala.util.Random
@@ -21,139 +22,145 @@ object HighlightRenderer {
   lazy val tablet = api.Items.get(Constants.ItemName.Tablet)
 
   @SubscribeEvent
-  def onDrawBlockHighlight(e: DrawBlockHighlightEvent): Unit = if (e.getTarget != null && e.getTarget.getBlockPos != null) {
+  def onDrawBlockHighlight(e: RenderHighlightEvent.Block): Unit = if (e.getTarget != null && e.getTarget.getBlockPos != null) {
     val hitInfo = e.getTarget
-    val world = e.getPlayer.getEntityWorld
+    val camera = e.getCamera
+    val world = camera.getEntity.level()
     val blockPos = BlockPosition(hitInfo.getBlockPos, world)
-    if (hitInfo.typeOfHit == RayTraceResult.Type.BLOCK && api.Items.get(e.getPlayer.getHeldItemMainhand) == tablet) {
+    
+    // Get player from camera entity
+    val player = camera.getEntity match {
+      case p: net.minecraft.world.entity.player.Player => p
+      case _ => return
+    }
+    
+    if (hitInfo.getType == HitResult.Type.BLOCK && api.Items.get(player.getMainHandItem) == tablet) {
       val isAir = world.isAirBlock(blockPos)
       if (!isAir) {
         val block = world.getBlock(blockPos)
-        val bounds = block.getSelectedBoundingBox(world.getBlockState(hitInfo.getBlockPos), world, hitInfo.getBlockPos).offset(-blockPos.x, -blockPos.y, -blockPos.z)
-        val sideHit = hitInfo.sideHit
-        val playerPos = new Vec3d(
-          e.getPlayer.prevPosX + (e.getPlayer.posX - e.getPlayer.prevPosX) * e.getPartialTicks,
-          e.getPlayer.prevPosY + (e.getPlayer.posY - e.getPlayer.prevPosY) * e.getPartialTicks,
-          e.getPlayer.prevPosZ + (e.getPlayer.posZ - e.getPlayer.prevPosZ) * e.getPartialTicks)
-        val renderPos = blockPos.offset(-playerPos.x, -playerPos.y, -playerPos.z)
+        val state = world.getBlockState(hitInfo.getBlockPos)
+        val bounds = state.getShape(world, hitInfo.getBlockPos).bounds()
+        val sideHit = hitInfo.getDirection
+        val cameraPos = camera.getPosition
+        val renderPos = new Vec3(blockPos.x - cameraPos.x, blockPos.y - cameraPos.y, blockPos.z - cameraPos.z)
 
-        GlStateManager.pushMatrix()
-        RenderState.pushAttrib()
-        RenderState.makeItBlend()
-        Textures.bind(Textures.Model.HologramEffect)
-
-        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE)
-        GlStateManager.color(0.0F, 1.0F, 0.0F, 0.4F)
-
-        GlStateManager.translate(renderPos.x, renderPos.y, renderPos.z)
-        GlStateManager.scale(1.002, 1.002, 1.002)
+        val poseStack = e.getPoseStack
+        poseStack.pushPose()
+        
+        RenderSystem.enableBlend()
+        RenderSystem.defaultBlendFunc()
+        RenderSystem.setShader(() => GameRenderer.getPositionTexShader)
+        RenderSystem.setShaderColor(0.0F, 1.0F, 0.0F, 0.4F)
+        
+        poseStack.translate(renderPos.x, renderPos.y, renderPos.z)
+        poseStack.scale(1.002f, 1.002f, 1.002f)
 
         if (Settings.get.hologramFlickerFrequency > 0 && random.nextDouble() < Settings.get.hologramFlickerFrequency) {
-          val (sx, sy, sz) = (1 - math.abs(sideHit.getXOffset), 1 - math.abs(sideHit.getYOffset), 1 - math.abs(sideHit.getZOffset))
-          GlStateManager.scale(1 + random.nextGaussian() * 0.01, 1 + random.nextGaussian() * 0.001, 1 + random.nextGaussian() * 0.01)
-          GlStateManager.translate(random.nextGaussian() * 0.01 * sx, random.nextGaussian() * 0.01 * sy, random.nextGaussian() * 0.01 * sz)
+          val (sx, sy, sz) = (1 - math.abs(sideHit.getStepX), 1 - math.abs(sideHit.getStepY), 1 - math.abs(sideHit.getStepZ))
+          poseStack.scale((1 + random.nextGaussian() * 0.01).toFloat, (1 + random.nextGaussian() * 0.001).toFloat, (1 + random.nextGaussian() * 0.01).toFloat)
+          poseStack.translate(random.nextGaussian() * 0.01 * sx, random.nextGaussian() * 0.01 * sy, random.nextGaussian() * 0.01 * sz)
         }
 
-        val t = Tessellator.getInstance()
-        val r = t.getBuffer
-        r.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX)
+        val tesselator = Tesselator.getInstance()
+        val buffer = tesselator.getBuilder
+        buffer.begin(com.mojang.blaze3d.vertex.VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX)
+        
+        val matrix = poseStack.last().pose()
         sideHit match {
-          case EnumFacing.UP =>
-            r.pos(bounds.maxX, bounds.maxY + 0.002, bounds.maxZ).tex(bounds.maxZ * 16, bounds.maxX * 16).endVertex()
-            r.pos(bounds.maxX, bounds.maxY + 0.002, bounds.minZ).tex(bounds.minZ * 16, bounds.maxX * 16).endVertex()
-            r.pos(bounds.minX, bounds.maxY + 0.002, bounds.minZ).tex(bounds.minZ * 16, bounds.minX * 16).endVertex()
-            r.pos(bounds.minX, bounds.maxY + 0.002, bounds.maxZ).tex(bounds.maxZ * 16, bounds.minX * 16).endVertex()
-          case EnumFacing.DOWN =>
-            r.pos(bounds.maxX, bounds.minY - 0.002, bounds.minZ).tex(bounds.minZ * 16, bounds.maxX * 16).endVertex()
-            r.pos(bounds.maxX, bounds.minY - 0.002, bounds.maxZ).tex(bounds.maxZ * 16, bounds.maxX * 16).endVertex()
-            r.pos(bounds.minX, bounds.minY - 0.002, bounds.maxZ).tex(bounds.maxZ * 16, bounds.minX * 16).endVertex()
-            r.pos(bounds.minX, bounds.minY - 0.002, bounds.minZ).tex(bounds.minZ * 16, bounds.minX * 16).endVertex()
-          case EnumFacing.EAST =>
-            r.pos(bounds.maxX + 0.002, bounds.maxY, bounds.minZ).tex(bounds.minZ * 16, bounds.maxY * 16).endVertex()
-            r.pos(bounds.maxX + 0.002, bounds.maxY, bounds.maxZ).tex(bounds.maxZ * 16, bounds.maxY * 16).endVertex()
-            r.pos(bounds.maxX + 0.002, bounds.minY, bounds.maxZ).tex(bounds.maxZ * 16, bounds.minY * 16).endVertex()
-            r.pos(bounds.maxX + 0.002, bounds.minY, bounds.minZ).tex(bounds.minZ * 16, bounds.minY * 16).endVertex()
-          case EnumFacing.WEST =>
-            r.pos(bounds.minX - 0.002, bounds.maxY, bounds.maxZ).tex(bounds.maxZ * 16, bounds.maxY * 16).endVertex()
-            r.pos(bounds.minX - 0.002, bounds.maxY, bounds.minZ).tex(bounds.minZ * 16, bounds.maxY * 16).endVertex()
-            r.pos(bounds.minX - 0.002, bounds.minY, bounds.minZ).tex(bounds.minZ * 16, bounds.minY * 16).endVertex()
-            r.pos(bounds.minX - 0.002, bounds.minY, bounds.maxZ).tex(bounds.maxZ * 16, bounds.minY * 16).endVertex()
-          case EnumFacing.SOUTH =>
-            r.pos(bounds.maxX, bounds.maxY, bounds.maxZ + 0.002).tex(bounds.maxX * 16, bounds.maxY * 16).endVertex()
-            r.pos(bounds.minX, bounds.maxY, bounds.maxZ + 0.002).tex(bounds.minX * 16, bounds.maxY * 16).endVertex()
-            r.pos(bounds.minX, bounds.minY, bounds.maxZ + 0.002).tex(bounds.minX * 16, bounds.minY * 16).endVertex()
-            r.pos(bounds.maxX, bounds.minY, bounds.maxZ + 0.002).tex(bounds.maxX * 16, bounds.minY * 16).endVertex()
+          case Direction.UP =>
+            buffer.vertex(matrix, bounds.maxX.toFloat, (bounds.maxY + 0.002).toFloat, bounds.maxZ.toFloat).uv((bounds.maxZ * 16).toFloat, (bounds.maxX * 16).toFloat).endVertex()
+            buffer.vertex(matrix, bounds.maxX.toFloat, (bounds.maxY + 0.002).toFloat, bounds.minZ.toFloat).uv((bounds.minZ * 16).toFloat, (bounds.maxX * 16).toFloat).endVertex()
+            buffer.vertex(matrix, bounds.minX.toFloat, (bounds.maxY + 0.002).toFloat, bounds.minZ.toFloat).uv((bounds.minZ * 16).toFloat, (bounds.minX * 16).toFloat).endVertex()
+            buffer.vertex(matrix, bounds.minX.toFloat, (bounds.maxY + 0.002).toFloat, bounds.maxZ.toFloat).uv((bounds.maxZ * 16).toFloat, (bounds.minX * 16).toFloat).endVertex()
+          case Direction.DOWN =>
+            buffer.vertex(matrix, bounds.maxX.toFloat, (bounds.minY - 0.002).toFloat, bounds.minZ.toFloat).uv((bounds.minZ * 16).toFloat, (bounds.maxX * 16).toFloat).endVertex()
+            buffer.vertex(matrix, bounds.maxX.toFloat, (bounds.minY - 0.002).toFloat, bounds.maxZ.toFloat).uv((bounds.maxZ * 16).toFloat, (bounds.maxX * 16).toFloat).endVertex()
+            buffer.vertex(matrix, bounds.minX.toFloat, (bounds.minY - 0.002).toFloat, bounds.maxZ.toFloat).uv((bounds.maxZ * 16).toFloat, (bounds.minX * 16).toFloat).endVertex()
+            buffer.vertex(matrix, bounds.minX.toFloat, (bounds.minY - 0.002).toFloat, bounds.minZ.toFloat).uv((bounds.minZ * 16).toFloat, (bounds.minX * 16).toFloat).endVertex()
+          case Direction.EAST =>
+            buffer.vertex(matrix, (bounds.maxX + 0.002).toFloat, bounds.maxY.toFloat, bounds.minZ.toFloat).uv((bounds.minZ * 16).toFloat, (bounds.maxY * 16).toFloat).endVertex()
+            buffer.vertex(matrix, (bounds.maxX + 0.002).toFloat, bounds.maxY.toFloat, bounds.maxZ.toFloat).uv((bounds.maxZ * 16).toFloat, (bounds.maxY * 16).toFloat).endVertex()
+            buffer.vertex(matrix, (bounds.maxX + 0.002).toFloat, bounds.minY.toFloat, bounds.maxZ.toFloat).uv((bounds.maxZ * 16).toFloat, (bounds.minY * 16).toFloat).endVertex()
+            buffer.vertex(matrix, (bounds.maxX + 0.002).toFloat, bounds.minY.toFloat, bounds.minZ.toFloat).uv((bounds.minZ * 16).toFloat, (bounds.minY * 16).toFloat).endVertex()
+          case Direction.WEST =>
+            buffer.vertex(matrix, (bounds.minX - 0.002).toFloat, bounds.maxY.toFloat, bounds.maxZ.toFloat).uv((bounds.maxZ * 16).toFloat, (bounds.maxY * 16).toFloat).endVertex()
+            buffer.vertex(matrix, (bounds.minX - 0.002).toFloat, bounds.maxY.toFloat, bounds.minZ.toFloat).uv((bounds.minZ * 16).toFloat, (bounds.maxY * 16).toFloat).endVertex()
+            buffer.vertex(matrix, (bounds.minX - 0.002).toFloat, bounds.minY.toFloat, bounds.minZ.toFloat).uv((bounds.minZ * 16).toFloat, (bounds.minY * 16).toFloat).endVertex()
+            buffer.vertex(matrix, (bounds.minX - 0.002).toFloat, bounds.minY.toFloat, bounds.maxZ.toFloat).uv((bounds.maxZ * 16).toFloat, (bounds.minY * 16).toFloat).endVertex()
+          case Direction.SOUTH =>
+            buffer.vertex(matrix, bounds.maxX.toFloat, bounds.maxY.toFloat, (bounds.maxZ + 0.002).toFloat).uv((bounds.maxX * 16).toFloat, (bounds.maxY * 16).toFloat).endVertex()
+            buffer.vertex(matrix, bounds.minX.toFloat, bounds.maxY.toFloat, (bounds.maxZ + 0.002).toFloat).uv((bounds.minX * 16).toFloat, (bounds.maxY * 16).toFloat).endVertex()
+            buffer.vertex(matrix, bounds.minX.toFloat, bounds.minY.toFloat, (bounds.maxZ + 0.002).toFloat).uv((bounds.minX * 16).toFloat, (bounds.minY * 16).toFloat).endVertex()
+            buffer.vertex(matrix, bounds.maxX.toFloat, bounds.minY.toFloat, (bounds.maxZ + 0.002).toFloat).uv((bounds.maxX * 16).toFloat, (bounds.minY * 16).toFloat).endVertex()
           case _ =>
-            r.pos(bounds.minX, bounds.maxY, bounds.minZ - 0.002).tex(bounds.minX * 16, bounds.maxY * 16).endVertex()
-            r.pos(bounds.maxX, bounds.maxY, bounds.minZ - 0.002).tex(bounds.maxX * 16, bounds.maxY * 16).endVertex()
-            r.pos(bounds.maxX, bounds.minY, bounds.minZ - 0.002).tex(bounds.maxX * 16, bounds.minY * 16).endVertex()
-            r.pos(bounds.minX, bounds.minY, bounds.minZ - 0.002).tex(bounds.minX * 16, bounds.minY * 16).endVertex()
+            buffer.vertex(matrix, bounds.minX.toFloat, bounds.maxY.toFloat, (bounds.minZ - 0.002).toFloat).uv((bounds.minX * 16).toFloat, (bounds.maxY * 16).toFloat).endVertex()
+            buffer.vertex(matrix, bounds.maxX.toFloat, bounds.maxY.toFloat, (bounds.minZ - 0.002).toFloat).uv((bounds.maxX * 16).toFloat, (bounds.maxY * 16).toFloat).endVertex()
+            buffer.vertex(matrix, bounds.maxX.toFloat, bounds.minY.toFloat, (bounds.minZ - 0.002).toFloat).uv((bounds.maxX * 16).toFloat, (bounds.minY * 16).toFloat).endVertex()
+            buffer.vertex(matrix, bounds.minX.toFloat, bounds.minY.toFloat, (bounds.minZ - 0.002).toFloat).uv((bounds.minX * 16).toFloat, (bounds.minY * 16).toFloat).endVertex()
         }
-        t.draw()
+        tesselator.end()
 
-        RenderState.disableBlend()
-        RenderState.popAttrib()
-        GlStateManager.popMatrix()
+        RenderSystem.disableBlend()
+        poseStack.popPose()
       }
     }
 
-    if (hitInfo.typeOfHit == RayTraceResult.Type.BLOCK) e.getPlayer.getEntityWorld.getTileEntity(hitInfo.getBlockPos) match {
+    // Handle Print and Cable highlighting
+    if (hitInfo.getType == HitResult.Type.BLOCK) world.getBlockEntity(hitInfo.getBlockPos) match {
       case print: common.tileentity.Print if print.shapes.nonEmpty =>
-        val pos = new Vec3d(
-          e.getPlayer.prevPosX + (e.getPlayer.posX - e.getPlayer.prevPosX) * e.getPartialTicks,
-          e.getPlayer.prevPosY + (e.getPlayer.posY - e.getPlayer.prevPosY) * e.getPartialTicks,
-          e.getPlayer.prevPosZ + (e.getPlayer.posZ - e.getPlayer.prevPosZ) * e.getPartialTicks)
+        val cameraPos = camera.getPosition
         val expansion = 0.002f
 
-        // See RenderGlobal.drawSelectionBox.
-        GlStateManager.enableBlend()
-        OpenGlHelper.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, 1, 1)
-        GlStateManager.color(0, 0, 0, 0.4f)
-        GlStateManager.glLineWidth(2)
-        GlStateManager.disableTexture2D()
-        GlStateManager.depthMask(false)
+        RenderSystem.enableBlend()
+        RenderSystem.defaultBlendFunc()
+        RenderSystem.setShaderColor(0, 0, 0, 0.4f)
+        RenderSystem.lineWidth(2)
+        // RenderSystem.disableTexture() - method removed in 1.20.1
+        RenderSystem.depthMask(false)
 
         for (shape <- print.shapes) {
           val bounds = shape.bounds.rotateTowards(print.facing)
-          RenderGlobal.drawSelectionBoundingBox(bounds.grow(expansion, expansion, expansion)
-            .offset(blockPos.x, blockPos.y, blockPos.z)
-            .offset(-pos.x, -pos.y, -pos.z), 0, 0, 0, 0x66/0xFFf.toFloat)
+          val expandedBounds = bounds.inflate(expansion, expansion, expansion)
+            .move(blockPos.x - cameraPos.x, blockPos.y - cameraPos.y, blockPos.z - cameraPos.z)
+          LevelRenderer.renderLineBox(e.getPoseStack, e.getMultiBufferSource.getBuffer(RenderType.lines()), 
+            expandedBounds, 0, 0, 0, 0.4f)
         }
 
-        GlStateManager.depthMask(true)
-        GlStateManager.enableTexture2D()
-        GlStateManager.disableBlend()
+        RenderSystem.depthMask(true)
+        // RenderSystem.enableTexture() - method removed in 1.20.1
+        RenderSystem.disableBlend()
 
         e.setCanceled(true)
       case cable: common.tileentity.Cable =>
-        // See RenderGlobal.drawSelectionBox.
-        GlStateManager.enableBlend()
-        OpenGlHelper.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, 1, 1)
-        GlStateManager.color(0, 0, 0, 0.4f)
-        GlStateManager.glLineWidth(2)
-        GlStateManager.disableTexture2D()
-        GlStateManager.depthMask(false)
-        GlStateManager.pushMatrix()
+        RenderSystem.enableBlend()
+        RenderSystem.defaultBlendFunc()
+        RenderSystem.setShaderColor(0, 0, 0, 0.4f)
+        RenderSystem.lineWidth(2)
+        // RenderSystem.disableTexture() - method removed in 1.20.1
+        RenderSystem.depthMask(false)
+        
+        val poseStack = e.getPoseStack
+        poseStack.pushPose()
 
-        val player = e.getPlayer
-        GlStateManager.translate(
-          blockPos.x - (player.lastTickPosX + (player.posX - player.lastTickPosX) * e.getPartialTicks),
-          blockPos.y - (player.lastTickPosY + (player.posY - player.lastTickPosY) * e.getPartialTicks),
-          blockPos.z - (player.lastTickPosZ + (player.posZ - player.lastTickPosZ) * e.getPartialTicks)
+        val cameraPos = camera.getPosition
+        poseStack.translate(
+          blockPos.x - cameraPos.x,
+          blockPos.y - cameraPos.y,
+          blockPos.z - cameraPos.z
         )
 
         val mask = common.block.Cable.neighbors(world, hitInfo.getBlockPos)
-        val tesselator = Tessellator.getInstance
-        val buffer = tesselator.getBuffer
+        val tesselator = Tesselator.getInstance
+        val buffer = tesselator.getBuilder
 
-        buffer.begin(GL11.GL_LINES, DefaultVertexFormats.POSITION)
-        Cable.drawOverlay(buffer, mask)
-        tesselator.draw()
+        buffer.begin(com.mojang.blaze3d.vertex.VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION)
+        Cable.drawOverlay(buffer, mask, poseStack.last().pose())
+        tesselator.end()
 
-        GlStateManager.popMatrix()
-        GlStateManager.depthMask(true)
-        GlStateManager.enableTexture2D()
-        GlStateManager.disableBlend()
+        poseStack.popPose()
+        RenderSystem.depthMask(true)
+        // RenderSystem.enableTexture() - method removed in 1.20.1
+        RenderSystem.disableBlend()
 
         e.setCanceled(true)
       case _ =>
@@ -165,80 +172,80 @@ object HighlightRenderer {
     private final val MIN = common.block.Cable.MIN - EXPAND
     private final val MAX = common.block.Cable.MAX + EXPAND
 
-    def drawOverlay(buffer: BufferBuilder, mask: Int): Unit = {
+    def drawOverlay(buffer: VertexConsumer, mask: Int, matrix: org.joml.Matrix4f): Unit = {
       // Draw the cable arms
-      for (side <- EnumFacing.values) {
-        if (((1 << side.getIndex) & mask) != 0) {
-          val offset = if (side.getAxisDirection == EnumFacing.AxisDirection.NEGATIVE) -EXPAND else 1 + EXPAND
-          val centre = if (side.getAxisDirection == EnumFacing.AxisDirection.NEGATIVE) MIN else MAX
+      for (side <- Direction.values()) {
+        if (((1 << side.get3DDataValue()) & mask) != 0) {
+          val offset = if (side.getAxisDirection == Direction.AxisDirection.NEGATIVE) -EXPAND else 1 + EXPAND
+          val centre = if (side.getAxisDirection == Direction.AxisDirection.NEGATIVE) MIN else MAX
 
           // Draw the arm end quad
-          drawLineAdjacent(buffer, side.getAxis, offset, MIN, MIN, MIN, MAX)
-          drawLineAdjacent(buffer, side.getAxis, offset, MIN, MAX, MAX, MAX)
-          drawLineAdjacent(buffer, side.getAxis, offset, MAX, MAX, MAX, MIN)
-          drawLineAdjacent(buffer, side.getAxis, offset, MAX, MIN, MIN, MIN)
+          drawLineAdjacent(buffer, matrix, side.getAxis, offset, MIN, MIN, MIN, MAX)
+          drawLineAdjacent(buffer, matrix, side.getAxis, offset, MIN, MAX, MAX, MAX)
+          drawLineAdjacent(buffer, matrix, side.getAxis, offset, MAX, MAX, MAX, MIN)
+          drawLineAdjacent(buffer, matrix, side.getAxis, offset, MAX, MIN, MIN, MIN)
 
           // Draw the connecting lines to the middle
-          drawLineAlong(buffer, side.getAxis, MIN, MIN, offset, centre)
-          drawLineAlong(buffer, side.getAxis, MAX, MIN, offset, centre)
-          drawLineAlong(buffer, side.getAxis, MAX, MAX, offset, centre)
-          drawLineAlong(buffer, side.getAxis, MIN, MAX, offset, centre)
+          drawLineAlong(buffer, matrix, side.getAxis, MIN, MIN, offset, centre)
+          drawLineAlong(buffer, matrix, side.getAxis, MAX, MIN, offset, centre)
+          drawLineAlong(buffer, matrix, side.getAxis, MAX, MAX, offset, centre)
+          drawLineAlong(buffer, matrix, side.getAxis, MIN, MAX, offset, centre)
         }
       }
 
       // Draw the cable core
-      drawCore(buffer, mask, EnumFacing.WEST, EnumFacing.DOWN, EnumFacing.Axis.Z)
-      drawCore(buffer, mask, EnumFacing.WEST, EnumFacing.UP, EnumFacing.Axis.Z)
-      drawCore(buffer, mask, EnumFacing.EAST, EnumFacing.DOWN, EnumFacing.Axis.Z)
-      drawCore(buffer, mask, EnumFacing.EAST, EnumFacing.UP, EnumFacing.Axis.Z)
+      drawCore(buffer, matrix, mask, Direction.WEST, Direction.DOWN, Direction.Axis.Z)
+      drawCore(buffer, matrix, mask, Direction.WEST, Direction.UP, Direction.Axis.Z)
+      drawCore(buffer, matrix, mask, Direction.EAST, Direction.DOWN, Direction.Axis.Z)
+      drawCore(buffer, matrix, mask, Direction.EAST, Direction.UP, Direction.Axis.Z)
 
-      drawCore(buffer, mask, EnumFacing.WEST, EnumFacing.NORTH, EnumFacing.Axis.Y)
-      drawCore(buffer, mask, EnumFacing.WEST, EnumFacing.SOUTH, EnumFacing.Axis.Y)
-      drawCore(buffer, mask, EnumFacing.EAST, EnumFacing.NORTH, EnumFacing.Axis.Y)
-      drawCore(buffer, mask, EnumFacing.EAST, EnumFacing.SOUTH, EnumFacing.Axis.Y)
+      drawCore(buffer, matrix, mask, Direction.WEST, Direction.NORTH, Direction.Axis.Y)
+      drawCore(buffer, matrix, mask, Direction.WEST, Direction.SOUTH, Direction.Axis.Y)
+      drawCore(buffer, matrix, mask, Direction.EAST, Direction.NORTH, Direction.Axis.Y)
+      drawCore(buffer, matrix, mask, Direction.EAST, Direction.SOUTH, Direction.Axis.Y)
 
-      drawCore(buffer, mask, EnumFacing.DOWN, EnumFacing.NORTH, EnumFacing.Axis.X)
-      drawCore(buffer, mask, EnumFacing.DOWN, EnumFacing.SOUTH, EnumFacing.Axis.X)
-      drawCore(buffer, mask, EnumFacing.UP, EnumFacing.NORTH, EnumFacing.Axis.X)
-      drawCore(buffer, mask, EnumFacing.UP, EnumFacing.SOUTH, EnumFacing.Axis.X)
+      drawCore(buffer, matrix, mask, Direction.DOWN, Direction.NORTH, Direction.Axis.X)
+      drawCore(buffer, matrix, mask, Direction.DOWN, Direction.SOUTH, Direction.Axis.X)
+      drawCore(buffer, matrix, mask, Direction.UP, Direction.NORTH, Direction.Axis.X)
+      drawCore(buffer, matrix, mask, Direction.UP, Direction.SOUTH, Direction.Axis.X)
     }
 
     /** Draw part of the core object */
-    private def drawCore(buffer: BufferBuilder, mask: Int, a: EnumFacing, b: EnumFacing, other: EnumFacing.Axis): Unit = {
+    private def drawCore(buffer: VertexConsumer, matrix: org.joml.Matrix4f, mask: Int, a: Direction, b: Direction, other: Direction.Axis): Unit = {
       if (((mask >> a.ordinal) & 1) != ((mask >> b.ordinal) & 1)) return
 
-      val offA = if (a.getAxisDirection == EnumFacing.AxisDirection.NEGATIVE) MIN else MAX
-      val offB = if (b.getAxisDirection == EnumFacing.AxisDirection.NEGATIVE) MIN else MAX
-      drawLineAlong(buffer, other, offA, offB, MIN, MAX)
+      val offA = if (a.getAxisDirection == Direction.AxisDirection.NEGATIVE) MIN else MAX
+      val offB = if (b.getAxisDirection == Direction.AxisDirection.NEGATIVE) MIN else MAX
+      drawLineAlong(buffer, matrix, other, offA, offB, MIN, MAX)
     }
 
     /** Draw a line parallel to an axis */
-    private def drawLineAlong(buffer: BufferBuilder, axis: EnumFacing.Axis, offA: Double, offB: Double, start: Double, end: Double): Unit = {
+    private def drawLineAlong(buffer: VertexConsumer, matrix: org.joml.Matrix4f, axis: Direction.Axis, offA: Double, offB: Double, start: Double, end: Double): Unit = {
       axis match {
-        case EnumFacing.Axis.X =>
-          buffer.pos(start, offA, offB).endVertex()
-          buffer.pos(end, offA, offB).endVertex()
-        case EnumFacing.Axis.Y =>
-          buffer.pos(offA, start, offB).endVertex()
-          buffer.pos(offA, end, offB).endVertex()
-        case EnumFacing.Axis.Z =>
-          buffer.pos(offA, offB, start).endVertex()
-          buffer.pos(offA, offB, end).endVertex()
+        case Direction.Axis.X =>
+          buffer.vertex(matrix, start.toFloat, offA.toFloat, offB.toFloat).endVertex()
+          buffer.vertex(matrix, end.toFloat, offA.toFloat, offB.toFloat).endVertex()
+        case Direction.Axis.Y =>
+          buffer.vertex(matrix, offA.toFloat, start.toFloat, offB.toFloat).endVertex()
+          buffer.vertex(matrix, offA.toFloat, end.toFloat, offB.toFloat).endVertex()
+        case Direction.Axis.Z =>
+          buffer.vertex(matrix, offA.toFloat, offB.toFloat, start.toFloat).endVertex()
+          buffer.vertex(matrix, offA.toFloat, offB.toFloat, end.toFloat).endVertex()
       }
     }
 
     /** Draw a line perpendicular to an axis */
-    private def drawLineAdjacent(buffer: BufferBuilder, axis: EnumFacing.Axis, offset: Double, startA: Double, startB: Double, endA: Double, endB: Double): Unit = {
+    private def drawLineAdjacent(buffer: VertexConsumer, matrix: org.joml.Matrix4f, axis: Direction.Axis, offset: Double, startA: Double, startB: Double, endA: Double, endB: Double): Unit = {
       axis match {
-        case EnumFacing.Axis.X =>
-          buffer.pos(offset, startA, startB).endVertex()
-          buffer.pos(offset, endA, endB).endVertex()
-        case EnumFacing.Axis.Y =>
-          buffer.pos(startA, offset, startB).endVertex()
-          buffer.pos(endA, offset, endB).endVertex()
-        case EnumFacing.Axis.Z =>
-          buffer.pos(startA, startB, offset).endVertex()
-          buffer.pos(endA, endB, offset).endVertex()
+        case Direction.Axis.X =>
+          buffer.vertex(matrix, offset.toFloat, startA.toFloat, startB.toFloat).endVertex()
+          buffer.vertex(matrix, offset.toFloat, endA.toFloat, endB.toFloat).endVertex()
+        case Direction.Axis.Y =>
+          buffer.vertex(matrix, startA.toFloat, offset.toFloat, startB.toFloat).endVertex()
+          buffer.vertex(matrix, endA.toFloat, offset.toFloat, endB.toFloat).endVertex()
+        case Direction.Axis.Z =>
+          buffer.vertex(matrix, startA.toFloat, startB.toFloat, offset.toFloat).endVertex()
+          buffer.vertex(matrix, endA.toFloat, endB.toFloat, offset.toFloat).endVertex()
       }
     }
   }

@@ -8,12 +8,11 @@ import li.cil.oc.api.event.RobotRenderEvent
 import li.cil.oc.client.renderer.tileentity.RobotRenderer
 import li.cil.oc.util.RenderState
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.GlStateManager
-import net.minecraft.entity.Entity
+import com.mojang.blaze3d.systems.RenderSystem
+import net.minecraft.world.entity.Entity
 import net.minecraftforge.client.event.RenderPlayerEvent
-import net.minecraftforge.fml.common.eventhandler.EventPriority
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
-import net.minecraftforge.fml.common.gameevent.TickEvent.ClientTickEvent
+import net.minecraftforge.eventbus.api.{EventPriority, SubscribeEvent}
+import net.minecraftforge.event.TickEvent.ClientTickEvent
 
 import scala.jdk.CollectionConverters._
 import scala.collection.mutable
@@ -47,45 +46,43 @@ object PetRenderer {
 
   @SubscribeEvent
   def onPlayerRender(e: RenderPlayerEvent.Pre) {
-    val uuid = e.getEntityPlayer.getUniqueID.toString
+    val uuid = e.getEntity.getUUID.toString
     if (hidden.contains(uuid) || !entitledPlayers.contains(uuid)) return
     rendering = Some(entitledPlayers(uuid))
 
-    val worldTime = e.getEntityPlayer.getEntityWorld.getTotalWorldTime
-    val timeJitter = e.getEntityPlayer.hashCode ^ 0xFF
+    val worldTime = e.getEntity.level().getGameTime
+    val timeJitter = e.getEntity.hashCode ^ 0xFF
     val offset = timeJitter + worldTime / 20.0
-    val hover = (math.sin(timeJitter + (worldTime + e.getPartialRenderTick) / 20.0) * 0.03).toFloat
+    val hover = (math.sin(timeJitter + (worldTime + e.getPartialTick) / 20.0) * 0.03).toFloat
 
-    val location = petLocations.get(e.getEntityPlayer, new Callable[PetLocation] {
-      override def call() = new PetLocation(e.getEntityPlayer)
+    val location = petLocations.get(e.getEntity, new Callable[PetLocation] {
+      override def call() = new PetLocation(e.getEntity)
     })
 
-    GlStateManager.pushMatrix()
+    val poseStack = e.getPoseStack
+    poseStack.pushPose()
     RenderState.pushAttrib()
-    val localPos = Minecraft.getMinecraft.player.getPositionEyes(e.getPartialRenderTick)
-    val playerPos = e.getEntityPlayer.getPositionEyes(e.getPartialRenderTick)
-    val correction = 1.62 - (if (e.getEntityPlayer.isSneaking) 0.125 else 0)
-    GlStateManager.translate(
+    val localPos = Minecraft.getInstance.player.getEyePosition(e.getPartialTick)
+    val playerPos = e.getEntity.getEyePosition(e.getPartialTick)
+    val correction = 1.62 - (if (e.getEntity.isCrouching) 0.125 else 0)
+    poseStack.translate(
       playerPos.x - localPos.x,
       playerPos.y - localPos.y + correction,
       playerPos.z - localPos.z)
 
     RenderState.enableEntityLighting()
-    GlStateManager.disableBlend()
-    GlStateManager.enableRescaleNormal()
-    GlStateManager.color(1, 1, 1, 1)
+    RenderSystem.disableBlend()
+    RenderSystem.setShaderColor(1, 1, 1, 1)
 
-    location.applyInterpolatedTransformations(e.getPartialRenderTick)
+    location.applyInterpolatedTransformations(e.getPartialTick, poseStack)
 
-    GlStateManager.scale(0.3f, 0.3f, 0.3f)
-    GlStateManager.translate(0, hover, 0)
+    poseStack.scale(0.3f, 0.3f, 0.3f)
+    poseStack.translate(0, hover, 0)
 
     RobotRenderer.renderChassis(null, offset, isRunningOverride = true)
 
-    GlStateManager.disableRescaleNormal()
-
     RenderState.popAttrib()
-    GlStateManager.popMatrix()
+    poseStack.popPose()
 
     rendering = None
   }
@@ -93,7 +90,7 @@ object PetRenderer {
   @SubscribeEvent(priority = EventPriority.LOWEST)
   def onRobotRender(e: RobotRenderEvent) {
     rendering match {
-      case Some((r, g, b)) => GlStateManager.color(r.toFloat, g.toFloat, b.toFloat)
+      case Some((r, g, b)) => RenderSystem.setShaderColor(r.toFloat, g.toFloat, b.toFloat, 1.0f)
       case _ =>
     }
   }
@@ -102,7 +99,7 @@ object PetRenderer {
     var x = 0.0
     var y = 0.0
     var z = 0.0
-    var yaw = owner.rotationYaw
+    var yaw = owner.getYRot
 
     var lastX = x
     var lastY = y
@@ -110,10 +107,10 @@ object PetRenderer {
     var lastYaw = yaw
 
     def update() {
-      val dx = owner.lastTickPosX - owner.posX
-      val dy = owner.lastTickPosY - owner.posY
-      val dz = owner.lastTickPosZ - owner.posZ
-      val dYaw = owner.rotationYaw - yaw
+      val dx = owner.xOld - owner.getX
+      val dy = owner.yOld - owner.getY
+      val dz = owner.zOld - owner.getZ
+      val dYaw = owner.getYRot - yaw
       lastX = x
       lastY = y
       lastZ = z
@@ -127,23 +124,23 @@ object PetRenderer {
       yaw += dYaw * 0.2f
     }
 
-    def applyInterpolatedTransformations(dt: Float) {
+    def applyInterpolatedTransformations(dt: Float, poseStack: com.mojang.blaze3d.vertex.PoseStack) {
       val ix = lastX + (x - lastX) * dt
       val iy = lastY + (y - lastY) * dt
       val iz = lastZ + (z - lastZ) * dt
       val iYaw = lastYaw + (yaw - lastYaw) * dt
 
-      GlStateManager.translate(ix, iy, iz)
+      poseStack.translate(ix, iy, iz)
       if (!isForInventory) {
-        GlStateManager.rotate(-iYaw, 0, 1, 0)
+        poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-iYaw))
       }
       else {
-        GlStateManager.rotate(-owner.rotationYaw, 0, 1, 0)
+        poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-owner.getYRot))
       }
-      GlStateManager.translate(0.3, -0.1, -0.2)
+      poseStack.translate(0.3, -0.1, -0.2)
     }
 
-    private def isForInventory = Minecraft.getMinecraft.currentScreen != null && owner == Minecraft.getMinecraft.player
+    private def isForInventory = Minecraft.getInstance.screen != null && owner == Minecraft.getInstance.player
   }
 
   @SubscribeEvent

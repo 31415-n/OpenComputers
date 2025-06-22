@@ -29,7 +29,7 @@ object ExtendedWorld {
 
     def getTileEntity(host: EnvironmentHost): BlockEntity = getTileEntity(BlockPosition(host))
 
-    def isAirBlock(position: BlockPosition) = world.isEmptyBlock(position.toBlockPos)
+    def isAirBlock(position: BlockPosition) = world.getBlockState(position.toBlockPos).isAir
 
     def getLightBrightnessForSkyBlocks(position: BlockPosition, minBrightness: Int) = world.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, position.toBlockPos)
   }
