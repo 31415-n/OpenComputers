@@ -37,3 +37,7 @@
 .amazonq
 PORTING_PROGRESS.md
 original_code_of_1.12.2
+
+# Exclude all .md files in root except README.md
+/*.md
+!README.md

@@ -17,7 +17,7 @@ trait WidgetContainer {
 
   def windowZ = 0f
 
-  def drawWidgets() {
-    widgets.foreach(_.draw())
+  def renderWidgets(guiGraphics: net.minecraft.client.gui.GuiGraphics): Unit = {
+    widgets.foreach(_.render(guiGraphics))
   }
 }

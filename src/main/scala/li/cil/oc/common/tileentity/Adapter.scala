@@ -22,12 +22,21 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.core.Direction
 import net.minecraft.sounds.SoundSource
+import net.minecraft.core.BlockPos
+import net.minecraft.world.level.block.state.BlockState
 import net.minecraftforge.common.util.Constants.NBT
 
 import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
-class Adapter extends traits.Environment with traits.ComponentInventory with traits.Tickable with traits.OpenSides with Analyzable with internal.Adapter with DeviceInfo {
+class Adapter(pos: BlockPos, state: BlockState) extends traits.Environment with traits.ComponentInventory with traits.Tickable with traits.OpenSides with Analyzable with internal.Adapter with DeviceInfo {
+  
+  // Default constructor for compatibility
+  def this() = this(BlockPos.ZERO, null)
+  
+  // Initialize position and state for the tile entity
+  this.setBlockPos(pos)
+  this.setBlockState(state)
   val node = api.Network.newNode(this, Visibility.Network).create()
 
   private val blocks = Array.fill[Option[(ManagedEnvironment, DriverBlock)]](6)(None)
@@ -53,11 +62,11 @@ class Adapter extends traits.Environment with traits.ComponentInventory with tra
     super.setSideOpen(side, value)
     if (isServer) {
       ServerPacketSender.sendAdapterState(this)
-      getWorld.playSound(null, x + 0.5, y + 0.5, z + 0.5, SoundEvents.PISTON_EXTEND, SoundSource.BLOCKS, 0.5f, getWorld.getRandom.nextFloat() * 0.25f + 0.7f)
-      getWorld.updateNeighborsAt(getPos, getBlockState.getBlock)
+      getLevel.playSound(null, getBlockPos.getX + 0.5, getBlockPos.getY + 0.5, getBlockPos.getZ + 0.5, SoundEvents.PISTON_EXTEND, SoundSource.BLOCKS, 0.5f, getLevel.getRandom.nextFloat() * 0.25f + 0.7f)
+      getLevel.updateNeighborsAt(getBlockPos, getBlockState.getBlock)
       neighborChanged(side)
     } else {
-      getWorld.sendBlockUpdated(getPos, getWorld.getBlockState(getPos), getWorld.getBlockState(getPos), 3)
+      getLevel.sendBlockUpdated(getBlockPos, getLevel.getBlockState(getBlockPos), getLevel.getBlockState(getBlockPos), 3)
     }
   }
 
@@ -85,8 +94,8 @@ class Adapter extends traits.Environment with traits.ComponentInventory with tra
 
   def neighborChanged(d: Direction) {
     if (node != null && node.network != null) {
-      val blockPos = getPos.relative(d)
-      getWorld.getBlockEntity(blockPos) match {
+      val blockPos = getBlockPos.relative(d)
+      getLevel.getBlockEntity(blockPos) match {
         case _: traits.Environment =>
         // Don't provide adaption for our stuffs. This is mostly to avoid
         // cables and other non-functional stuff popping up in the adapter
@@ -94,7 +103,7 @@ class Adapter extends traits.Environment with traits.ComponentInventory with tra
         // but the only 'downside' is that it can't be used to manipulate
         // inventories, which I actually consider a plus :P
         case _ =>
-          Option(api.Driver.driverFor(getWorld, blockPos, d)) match {
+          Option(api.Driver.driverFor(getLevel, blockPos, d)) match {
             case Some(newDriver) if isSideOpen(d) => blocks(d.ordinal()) match {
               case Some((oldEnvironment, driver)) =>
                 if (newDriver != driver) {
@@ -105,7 +114,7 @@ class Adapter extends traits.Environment with traits.ComponentInventory with tra
                   node.disconnect(oldEnvironment.node)
 
                   // Then rebuild - if we have something.
-                  val environment = newDriver.createEnvironment(getWorld, blockPos, d)
+                  val environment = newDriver.createEnvironment(getLevel, blockPos, d)
                   if (environment != null) {
                     blocks(d.ordinal()) = Some((environment, newDriver))
                     if (environment.canUpdate) {
@@ -120,7 +129,7 @@ class Adapter extends traits.Environment with traits.ComponentInventory with tra
                   return
                 }
                 // A challenger appears. Maybe.
-                val environment = newDriver.createEnvironment(getWorld, blockPos, d)
+                val environment = newDriver.createEnvironment(getLevel, blockPos, d)
                 if (environment != null) {
                   blocks(d.ordinal()) = Some((environment, newDriver))
                   if (environment.canUpdate) {
@@ -176,9 +185,9 @@ class Adapter extends traits.Environment with traits.ComponentInventory with tra
 
   // ----------------------------------------------------------------------- //
 
-  override def getSizeInventory = 1
+  override def getContainerSize = 1
 
-  override def isItemValidForSlot(slot: Int, stack: ItemStack) = (slot, Option(Driver.driverFor(stack, getClass))) match {
+  override def canPlaceItem(slot: Int, stack: ItemStack) = (slot, Option(Driver.driverFor(stack, getClass))) match {
     case (0, Some(driver)) => driver.slot(stack) == Slot.Upgrade
     case _ => false
   }

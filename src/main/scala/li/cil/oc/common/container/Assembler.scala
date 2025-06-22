@@ -6,16 +6,16 @@ import li.cil.oc.common.InventorySlots.InventorySlot
 import li.cil.oc.common.template.AssemblerTemplates
 import li.cil.oc.common.tileentity
 import net.minecraft.world.entity.player.Inventory
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraftforge.fml.relauncher.Side
-import net.minecraftforge.fml.relauncher.SideOnly
+import net.minecraft.nbt.CompoundTag
+import net.minecraftforge.api.distmarker.Dist
+import net.minecraftforge.api.distmarker.OnlyIn
 
 class Assembler(playerInventory: Inventory, val assembler: tileentity.Assembler) extends Player(playerInventory, assembler) {
   // Computer case.
   {
     val index = inventorySlots.size
     addSlotToContainer(new StaticComponentSlot(this, otherInventory, index, 12, 12, "template", common.Tier.Any) {
-      @SideOnly(Side.CLIENT) override
+      @OnlyIn(Dist.CLIENT) override
       def isEnabled = !isAssembling && super.isEnabled
 
       override def getBackgroundLocation = if (isAssembling) Textures.Icons.get(common.Tier.None) else super.getBackgroundLocation
@@ -71,12 +71,12 @@ class Assembler(playerInventory: Inventory, val assembler: tileentity.Assembler)
 
   def assemblyProgress = synchronizedData.getDouble("assemblyProgress")
 
-  def assemblyRemainingTime = synchronizedData.getInteger("assemblyRemainingTime")
+  def assemblyRemainingTime = synchronizedData.getInt("assemblyRemainingTime")
 
-  override protected def detectCustomDataChanges(nbt: NBTTagCompound): Unit = {
+  override protected def detectCustomDataChanges(nbt: CompoundTag): Unit = {
     synchronizedData.setBoolean("isAssembling", assembler.isAssembling)
     synchronizedData.setDouble("assemblyProgress", assembler.progress)
-    synchronizedData.setInteger("assemblyRemainingTime", assembler.timeRemaining)
+    synchronizedData.putInt("assemblyRemainingTime", assembler.timeRemaining)
     super.detectCustomDataChanges(nbt)
   }
 }

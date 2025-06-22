@@ -9,82 +9,90 @@ import li.cil.oc.common.container.ComponentSlot
 import li.cil.oc.common.template.AssemblerTemplates
 import li.cil.oc.common.tileentity
 import li.cil.oc.util.RenderState
-import net.minecraft.client.gui.GuiButton
-import net.minecraft.client.renderer.GlStateManager
+import net.minecraft.client.gui.components.Button
+import net.minecraft.client.gui.GuiGraphics
+import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.world.entity.player.Inventory
-import net.minecraft.inventory.Slot
-import net.minecraft.util.text.ITextComponent
+import net.minecraft.world.inventory.Slot
+import net.minecraft.network.chat.Component
 
 import scala.jdk.CollectionConverters._
 
 class Assembler(playerInventory: Inventory, val assembler: tileentity.Assembler) extends DynamicGuiContainer(new container.Assembler(playerInventory, assembler)) {
-  xSize = 176
-  ySize = 192
+  imageWidth = 176
+  imageHeight = 192
 
-  for (slot <- inventorySlots.inventorySlots) slot match {
+  for (slot <- menu.slots.asScala) slot match {
     case component: ComponentSlot => component.changeListener = Option(onSlotChanged)
     case _ =>
   }
 
-  private def onSlotChanged(slot: Slot) {
+  private def onSlotChanged(slot: Slot): Unit = {
     runButton.enabled = canBuild
     runButton.toggled = !runButton.enabled
     info = validate
   }
 
-  var info: Option[(Boolean, ITextComponent, Array[ITextComponent])] = None
+  var info: Option[(Boolean, Component, Array[Component])] = None
 
   protected var runButton: ImageButton = _
 
   private val progress = addWidget(new ProgressBar(28, 92))
 
-  private def validate = AssemblerTemplates.select(inventoryContainer.getSlot(0).getStack).map(_.validate(inventoryContainer.otherInventory))
+  private def validate = AssemblerTemplates.select(menu.getSlot(0).getItem).map(_.validate(menu.asInstanceOf[container.Assembler].assembler))
 
-  private def canBuild = !inventoryContainer.isAssembling && validate.exists(_._1)
+  private def canBuild = !menu.asInstanceOf[container.Assembler].isAssembling && validate.exists(_._1)
 
-  protected override def actionPerformed(button: GuiButton) {
-    if (button.id == 0 && canBuild) {
-      ClientPacketSender.sendRobotAssemblerStart(assembler)
-    }
-  }
-
-  override def initGui() {
-    super.initGui()
-    runButton = new ImageButton(0, guiLeft + 7, guiTop + 89, 18, 18, Textures.GUI.ButtonRun, canToggle = true)
-    add(buttonList, runButton)
+  override def init(): Unit = {
+    super.init()
+    runButton = new ImageButton(leftPos + 7, topPos + 89, 18, 18, Textures.GUI.ButtonRun, canToggle = true, onPress = _ => {
+      if (canBuild) {
+        ClientPacketSender.sendRobotAssemblerStart(assembler)
+      }
+    })
+    addRenderableWidget(runButton)
   }
 
   override def drawSecondaryForegroundLayer(mouseX: Int, mouseY: Int): Unit = {
-    RenderState.pushAttrib()
-    if (!inventoryContainer.isAssembling) {
+    super.drawSecondaryForegroundLayer(mouseX, mouseY)
+    
+    val assemblerContainer = menu.asInstanceOf[container.Assembler]
+    if (!assemblerContainer.isAssembling) {
       val message =
-        if (!inventoryContainer.getSlot(0).getHasStack) {
+        if (menu.getSlot(0).getItem.isEmpty) {
           Localization.Assembler.InsertTemplate
         }
         else info match {
-          case Some((_, value, _)) if value != null => value.getUnformattedText
-          case _ if inventoryContainer.getSlot(0).getHasStack => Localization.Assembler.CollectResult
+          case Some((_, value, _)) if value != null => value.getString
+          case _ if !menu.getSlot(0).getItem.isEmpty => Localization.Assembler.CollectResult
           case _ => ""
         }
-      fontRenderer.drawString(message, 30, 94, 0x404040)
-      if (runButton.isMouseOver) {
-        val tooltip = new java.util.ArrayList[String]
-        tooltip.add(Localization.Assembler.Run)
-        info.foreach {
-          case (valid, _, warnings) => if (valid && warnings.length > 0) {
-            tooltip.addAll(warnings.map(_.getUnformattedText).toList)
-          }
-        }
-        copiedDrawHoveringText(tooltip, mouseX - guiLeft, mouseY - guiTop, fontRenderer)
+      if (message.nonEmpty) {
+        guiGraphics.drawString(font, message, 30, 94, 0x404040)
       }
     }
-    else if (isPointInRegion(progress.x, progress.y, progress.width, progress.height, mouseX, mouseY)) {
-      val tooltip = new java.util.ArrayList[String]
-      val timeRemaining = formatTime(inventoryContainer.assemblyRemainingTime)
-      tooltip.add(Localization.Assembler.Progress(inventoryContainer.assemblyProgress, timeRemaining))
-      copiedDrawHoveringText(tooltip, mouseX - guiLeft, mouseY - guiTop, fontRenderer)
+  }
+  
+  override def render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTicks: Float): Unit = {
+    super.render(guiGraphics, mouseX, mouseY, partialTicks)
+    
+    val assemblerContainer = menu.asInstanceOf[container.Assembler]
+    // Handle tooltips
+    if (!assemblerContainer.isAssembling && runButton.isMouseOver(mouseX, mouseY)) {
+      val tooltip = new java.util.ArrayList[Component]
+      tooltip.add(Component.literal(Localization.Assembler.Run))
+      info.foreach {
+        case (valid, _, warnings) => if (valid && warnings.length > 0) {
+          warnings.foreach(warning => tooltip.add(warning))
+        }
+      }
+      guiGraphics.renderTooltip(font, tooltip.asScala.map(_.getVisualOrderText).toList.asJava, mouseX, mouseY)
     }
-    RenderState.popAttrib()
+    else if (assemblerContainer.isAssembling && isHovering(progress.x, progress.y, progress.width, progress.height, mouseX, mouseY)) {
+      val timeRemaining = formatTime(assemblerContainer.assemblyRemainingTime)
+      val tooltip = Component.literal(Localization.Assembler.Progress(assemblerContainer.assemblyProgress, timeRemaining))
+      guiGraphics.renderTooltip(font, tooltip, mouseX, mouseY)
+    }
   }
 
   private def formatTime(seconds: Int) = {
@@ -93,15 +101,15 @@ class Assembler(playerInventory: Inventory, val assembler: tileentity.Assembler)
     else f"${seconds / 60}:${seconds % 60}%02d"
   }
 
-  override def drawGuiContainerBackgroundLayer(dt: Float, mouseX: Int, mouseY: Int) {
-    GlStateManager.color(1, 1, 1) // Required under Linux.
-    Textures.bind(Textures.GUI.RobotAssembler)
-    drawTexturedModalRect(guiLeft, guiTop, 0, 0, xSize, ySize)
-    if (inventoryContainer.isAssembling) progress.level = inventoryContainer.assemblyProgress / 100.0
+  override def renderBg(guiGraphics: GuiGraphics, dt: Float, mouseX: Int, mouseY: Int): Unit = {
+    RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f) // Required under Linux.
+    guiGraphics.blit(Textures.GUI.RobotAssembler, leftPos, topPos, 0, 0, imageWidth, imageHeight)
+    val assemblerContainer = menu.asInstanceOf[container.Assembler]
+    if (assemblerContainer.isAssembling) progress.level = assemblerContainer.assemblyProgress / 100.0
     else progress.level = 0
-    drawWidgets()
-    drawInventorySlots()
+    drawInventorySlots(guiGraphics)
+    renderWidgets(guiGraphics)
   }
 
-  override protected def drawDisabledSlot(slot: ComponentSlot) {}
+  override protected def drawDisabledSlot(slot: ComponentSlot): Unit = {}
 }
