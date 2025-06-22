@@ -2,12 +2,14 @@
 /.gradle
 /build
 
+
 # Eclipse
 /.classpath
 /.project
 /.settings
 /bin
 .eclipse
+.amazonq
 
 # IntelliJ IDEA
 /*.iml
