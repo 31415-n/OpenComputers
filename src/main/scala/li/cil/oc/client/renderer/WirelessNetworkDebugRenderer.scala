@@ -4,32 +4,33 @@ import li.cil.oc.Settings
 import li.cil.oc.server.network.WirelessNetwork
 import li.cil.oc.util.{OCObfuscationReflectionHelper, RenderState}
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.GlStateManager
-import net.minecraft.world.World
-import net.minecraftforge.client.event.RenderWorldLastEvent
-import net.minecraftforge.fml.common.ObfuscationReflectionHelper
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
+import com.mojang.blaze3d.systems.RenderSystem
+import net.minecraft.world.level.Level
+import net.minecraftforge.client.event.RenderLevelStageEvent
+import net.minecraftforge.eventbus.api.SubscribeEvent
 import org.lwjgl.opengl.GL11
 
 object WirelessNetworkDebugRenderer {
   val colors = Array(0xFF0000, 0x00FFFF, 0x00FF00, 0x0000FF, 0xFF00FF, 0xFFFF00, 0xFFFFFF, 0x000000)
 
   @SubscribeEvent
-  def onRenderWorldLastEvent(e: RenderWorldLastEvent) {
-    if (Settings.rTreeDebugRenderer) {
-      RenderState.checkError(getClass.getName + ".onRenderWorldLastEvent: entering (aka: wasntme)")
+  def onRenderLevelStage(e: RenderLevelStageEvent) {
+    if (Settings.rTreeDebugRenderer && e.getStage == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
+      RenderState.checkError(getClass.getName + ".onRenderLevelStage: entering (aka: wasntme)")
 
-      val world = OCObfuscationReflectionHelper.getPrivateValue(classOf[net.minecraft.client.renderer.RenderGlobal], e.getContext, "field_72769_h").asInstanceOf[World]
-      WirelessNetwork.dimensions.get(world.provider.getDimension) match {
+      val world = e.getLevelRenderer.getLevel
+      WirelessNetwork.dimensions.get(world.dimension().location().toString.hashCode) match {
         case Some(tree) =>
-          val mc = Minecraft.getMinecraft
+          val mc = Minecraft.getInstance()
           val player = mc.player
-          val px = player.lastTickPosX + (player.posX - player.lastTickPosX) * e.getPartialTicks
-          val py = player.lastTickPosY + (player.posY - player.lastTickPosY) * e.getPartialTicks
-          val pz = player.lastTickPosZ + (player.posZ - player.lastTickPosZ) * e.getPartialTicks
+          val camera = e.getCamera
+          val px = camera.getPosition.x
+          val py = camera.getPosition.y
+          val pz = camera.getPosition.z
 
           RenderState.pushAttrib()
-          GlStateManager.pushMatrix()
+          val poseStack = e.getPoseStack
+          poseStack.pushPose()
           GL11.glTranslated(-px, -py, -pz)
           RenderState.makeItBlend()
           GL11.glDisable(GL11.GL_LIGHTING)
@@ -92,11 +93,11 @@ object WirelessNetworkDebugRenderer {
           GL11.glPolygonMode(GL11.GL_FRONT_AND_BACK, GL11.GL_FILL)
 
           RenderState.popAttrib()
-          GlStateManager.popMatrix()
+          poseStack.popPose()
         case _ =>
       }
 
-      RenderState.checkError(getClass.getName + ".onRenderWorldLastEvent: leaving")
+      RenderState.checkError(getClass.getName + ".onRenderLevelStage: leaving")
     }
   }
 

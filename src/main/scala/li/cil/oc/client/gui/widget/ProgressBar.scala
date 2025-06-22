@@ -29,7 +29,7 @@ class ProgressBar(val x: Int, val y: Int) extends Widget {
       val v1 = 1.0f
       
       // Use blit with UV coordinates for proper texture mapping
-      guiGraphics.blit(barTexture, tx, ty, u0, v0, w, height, 1.0f, 1.0f)
+      guiGraphics.blit(barTexture, tx, ty, 0, 0, w, height)
     }
   }
 }

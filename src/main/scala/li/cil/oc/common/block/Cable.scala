@@ -32,7 +32,7 @@ class Cable(protected implicit val tileTag: ClassTag[tileentity.Cable]) extends 
 
   // ----------------------------------------------------------------------- //
 
-  // In 1.20.1, we use block entity data for dynamic properties instead of extended block states
+  // In 1.20.1, we use ModelData for dynamic properties instead of extended block states
   override def createBlockState() = {
     import net.minecraft.world.level.block.state.StateDefinition
     val builder = new StateDefinition.Builder[Block, BlockState](this)
@@ -40,24 +40,29 @@ class Cable(protected implicit val tileTag: ClassTag[tileentity.Cable]) extends 
     builder.create(Block.BLOCK_STATE_REGISTRY, BlockState.CODEC)
   }
 
-  // Dynamic properties are now handled through block entity data
-  def getCableNeighbors(world: BlockGetter, pos: BlockPos): Int = Cable.neighbors(world, pos)
-  
-  def getCableColor(world: BlockGetter, pos: BlockPos): Int = {
+  // Provide ModelData for rendering
+  override def getModelData(world: net.minecraft.world.level.BlockAndTintGetter, pos: BlockPos, state: BlockState, tileData: net.minecraftforge.client.model.data.ModelData): net.minecraftforge.client.model.data.ModelData = {
+    import li.cil.oc.client.renderer.block.CableModel
+    
     world.getBlockEntity(pos) match {
-      case cable: tileentity.Cable => cable.getColor
-      case _ => 0
+      case cable: tileentity.Cable =>
+        val neighbors = Cable.neighbors(world, pos)
+        val color = cable.getColor
+        var isCableMask = 0
+        
+        for (side <- Direction.values()) {
+          if (world.getBlockEntity(pos.relative(side)).isInstanceOf[tileentity.Cable]) {
+            isCableMask = Cable.mask(side, isCableMask)
+          }
+        }
+        
+        tileData.derive()
+          .`with`(CableModel.NEIGHBORS_PROPERTY, Integer.valueOf(neighbors))
+          .`with`(CableModel.COLOR_PROPERTY, Integer.valueOf(color))
+          .`with`(CableModel.IS_SIDE_CABLE_PROPERTY, Integer.valueOf(isCableMask))
+          .build()
+      case _ => tileData
     }
-  }
-  
-  def getIsSideCable(world: BlockGetter, pos: BlockPos): Int = {
-    var isCableMask = 0
-    for (side <- Direction.values()) {
-      if (world.getBlockEntity(pos.relative(side)).isInstanceOf[tileentity.Cable]) {
-        isCableMask = Cable.mask(side, isCableMask)
-      }
-    }
-    isCableMask
   }
 
   // ----------------------------------------------------------------------- //

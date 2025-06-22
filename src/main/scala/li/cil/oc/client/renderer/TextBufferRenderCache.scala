@@ -70,7 +70,6 @@ object TextBufferRenderCache extends Callable[Int] with RemovalListener[BlockEnt
     }
     else {
       GL11.glCallList(list)
-      RenderSystem.enableTexture()
       RenderSystem.depthMask(true)
       RenderSystem.setShaderColor(1, 1, 1, 1)
 

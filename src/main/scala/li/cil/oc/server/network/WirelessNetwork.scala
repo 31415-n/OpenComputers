@@ -7,34 +7,34 @@ import li.cil.oc.util.ExtendedBlock._
 import li.cil.oc.util.ExtendedWorld._
 import li.cil.oc.util.RTree
 import net.minecraft.util.math.Vec3d
-import net.minecraftforge.event.world.ChunkEvent
-import net.minecraftforge.event.world.WorldEvent
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
+import net.minecraftforge.event.level.ChunkEvent
+import net.minecraftforge.event.level.LevelEvent
+import net.minecraftforge.eventbus.api.SubscribeEvent
 
-import scala.collection.convert.WrapAsScala._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 object WirelessNetwork {
   val dimensions = mutable.Map.empty[Int, RTree[WirelessEndpoint]]
 
   @SubscribeEvent
-  def onWorldUnload(e: WorldEvent.Unload) {
-    if (!e.getWorld.isRemote) {
-      dimensions.remove(e.getWorld.provider.getDimension)
+  def onWorldUnload(e: LevelEvent.Unload) {
+    if (!e.getLevel.isClientSide) {
+      dimensions.remove(e.getLevel.dimension().location().toString.hashCode)
     }
   }
 
   @SubscribeEvent
-  def onWorldLoad(e: WorldEvent.Load) {
-    if (!e.getWorld.isRemote) {
-      dimensions.remove(e.getWorld.provider.getDimension)
+  def onWorldLoad(e: LevelEvent.Load) {
+    if (!e.getLevel.isClientSide) {
+      dimensions.remove(e.getLevel.dimension().location().toString.hashCode)
     }
   }
 
   // Safety clean up, in case some tile entities didn't properly leave the net.
   @SubscribeEvent
   def onChunkUnload(e: ChunkEvent.Unload) {
-    e.getChunk.getTileEntityMap.values.foreach {
+    e.getChunk.getBlockEntities.values().asScala.foreach {
       case endpoint: WirelessEndpoint => remove(endpoint)
       case _ =>
     }
@@ -91,7 +91,7 @@ object WirelessNetwork {
     }
   }
 
-  private def dimension(endpoint: WirelessEndpoint) = endpoint.world.provider.getDimension
+  private def dimension(endpoint: WirelessEndpoint) = endpoint.world.dimension().location().toString.hashCode
 
   private def offset(endpoint: WirelessEndpoint, value: Double) =
     (endpoint.x + 0.5 + value, endpoint.y + 0.5 + value, endpoint.z + 0.5 + value)

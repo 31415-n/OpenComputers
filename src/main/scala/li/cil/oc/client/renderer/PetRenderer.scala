@@ -146,8 +146,6 @@ object PetRenderer {
   @SubscribeEvent
   def tickStart(e: ClientTickEvent) {
     petLocations.cleanUp()
-    for (pet <- petLocations.asMap.values) {
-      pet.update()
-    }
+    petLocations.asMap.values.asScala.foreach(_.update())
   }
 }

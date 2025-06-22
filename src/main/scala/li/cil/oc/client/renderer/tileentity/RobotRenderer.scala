@@ -14,9 +14,9 @@ import li.cil.oc.util.StackOption
 import li.cil.oc.util.StackOption._
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer._
-import net.minecraft.client.renderer.block.model.ItemCameraTransforms.TransformType
-import net.minecraft.client.renderer.entity.RenderLivingBase
-import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderer
+import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider
+import net.minecraft.world.item.ItemDisplayContext
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats
 import net.minecraft.client.renderer.vertex.VertexFormat
 import net.minecraft.client.renderer.vertex.VertexFormatElement
@@ -34,7 +34,9 @@ import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.language.implicitConversions
 
-object RobotRenderer extends TileEntitySpecialRenderer[tileentity.RobotProxy] {
+class RobotRenderer(context: BlockEntityRendererProvider.Context) extends BlockEntityRenderer[tileentity.RobotProxy] {
+
+object RobotRenderer {
   private val displayList = GLAllocation.generateDisplayLists(2)
 
   private val mountPoints = new Array[RobotRenderEvent.MountPoint](7)
@@ -291,7 +293,11 @@ object RobotRenderer extends TileEntitySpecialRenderer[tileentity.RobotProxy] {
     }
   }
 
-  override def render(proxy: tileentity.RobotProxy, x: Double, y: Double, z: Double, f: Float, damage: Int, alpha: Float) {
+  override def render(proxy: tileentity.RobotProxy, partialTick: Float, poseStack: com.mojang.blaze3d.vertex.PoseStack, bufferSource: net.minecraft.client.renderer.MultiBufferSource, packedLight: Int, packedOverlay: Int): Unit = {
+    val x = 0.0
+    val y = 0.0
+    val z = 0.0
+    val f = partialTick
     RenderState.checkError(getClass.getName + ".render: entering (aka: wasntme)")
 
     val robot = proxy.robot
@@ -503,4 +509,5 @@ object RobotRenderer extends TileEntitySpecialRenderer[tileentity.RobotProxy] {
 
     RenderState.checkError(getClass.getName + ".render: leaving")
   }
+}
 }
