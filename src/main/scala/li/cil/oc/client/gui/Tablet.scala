@@ -8,10 +8,11 @@ import net.minecraft.world.entity.player.Inventory
 class Tablet(playerInventory: Inventory, val tablet: TabletWrapper) extends DynamicGuiContainer(new container.Tablet(playerInventory, tablet)) with traits.LockedHotbar {
   override def lockedStack = tablet.stack
 
-  override def drawSecondaryForegroundLayer(mouseX: Int, mouseY: Int) = {
+  override def drawSecondaryForegroundLayer(mouseX: Int, mouseY: Int): Unit = {
     super.drawSecondaryForegroundLayer(mouseX, mouseY)
-    fontRenderer.drawString(
-      Localization.localizeImmediately(tablet.getName),
+    guiGraphics.drawString(
+      font,
+      Localization.localizeImmediately(tablet.getDisplayName.getString),
       8, 6, 0x404040)
   }
 }

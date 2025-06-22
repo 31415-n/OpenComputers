@@ -14,54 +14,59 @@ import net.minecraft.world.entity.player.Inventory
 import scala.jdk.CollectionConverters._
 
 class Server(playerInventory: Inventory, serverInventory: ServerInventory, val rack: Option[tileentity.Rack] = None, val slot: Int = 0) extends DynamicGuiContainer(new container.Server(playerInventory, serverInventory)) with traits.LockedHotbar {
+  
+  private def serverContainer = menu.asInstanceOf[container.Server]
   protected var powerButton: ImageButton = _
 
   override def lockedStack = serverInventory.container
 
   protected override def actionPerformed(button: Button): Unit = {
-    if (button.id == 0) {
+    // Button ID system changed in 1.20.1, use button instance comparison
+    if (button == powerButton) {
       rack match {
-        case Some(t) => ClientPacketSender.sendServerPower(t, slot, !inventoryContainer.isRunning)
+        case Some(t) => ClientPacketSender.sendServerPower(t, slot, !serverContainer.isRunning)
         case _ =>
       }
     }
   }
 
-  override def drawScreen(mouseX: Int, mouseY: Int, dt: Float) {
+  override def render(guiGraphics: net.minecraft.client.gui.GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float): Unit = {
     // Close GUI if item is removed from rack.
     rack match {
-      case Some(t) if t.getStackInSlot(slot) != serverInventory.container =>
+      case Some(t) if t.getItem(slot) != serverInventory.container =>
         Minecraft.getInstance().setScreen(null)
         return
       case _ =>
     }
 
-    powerButton.visible = !inventoryContainer.isItem
-    powerButton.toggled = inventoryContainer.isRunning
-    super.drawScreen(mouseX, mouseY, dt)
+    powerButton.visible = !serverContainer.isItem
+    powerButton.setToggled(serverContainer.isRunning)
+    super.render(guiGraphics, mouseX, mouseY, partialTick)
   }
 
-  override def initGui() {
-    super.initGui()
-    powerButton = new ImageButton(0, guiLeft + 48, guiTop + 33, 18, 18, Textures.GUI.ButtonPower, canToggle = true)
+  override def init(): Unit = {
+    super.init()
+    powerButton = new ImageButton(leftPos + 48, topPos + 33, 18, 18, Textures.GUI.ButtonPower, canToggle = true)
     addRenderableWidget(powerButton)
   }
 
-  override def drawSecondaryForegroundLayer(mouseX: Int, mouseY: Int) {
+  override def drawSecondaryForegroundLayer(mouseX: Int, mouseY: Int): Unit = {
     super.drawSecondaryForegroundLayer(mouseX, mouseY)
-    fontRenderer.drawString(
-      Localization.localizeImmediately(serverInventory.getName),
+    guiGraphics.drawString(
+      font,
+      Localization.localizeImmediately(serverInventory.getDisplayName.getString),
       8, 6, 0x404040)
-    if (powerButton.isMouseOver) {
-      val tooltip = new java.util.ArrayList[String]
-      tooltip.addAll((if (inventoryContainer.isRunning) Localization.Computer.TurnOff.lines else Localization.Computer.TurnOn.lines).asJava)
-      copiedDrawHoveringText(tooltip, mouseX - guiLeft, mouseY - guiTop, fontRenderer)
-  }
+    if (powerButton.isMouseOver(mouseX, mouseY)) {
+      val tooltip = new java.util.ArrayList[net.minecraft.network.chat.Component]
+      val lines = if (serverContainer.isRunning) Localization.Computer.TurnOff.lines else Localization.Computer.TurnOn.lines
+      import scala.jdk.CollectionConverters._
+      lines.foreach(line => tooltip.add(net.minecraft.network.chat.Component.literal(line)))
+      guiGraphics.renderTooltip(font, tooltip, mouseX - leftPos, mouseY - topPos)
+    }
   }
 
-  override def drawSecondaryBackgroundLayer() {
+  override def drawSecondaryBackgroundLayer(): Unit = {
     RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
-    Textures.bind(Textures.GUI.Server)
-    drawTexturedModalRect(guiLeft, guiTop, 0, 0, xSize, ySize)
+    guiGraphics.blit(Textures.GUI.Server, leftPos, topPos, 0, 0, imageWidth, imageHeight)
   }
 }

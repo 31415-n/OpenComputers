@@ -4,7 +4,7 @@ import li.cil.oc.client.renderer.gui.BufferRenderer
 import li.cil.oc.util.RenderState
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen
-import net.minecraft.client.renderer.GlStateManager
+import com.mojang.blaze3d.platform.GlStateManager
 
 trait DisplayBuffer extends Screen {
   protected def bufferX: Int
@@ -21,9 +21,9 @@ trait DisplayBuffer extends Screen {
 
   protected var scale = 0.0
 
-  override def initGui() = {
-    super.initGui()
-    BufferRenderer.init(Minecraft.getMinecraft.renderEngine)
+  override def init(): Unit = {
+    super.init()
+    BufferRenderer.init(Minecraft.getInstance.getTextureManager)
     guiSizeChanged = true
   }
 
@@ -36,10 +36,11 @@ trait DisplayBuffer extends Screen {
 
     RenderState.checkError(getClass.getName + ".drawBufferLayer: entering (aka: wasntme)")
 
-    GlStateManager.pushMatrix()
+    com.mojang.blaze3d.systems.RenderSystem.getModelViewStack.pushPose()
     RenderState.disableEntityLighting()
     drawBuffer()
-    GlStateManager.popMatrix()
+    com.mojang.blaze3d.systems.RenderSystem.getModelViewStack.popPose()
+    com.mojang.blaze3d.systems.RenderSystem.applyModelViewMatrix()
 
     RenderState.checkError(getClass.getName + ".drawBufferLayer: buffer layer")
   }

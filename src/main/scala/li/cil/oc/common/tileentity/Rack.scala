@@ -21,8 +21,8 @@ import li.cil.oc.integration.opencomputers.DriverRedstoneCard
 import li.cil.oc.server.{PacketSender => ServerPacketSender}
 import li.cil.oc.util.ExtendedInventory._
 import li.cil.oc.util.ExtendedNBT._
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.inventory.IInventory
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.Container
 import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.IntArrayTag
@@ -93,7 +93,7 @@ class Rack extends traits.PowerAcceptor with traits.Hub with traits.PowerBalance
     }
   }
 
-  private def reconnect(plugSide: EnumFacing): Unit = {
+  private def reconnect(plugSide: Direction): Unit = {
     for (slot <- 0 until getSizeInventory) {
       val mapping = nodeMapping(slot)
       mapping(0) match {
@@ -125,7 +125,7 @@ class Rack extends traits.PowerAcceptor with traits.Hub with traits.PowerBalance
     }
   }
 
-  protected def sendPacketToMountables(sourceSide: Option[EnumFacing], packet: Packet): Unit = {
+  protected def sendPacketToMountables(sourceSide: Option[Direction], packet: Packet): Unit = {
     // When a message arrives on a bus, also send it to all secondary nodes
     // connected to it. Only deliver it to that very node, if it's not the
     // sender, to avoid loops.
@@ -150,7 +150,7 @@ class Rack extends traits.PowerAcceptor with traits.Hub with traits.PowerBalance
   // ----------------------------------------------------------------------- //
   // Hub
 
-  override def tryEnqueuePacket(sourceSide: Option[EnumFacing], packet: Packet): Boolean = {
+  override def tryEnqueuePacket(sourceSide: Option[Direction], packet: Packet): Boolean = {
     sendPacketToMountables(sourceSide, packet)
     if (isRelayEnabled)
       super.tryEnqueuePacket(sourceSide, packet)
@@ -158,7 +158,7 @@ class Rack extends traits.PowerAcceptor with traits.Hub with traits.PowerBalance
       true
   }
 
-  override protected def relayPacket(sourceSide: Option[EnumFacing], packet: Packet): Unit = {
+  override protected def relayPacket(sourceSide: Option[Direction], packet: Packet): Unit = {
     if (isRelayEnabled)
       super.relayPacket(sourceSide, packet)
   }
@@ -212,7 +212,7 @@ class Rack extends traits.PowerAcceptor with traits.Hub with traits.PowerBalance
     }
   }
 
-  private def relayToConnectablesOnSide(message: Message, packet: Packet, sourceSide: EnumFacing): Unit = {
+  private def relayToConnectablesOnSide(message: Message, packet: Packet, sourceSide: Direction): Unit = {
     for (slot <- 0 until getSizeInventory) {
       val mountable = getMountable(slot)
       if (mountable != null) {
@@ -236,24 +236,24 @@ class Rack extends traits.PowerAcceptor with traits.Hub with traits.PowerBalance
   // ----------------------------------------------------------------------- //
   // SidedEnvironment
 
-  override def canConnect(side: EnumFacing): Boolean = side != facing
+  override def canConnect(side: Direction): Boolean = side != facing
 
-  override def sidedNode(side: EnumFacing): Node = if (side != facing) super.sidedNode(side) else null
+  override def sidedNode(side: Direction): Node = if (side != facing) super.sidedNode(side) else null
 
   // ----------------------------------------------------------------------- //
   // power.Common
 
-  @SideOnly(Side.CLIENT)
-  override protected def hasConnector(side: EnumFacing): Boolean = side != facing
+  @OnlyIn(Dist.CLIENT)
+  override protected def hasConnector(side: Direction): Boolean = side != facing
 
-  override protected def connector(side: EnumFacing) = Option(if (side != facing) sidedNode(side).asInstanceOf[Connector] else null)
+  override protected def connector(side: Direction) = Option(if (side != facing) sidedNode(side).asInstanceOf[Connector] else null)
 
   override def energyThroughput: Double = Settings.get.serverRackRate
 
   // ----------------------------------------------------------------------- //
   // Analyzable
 
-  override def onAnalyze(player: EntityPlayer, side: EnumFacing, hitX: Float, hitY: Float, hitZ: Float): Array[Node] = {
+  override def onAnalyze(player: Player, side: Direction, hitX: Float, hitY: Float, hitZ: Float): Array[Node] = {
     slotAt(side, hitX, hitY, hitZ) match {
       case Some(slot) => components(slot) match {
         case Some(analyzable: Analyzable) => analyzable.onAnalyze(player, side, hitX, hitY, hitZ)
@@ -370,7 +370,7 @@ class Rack extends traits.PowerAcceptor with traits.Hub with traits.PowerBalance
   override def updateEntity() {
     super.updateEntity()
     if (isServer && isConnected) {
-      lazy val connectors = EnumFacing.VALUES.map(sidedNode).collect {
+      lazy val connectors = Direction.values.map(sidedNode).collect {
         case connector: Connector => connector
       }
       components.zipWithIndex.collect {
@@ -450,7 +450,7 @@ class Rack extends traits.PowerAcceptor with traits.Hub with traits.PowerBalance
 
   // ----------------------------------------------------------------------- //
 
-  def slotAt(side: EnumFacing, hitX: Float, hitY: Float, hitZ: Float): Option[Int] = {
+  def slotAt(side: Direction, hitX: Float, hitY: Float, hitZ: Float): Option[Int] = {
     if (side == facing) {
       val globalY = (hitY * 16).toInt // [0, 15]
       val l = 2
@@ -464,7 +464,7 @@ class Rack extends traits.PowerAcceptor with traits.Hub with traits.PowerBalance
   def isWorking(mountable: RackMountable): Boolean = mountable.getCurrentState.contains(api.util.StateAware.State.IsWorking)
 
   def hasRedstoneCard: Boolean = components.exists {
-    case Some(mountable: EnvironmentHost with RackMountable with IInventory) if isWorking(mountable) =>
+    case Some(mountable: EnvironmentHost with RackMountable with Container) if isWorking(mountable) =>
       mountable.exists(stack => DriverRedstoneCard.worksWith(stack, mountable.getClass))
     case _ => false
   }

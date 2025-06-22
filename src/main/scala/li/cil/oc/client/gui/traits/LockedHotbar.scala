@@ -5,7 +5,7 @@ import net.minecraft.world.inventory.ClickType
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 
-trait LockedHotbar extends AbstractContainerScreen[_] {
+trait LockedHotbar { self: AbstractContainerScreen[_] =>
   def lockedStack: ItemStack
 
   override def slotClicked(slot: Slot, slotId: Int, mouseButton: Int, clickType: ClickType): Unit = {

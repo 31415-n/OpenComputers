@@ -3,8 +3,8 @@ package li.cil.oc.client.renderer.gui
 import li.cil.oc.api
 import li.cil.oc.client.Textures
 import li.cil.oc.util.RenderState
-import net.minecraft.client.renderer.GLAllocation
-import net.minecraft.client.renderer.GlStateManager
+import com.mojang.blaze3d.platform.GlStateManager
+import com.mojang.blaze3d.platform.MemoryTracker
 import net.minecraft.client.renderer.texture.TextureManager
 import org.lwjgl.opengl.GL11
 
@@ -21,7 +21,7 @@ object BufferRenderer {
     RenderState.checkError(getClass.getName + ".displayLists: entering (aka: wasntme)")
 
     textureManager = Some(tm)
-    displayLists = GLAllocation.generateDisplayLists(2)
+    displayLists = GL11.glGenLists(2)
 
     RenderState.checkError(getClass.getName + ".displayLists: leaving")
   })
@@ -90,9 +90,9 @@ object BufferRenderer {
   def drawText(screen: api.internal.TextBuffer) =
     if (textureManager.isDefined) {
       RenderState.pushAttrib()
-      GlStateManager.depthMask(false)
+      GlStateManager._depthMask(false)
       val changed = screen.renderText()
-      GlStateManager.depthMask(true)
+      GlStateManager._depthMask(true)
       RenderState.popAttrib()
       changed
     }

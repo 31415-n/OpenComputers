@@ -5,10 +5,10 @@ import li.cil.oc.client.renderer.font.DynamicFontRenderer.CharTexture
 import li.cil.oc.util.FontUtils
 import li.cil.oc.util.RenderState
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.GlStateManager
-import net.minecraft.client.resources.IReloadableResourceManager
-import net.minecraft.client.resources.IResourceManager
-import net.minecraft.client.resources.IResourceManagerReloadListener
+import com.mojang.blaze3d.platform.GlStateManager
+import net.minecraft.server.packs.resources.ReloadableResourceManager
+import net.minecraft.server.packs.resources.ResourceManager
+import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import org.lwjgl.BufferUtils
 import org.lwjgl.opengl._
 
@@ -18,7 +18,7 @@ import scala.collection.mutable
  * Font renderer that dynamically generates lookup textures by rendering a font
  * to it. It's pretty broken right now, and font rendering looks crappy as hell.
  */
-class DynamicFontRenderer extends TextureFontRenderer with IResourceManagerReloadListener {
+class DynamicFontRenderer extends TextureFontRenderer with ResourceManagerReloadListener {
   private val glyphProvider: IGlyphProvider = Settings.get.fontRenderer match {
     case _ => new FontParserHex()
   }
@@ -31,8 +31,8 @@ class DynamicFontRenderer extends TextureFontRenderer with IResourceManagerReloa
 
   initialize()
 
-  Minecraft.getMinecraft.getResourceManager match {
-    case reloadable: IReloadableResourceManager => reloadable.registerReloadListener(this)
+  Minecraft.getInstance.getResourceManager match {
+    case reloadable: ReloadableResourceManager => reloadable.registerReloadListener(this)
     case _ =>
   }
 
@@ -47,7 +47,7 @@ class DynamicFontRenderer extends TextureFontRenderer with IResourceManagerReloa
     generateChars(basicChars.toCharArray)
   }
 
-  def onResourceManagerReload(manager: IResourceManager) {
+  def onResourceManagerReload(manager: ResourceManager): Unit = {
     glyphProvider.initialize()
     initialize()
   }
@@ -94,7 +94,7 @@ object DynamicFontRenderer {
   private val size = 256
 
   class CharTexture(val owner: DynamicFontRenderer) {
-    private val id = GlStateManager.generateTexture()
+    private val id = GlStateManager._genTexture()
     RenderState.bindTexture(id)
     if (Settings.get.textLinearFiltering) {
       GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR)
@@ -119,8 +119,8 @@ object DynamicFontRenderer {
 
     private var chars = 0
 
-    def delete() {
-      GlStateManager.deleteTexture(id)
+    def delete(): Unit = {
+      GlStateManager._deleteTexture(id)
     }
 
     def bind() {

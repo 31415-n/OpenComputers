@@ -165,15 +165,17 @@ private[oc] class Proxy extends CommonProxy {
     )
     
     // Hologram renderer with OpenGL capability check (equivalent to GLContext.getCapabilities.OpenGL15 check)
-    val hologramRenderer = if (isOpenGL15Supported) {
-      (context: BlockEntityRendererProvider.Context) => new HologramRendererNew(context)
+    if (isOpenGL15Supported) {
+      event.registerBlockEntityRenderer(
+        BlockEntityTypes.HOLOGRAM.get(),
+        (context: BlockEntityRendererProvider.Context) => new HologramRendererNew(context)
+      )
     } else {
-      (context: BlockEntityRendererProvider.Context) => new HologramRendererFallback(context)
+      event.registerBlockEntityRenderer(
+        BlockEntityTypes.HOLOGRAM.get(),
+        (context: BlockEntityRendererProvider.Context) => new HologramRendererFallback(context)
+      )
     }
-    event.registerBlockEntityRenderer(
-      BlockEntityTypes.HOLOGRAM.get(),
-      hologramRenderer
-    )
     
     // Microcontroller renderer
     event.registerBlockEntityRenderer(

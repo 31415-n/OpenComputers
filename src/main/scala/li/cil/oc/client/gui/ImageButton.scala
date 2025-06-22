@@ -104,4 +104,8 @@ class ImageButton(xPos: Int, yPos: Int, w: Int, h: Int,
   
   def displayString: String = getMessage.getString
   def displayString_=(value: String): Unit = setMessage(Component.literal(value))
+  
+  def setToggled(value: Boolean): Unit = {
+    toggled = value
+  }
 }

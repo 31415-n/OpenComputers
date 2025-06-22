@@ -4,10 +4,10 @@ import li.cil.oc.api
 import li.cil.oc.client.renderer.TextBufferRenderCache
 import li.cil.oc.client.renderer.gui.BufferRenderer
 import li.cil.oc.util.RenderState
-import net.minecraft.client.renderer.GlStateManager
-import org.lwjgl.input.Mouse
+import com.mojang.blaze3d.platform.GlStateManager
+import net.minecraft.network.chat.Component
 
-class Screen(val buffer: api.internal.TextBuffer, val hasMouse: Boolean, val hasKeyboardCallback: () => Boolean, val hasPower: () => Boolean) extends traits.InputBuffer {
+class Screen(val buffer: api.internal.TextBuffer, val hasMouse: Boolean, val hasKeyboardCallback: () => Boolean, val hasPower: () => Boolean) extends net.minecraft.client.gui.screens.Screen(Component.literal("OpenComputers Screen")) with traits.InputBuffer {
   override protected def hasKeyboard = hasKeyboardCallback()
 
   override protected def bufferX = 8 + x
@@ -22,43 +22,50 @@ class Screen(val buffer: api.internal.TextBuffer, val hasMouse: Boolean, val has
 
   private var mx, my = -1
 
-  override def handleMouseInput() {
-    super.handleMouseInput()
-    if (hasMouse && Mouse.hasWheel && Mouse.getEventDWheel != 0) {
-      val mouseX = Mouse.getEventX * width / mc.displayWidth
-      val mouseY = height - Mouse.getEventY * height / mc.displayHeight - 1
-      toBufferCoordinates(mouseX, mouseY) match {
+  override def mouseScrolled(mouseX: Double, mouseY: Double, delta: Double): Boolean = {
+    if (hasMouse && delta != 0) {
+      toBufferCoordinates(mouseX.toInt, mouseY.toInt) match {
         case Some((bx, by)) =>
-          val scroll = math.signum(Mouse.getEventDWheel)
+          val scroll = math.signum(delta)
           buffer.mouseScroll(bx, by, scroll, null)
-        case _ => // Ignore when out of bounds.
+          true
+        case _ => super.mouseScrolled(mouseX, mouseY, delta)
       }
+    } else {
+      super.mouseScrolled(mouseX, mouseY, delta)
     }
   }
 
-  override protected def mouseClicked(mouseX: Int, mouseY: Int, button: Int) {
-    super.mouseClicked(mouseX, mouseY, button)
+  override def mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean = {
     if (hasMouse) {
       if (button == 0 || button == 1) {
-        clickOrDrag(mouseX, mouseY, button)
+        clickOrDrag(mouseX.toInt, mouseY.toInt, button)
+        true
+      } else {
+        super.mouseClicked(mouseX, mouseY, button)
       }
+    } else {
+      super.mouseClicked(mouseX, mouseY, button)
     }
   }
 
-  protected override def mouseClickMove(mouseX: Int, mouseY: Int, button: Int, timeSinceLast: Long) {
-    super.mouseClickMove(mouseX, mouseY, button, timeSinceLast)
-    if (hasMouse && timeSinceLast > 10) {
+  override def mouseDragged(mouseX: Double, mouseY: Double, button: Int, deltaX: Double, deltaY: Double): Boolean = {
+    if (hasMouse) {
       if (button == 0 || button == 1) {
-        clickOrDrag(mouseX, mouseY, button)
+        clickOrDrag(mouseX.toInt, mouseY.toInt, button)
+        true
+      } else {
+        super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY)
       }
+    } else {
+      super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY)
     }
   }
 
-  override protected def mouseReleased(mouseX: Int, mouseY: Int, button: Int) {
-    super.mouseReleased(mouseX, mouseY, button)
+  override def mouseReleased(mouseX: Double, mouseY: Double, button: Int): Boolean = {
     if (hasMouse && button >= 0) {
       if (didClick) {
-        toBufferCoordinates(mouseX, mouseY) match {
+        toBufferCoordinates(mouseX.toInt, mouseY.toInt) match {
           case Some((bx, by)) => buffer.mouseUp(bx, by, button, null)
           case _ => buffer.mouseUp(-1.0, -1.0, button, null)
         }
@@ -66,6 +73,9 @@ class Screen(val buffer: api.internal.TextBuffer, val hasMouse: Boolean, val has
       didClick = false
       mx = -1
       my = -1
+      true
+    } else {
+      super.mouseReleased(mouseX, mouseY, button)
     }
   }
 
@@ -90,17 +100,20 @@ class Screen(val buffer: api.internal.TextBuffer, val hasMouse: Boolean, val has
     else None
   }
 
-  override def drawScreen(mouseX: Int, mouseY: Int, dt: Float): Unit = {
-    super.drawScreen(mouseX, mouseY, dt)
+  override def render(guiGraphics: net.minecraft.client.gui.GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float): Unit = {
+    super.render(guiGraphics, mouseX, mouseY, partialTick)
     drawBufferLayer()
   }
 
   override def drawBuffer() {
-    GlStateManager.translate(x, y, 0)
+    com.mojang.blaze3d.systems.RenderSystem.getModelViewStack.pushPose()
+    com.mojang.blaze3d.systems.RenderSystem.getModelViewStack.translate(x, y, 0)
+    com.mojang.blaze3d.systems.RenderSystem.applyModelViewMatrix()
     BufferRenderer.drawBackground()
     if (hasPower()) {
-      GlStateManager.translate(bufferMargin, bufferMargin, 0)
-      GlStateManager.scale(scale, scale, 1)
+      com.mojang.blaze3d.systems.RenderSystem.getModelViewStack.translate(bufferMargin, bufferMargin, 0)
+      com.mojang.blaze3d.systems.RenderSystem.getModelViewStack.scale(scale.toFloat, scale.toFloat, 1.0f)
+      com.mojang.blaze3d.systems.RenderSystem.applyModelViewMatrix()
       RenderState.makeItBlend()
       BufferRenderer.drawText(buffer)
     }
