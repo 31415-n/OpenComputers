@@ -59,9 +59,11 @@ class Manual extends Screen(Component.literal("OpenComputers Manual")) with trai
     }
 
   def refreshPage(): Unit = {
-    val content = Option(api.Manual.contentFor(ManualAPI.history.top.path)).
-      getOrElse(Iterable("Document not found: " + ManualAPI.history.top.path).asJava)
-    document = Document.parse(content)
+    val content = Option(api.Manual.contentFor(ManualAPI.history.top.path)) match {
+      case Some(javaIterable) => javaIterable
+      case None => java.util.Arrays.asList("Document not found: " + ManualAPI.history.top.path)
+    }
+    document = Document.parse(content.asScala)
     documentHeight = Document.height(document, documentMaxWidth, font)
     scrollTo(offset)
   }
@@ -83,9 +85,14 @@ class Manual extends Screen(Component.literal("OpenComputers Manual")) with trai
     }
   }
 
+  // Button ID mapping for tab navigation
+  private var buttonToTabMap = Map.empty[Button, Int]
+  
   def actionPerformed(button: Button): Unit = {
-    if (button.id >= 0 && button.id < ManualAPI.tabs.length) {
-      api.Manual.navigate(ManualAPI.tabs(button.id).path)
+    buttonToTabMap.get(button) match {
+      case Some(tabIndex) if tabIndex >= 0 && tabIndex < ManualAPI.tabs.length =>
+        api.Manual.navigate(ManualAPI.tabs(tabIndex).path)
+      case _ =>
     }
   }
 
@@ -95,10 +102,12 @@ class Manual extends Screen(Component.literal("OpenComputers Manual")) with trai
     for ((tab, i) <- ManualAPI.tabs.zipWithIndex if i < maxTabsPerSide) {
       val x = guiLeft + tabPosX
       val y = guiTop + tabPosY + i * (tabHeight - 1)
-      addRenderableWidget(new ImageButton(i, x, y, tabWidth, tabHeight, Textures.GUI.ManualTab, button => actionPerformed(button)))
+      val button = new ImageButton(x, y, tabWidth, tabHeight, Textures.GUI.ManualTab, "", onPress = (btn: Button) => actionPerformed(btn))
+      addRenderableWidget(button)
+      buttonToTabMap += (button -> i)
     }
 
-    scrollButton = new ImageButton(-1, leftPos + scrollPosX, topPos + scrollPosY, 6, 13, Textures.GUI.ButtonScroll, button => {})
+    scrollButton = new ImageButton(guiLeft + scrollPosX, guiTop + scrollPosY, 6, 13, Textures.GUI.ButtonScroll, "", onPress = (button: Button) => {})
     addRenderableWidget(scrollButton)
 
     refreshPage()
@@ -113,17 +122,17 @@ class Manual extends Screen(Component.literal("OpenComputers Manual")) with trai
     for ((tab, i) <- ManualAPI.tabs.zipWithIndex if i < maxTabsPerSide) {
       val button = children().get(i).asInstanceOf[ImageButton]
       guiGraphics.pose().pushPose()
-      guiGraphics.pose().translate(button.getX + 5, button.getY + 5, 0)
+      guiGraphics.pose().translate(button.getX + 5.0f, button.getY + 5.0f, 0)
       tab.renderer.render()
       guiGraphics.pose().popPose()
     }
 
-    currentSegment = Document.render(document, leftPos + 8, topPos + 8, documentMaxWidth, documentMaxHeight, offset, font, mouseX, mouseY)
+    currentSegment = Document.render(document, guiLeft + 8, guiTop + 8, documentMaxWidth, documentMaxHeight, offset, font, mouseX, mouseY)
 
     if (!isDragging) currentSegment match {
       case Some(segment) =>
         segment.tooltip match {
-          case Some(text) if text.nonEmpty => guiGraphics.renderTooltip(font, Localization.localizeImmediately(text).lines.toList.asJava, mouseX, mouseY)
+          case Some(text) if text.nonEmpty => guiGraphics.renderTooltip(font, Component.literal(Localization.localizeImmediately(text)), mouseX, mouseY)
           case _ =>
         }
       case _ =>
@@ -132,12 +141,12 @@ class Manual extends Screen(Component.literal("OpenComputers Manual")) with trai
     if (!isDragging) for ((tab, i) <- ManualAPI.tabs.zipWithIndex if i < maxTabsPerSide) {
       val button = children().get(i).asInstanceOf[ImageButton]
       if (mouseX > button.getX && mouseX < button.getX + tabWidth && mouseY > button.getY && mouseY < button.getY + tabHeight) tab.tooltip.foreach(text => {
-        guiGraphics.renderTooltip(font, Localization.localizeImmediately(text).lines.toList.asJava, mouseX, mouseY)
+        guiGraphics.renderTooltip(font, Component.literal(Localization.localizeImmediately(text)), mouseX, mouseY)
       })
     }
 
-    if (canScroll && (isCoordinateOverScrollBar(mouseX - leftPos, mouseY - topPos) || isDragging)) {
-      guiGraphics.renderTooltip(font, List(Component.literal(s"${100 * offset / maxOffset}%")).asJava, leftPos + scrollPosX + scrollWidth, scrollButton.getY + scrollButton.getHeight + 1)
+    if (canScroll && (isCoordinateOverScrollBar(mouseX - guiLeft, mouseY - guiTop) || isDragging)) {
+      guiGraphics.renderTooltip(font, Component.literal(s"${100 * offset / maxOffset}%"), guiLeft + scrollPosX + scrollWidth, scrollButton.getY + scrollButton.getHeight + 1)
     }
   }
 
@@ -162,7 +171,7 @@ class Manual extends Screen(Component.literal("OpenComputers Manual")) with trai
   override def mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean = {
     super.mouseClicked(mouseX, mouseY, button)
 
-    if (canScroll && button == 0 && isCoordinateOverScrollBar(mouseX.toInt - leftPos, mouseY.toInt - topPos)) {
+    if (canScroll && button == 0 && isCoordinateOverScrollBar(mouseX.toInt - guiLeft, mouseY.toInt - guiTop)) {
       isDragging = true
       scrollMouse(mouseY.toInt)
     }
@@ -187,8 +196,8 @@ class Manual extends Screen(Component.literal("OpenComputers Manual")) with trai
     true
   }
 
-  private def scrollMouse(mouseY: Int) {
-    scrollTo(math.round((mouseY - topPos - scrollPosY - 6.5) * maxOffset / (scrollHeight - 13.0)).toInt)
+  private def scrollMouse(mouseY: Int): Unit = {
+    scrollTo(math.round((mouseY - guiTop - scrollPosY - 6.5) * maxOffset / (scrollHeight - 13.0)).toInt)
   }
 
   private def scrollUp() = scrollTo(offset - Document.lineHeight(font) * 3)
@@ -197,7 +206,7 @@ class Manual extends Screen(Component.literal("OpenComputers Manual")) with trai
 
   private def scrollTo(row: Int): Unit = {
     ManualAPI.history.top.offset = math.max(0, math.min(maxOffset, row))
-    val yMin = topPos + scrollPosY
+    val yMin = guiTop + scrollPosY
     if (maxOffset > 0) {
       scrollButton.setY(yMin + (scrollHeight - 13) * offset / maxOffset)
     }

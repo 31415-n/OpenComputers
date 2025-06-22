@@ -7,87 +7,87 @@ import li.cil.oc.client.Textures
 import li.cil.oc.common.container
 import li.cil.oc.common.tileentity
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.GlStateManager
-import net.minecraft.client.renderer.Tessellator
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats
+import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.blaze3d.vertex.Tesselator
+import com.mojang.blaze3d.vertex.DefaultVertexFormat
+import com.mojang.blaze3d.vertex.VertexFormat
 import net.minecraft.world.entity.player.Inventory
-import org.lwjgl.opengl.GL11
-import org.lwjgl.util.Rectangle
+import net.minecraft.client.gui.GuiGraphics
 
 class Relay(playerInventory: Inventory, val relay: tileentity.Relay) extends DynamicGuiContainer(new container.Relay(playerInventory, relay)) {
   private val format = new DecimalFormat("#.##hz")
 
-  val tabPosition = new Rectangle(xSize, 10, 23, 26)
+  val tabPosition = (imageWidth, 10, 23, 26) // (x, y, width, height)
 
   override protected def drawSecondaryBackgroundLayer(): Unit = {
     super.drawSecondaryBackgroundLayer()
 
     // Tab background.
-    GlStateManager.color(1, 1, 1, 1)
-    Minecraft.getMinecraft.getTextureManager.bindTexture(Textures.GUI.UpgradeTab)
-    val x = windowX + tabPosition.getX
-    val y = windowY + tabPosition.getY
-    val w = tabPosition.getWidth
-    val h = tabPosition.getHeight
-    val t = Tessellator.getInstance
-    val r = t.getBuffer
-    r.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX)
-    r.pos(x, y + h, zLevel).tex(0, 1).endVertex()
-    r.pos(x + w, y + h, zLevel).tex(1, 1).endVertex()
-    r.pos(x + w, y, zLevel).tex(1, 0).endVertex()
-    r.pos(x, y, zLevel).tex(0, 0).endVertex()
-    t.draw()
+    RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
+    RenderSystem.setShaderTexture(0, Textures.GUI.UpgradeTab)
+    val (tabX, tabY, tabW, tabH) = tabPosition
+    val x = windowX + tabX
+    val y = windowY + tabY
+    val t = Tesselator.getInstance
+    val r = t.getBuilder
+    r.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX)
+    r.vertex(x, y + tabH, 0).uv(0, 1).endVertex()
+    r.vertex(x + tabW, y + tabH, 0).uv(1, 1).endVertex()
+    r.vertex(x + tabW, y, 0).uv(1, 0).endVertex()
+    r.vertex(x, y, 0).uv(0, 0).endVertex()
+    t.end()
   }
 
   override def mouseClicked(mouseX: Int, mouseY: Int, button: Int): Unit = {
     // So MC doesn't throw away the item in the upgrade slot when we're trying to pick it up...
-    val originalWidth = xSize
+    val originalWidth = imageWidth
     try {
-      xSize += tabPosition.getWidth
+      imageWidth += tabPosition._3 // width
       super.mouseClicked(mouseX, mouseY, button)
     }
     finally {
-      xSize = originalWidth
+      imageWidth = originalWidth
     }
   }
 
   override def mouseReleased(mouseX: Int, mouseY: Int, button: Int): Unit = {
     // So MC doesn't throw away the item in the upgrade slot when we're trying to pick it up...
-    val originalWidth = xSize
+    val originalWidth = imageWidth
     try {
-      xSize += tabPosition.getWidth
+      imageWidth += tabPosition._3 // width
       super.mouseReleased(mouseX, mouseY, button)
     }
     finally {
-      xSize = originalWidth
+      imageWidth = originalWidth
     }
   }
 
   override def drawSecondaryForegroundLayer(mouseX: Int, mouseY: Int): Unit = {
     super.drawSecondaryForegroundLayer(mouseX, mouseY)
-    fontRenderer.drawString(
-      Localization.localizeImmediately(relay.getName),
+    guiGraphics.drawString(font,
+      Localization.localizeImmediately(relay.getDisplayName.getString),
       8, 6, 0x404040)
 
-    fontRenderer.drawString(
+    guiGraphics.drawString(font,
       Localization.Switch.TransferRate,
       14, 20, 0x404040)
-    fontRenderer.drawString(
+    guiGraphics.drawString(font,
       Localization.Switch.PacketsPerCycle,
       14, 39, 0x404040)
-    fontRenderer.drawString(
+    guiGraphics.drawString(font,
       Localization.Switch.QueueSize,
       14, 58, 0x404040)
 
-    fontRenderer.drawString(
-      format.format(20f / inventoryContainer.relayDelay),
+    val relayContainer = menu.asInstanceOf[container.Relay]
+    guiGraphics.drawString(font,
+      format.format(20f / relayContainer.relayDelay),
       108, 20, 0x404040)
-    fontRenderer.drawString(
-      inventoryContainer.packetsPerCycleAvg + " / " + inventoryContainer.relayAmount,
-      108, 39, thresholdBasedColor(inventoryContainer.packetsPerCycleAvg, math.ceil(inventoryContainer.relayAmount / 2f).toInt, inventoryContainer.relayAmount))
-    fontRenderer.drawString(
-      inventoryContainer.queueSize + " / " + inventoryContainer.maxQueueSize,
-      108, 58, thresholdBasedColor(inventoryContainer.queueSize, inventoryContainer.maxQueueSize / 2, inventoryContainer.maxQueueSize))
+    guiGraphics.drawString(font,
+      relayContainer.packetsPerCycleAvg + " / " + relayContainer.relayAmount,
+      108, 39, thresholdBasedColor(relayContainer.packetsPerCycleAvg, math.ceil(relayContainer.relayAmount / 2f).toInt, relayContainer.relayAmount))
+    guiGraphics.drawString(font,
+      relayContainer.queueSize + " / " + relayContainer.maxQueueSize,
+      108, 58, thresholdBasedColor(relayContainer.queueSize, relayContainer.maxQueueSize / 2, relayContainer.maxQueueSize))
   }
 
   private def thresholdBasedColor(value: Int, yellow: Int, red: Int) = {
