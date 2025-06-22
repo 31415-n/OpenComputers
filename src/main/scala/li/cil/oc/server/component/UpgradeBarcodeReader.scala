@@ -13,7 +13,7 @@ import li.cil.oc.api.prefab.AbstractManagedEnvironment
 import li.cil.oc.util.BlockPosition
 import li.cil.oc.util.ExtendedWorld._
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.nbt.NBTTagList
 import net.minecraft.util.EnumFacing

@@ -2,7 +2,7 @@ package li.cil.oc.common.inventory
 
 import li.cil.oc.Settings
 import li.cil.oc.integration.opencomputers.DriverUpgradeDatabase
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 
 trait DatabaseInventory extends ItemStackInventory {
   def tier: Int = DriverUpgradeDatabase.tier(container)

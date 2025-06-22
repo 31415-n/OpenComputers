@@ -23,10 +23,10 @@ import li.cil.oc.util.ExtendedInventory._
 import li.cil.oc.util.ExtendedNBT._
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.inventory.IInventory
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.IntArrayTag
-import net.minecraft.util.EnumFacing
+import net.minecraft.core.Direction
 import net.minecraftforge.common.util.Constants.NBT
 import net.minecraftforge.fml.relauncher.Side
 import net.minecraftforge.fml.relauncher.SideOnly
@@ -43,12 +43,12 @@ class Rack extends traits.PowerAcceptor with traits.Hub with traits.PowerBalance
   // The other nodes are "secondary" connections and merely transfer network
   // messages.
   // mountable -> connectable -> side
-  val nodeMapping: Array[Array[Option[EnumFacing]]] = Array.fill(getSizeInventory)(Array.fill[Option[EnumFacing]](4)(None))
+  val nodeMapping: Array[Array[Option[Direction]]] = Array.fill(getSizeInventory)(Array.fill[Option[Direction]](4)(None))
   val snifferNodes: Array[Array[Node]] = Array.fill(getSizeInventory)(Array.fill(3)(api.Network.newNode(this, Visibility.Neighbors).create()))
 
-  def connect(slot: Int, connectableIndex: Int, side: Option[EnumFacing]): Unit = {
+  def connect(slot: Int, connectableIndex: Int, side: Option[Direction]): Unit = {
     val newSide = side match {
-      case Some(direction) if direction != EnumFacing.SOUTH => Option(direction)
+      case Some(direction) if direction != Direction.SOUTH => Option(direction)
       case _ => None
     }
 

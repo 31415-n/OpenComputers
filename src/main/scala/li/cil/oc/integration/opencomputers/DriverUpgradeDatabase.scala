@@ -10,7 +10,7 @@ import li.cil.oc.common.item
 import li.cil.oc.common.item.Delegator
 import li.cil.oc.server.component
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 
 object DriverUpgradeDatabase extends Item with api.driver.item.HostAware {
   override def worksWith(stack: ItemStack) = isOneOf(stack,

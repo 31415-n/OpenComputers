@@ -16,12 +16,12 @@ import li.cil.oc.common.Slot
 import li.cil.oc.common.Tier
 import li.cil.oc.common.block.property.PropertyRunning
 import li.cil.oc.util.Color
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.util.EnumFacing
-import net.minecraftforge.fml.relauncher.Side
-import net.minecraftforge.fml.relauncher.SideOnly
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.ItemStack
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.core.Direction
+import net.minecraftforge.api.distmarker.Dist
+import net.minecraftforge.api.distmarker.OnlyIn
 
 import scala.jdk.CollectionConverters._
 
@@ -51,10 +51,10 @@ class Case(var tier: Int) extends traits.PowerAcceptor with traits.Computer with
 
   // ----------------------------------------------------------------------- //
 
-  @SideOnly(Side.CLIENT)
-  override protected def hasConnector(side: EnumFacing) = side != facing
+  @OnlyIn(Dist.CLIENT)
+  override protected def hasConnector(side: Direction) = side != facing
 
-  override protected def connector(side: EnumFacing) = Option(if (side != facing && machine != null) machine.node.asInstanceOf[Connector] else null)
+  override protected def connector(side: Direction) = Option(if (side != facing && machine != null) machine.node.asInstanceOf[Connector] else null)
 
   override def energyThroughput = Settings.get.caseRate(tier)
 
@@ -94,14 +94,14 @@ class Case(var tier: Int) extends traits.PowerAcceptor with traits.Computer with
 
   private final val TierTag = Settings.namespace + "tier"
 
-  override def readFromNBTForServer(nbt: NBTTagCompound) {
+  override def readFromNBTForServer(nbt: CompoundTag) {
     tier = nbt.getByte(TierTag) max 0 min 3
     setColor(Color.rgbValues(Color.byTier(tier)))
     super.readFromNBTForServer(nbt)
     isSizeInventoryReady = true
   }
 
-  override def writeToNBTForServer(nbt: NBTTagCompound) {
+  override def writeToNBTForServer(nbt: CompoundTag) {
     nbt.setByte(TierTag, tier.toByte)
     super.writeToNBTForServer(nbt)
   }
@@ -132,8 +132,8 @@ class Case(var tier: Int) extends traits.PowerAcceptor with traits.Computer with
 
   override def getSizeInventory = if (tier < 0 || tier >= InventorySlots.computer.length) 0 else InventorySlots.computer(tier).length
 
-  override def isUsableByPlayer(player: EntityPlayer) =
-    super.isUsableByPlayer(player) && (!isCreative || player.capabilities.isCreativeMode)
+  override def isUsableByPlayer(player: Player) =
+    super.isUsableByPlayer(player) && (!isCreative || player.getAbilities.instabuild)
 
   override def isItemValidForSlot(slot: Int, stack: ItemStack) =
     Option(Driver.driverFor(stack, getClass)).fold(false)(driver => {

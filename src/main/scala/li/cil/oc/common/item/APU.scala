@@ -3,7 +3,7 @@ package li.cil.oc.common.item
 import li.cil.oc.common.Tier
 import li.cil.oc.util.Rarity
 import net.minecraft.item.EnumRarity
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 
 import scala.language.existentials
 

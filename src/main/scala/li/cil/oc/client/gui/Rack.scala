@@ -6,18 +6,19 @@ import li.cil.oc.client.{PacketSender => ClientPacketSender}
 import li.cil.oc.common.container
 import li.cil.oc.common.tileentity
 import li.cil.oc.util.RenderState
-import net.minecraft.client.gui.GuiButton
-import net.minecraft.client.renderer.GlStateManager
-import net.minecraft.client.renderer.Tessellator
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats
+import net.minecraft.client.gui.components.Button
+import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.blaze3d.vertex.Tesselator
+import com.mojang.blaze3d.vertex.DefaultVertexFormat
+import com.mojang.blaze3d.vertex.VertexFormat
 import net.minecraft.world.entity.player.Inventory
-import net.minecraft.util.EnumFacing
-import org.lwjgl.opengl.GL11
+import net.minecraft.core.Direction
+import net.minecraft.client.gui.GuiGraphics
 
-import scala.collection.convert.WrapAsJava.asJavaCollection
+import scala.jdk.CollectionConverters._
 
 class Rack(playerInventory: Inventory, val rack: tileentity.Rack) extends DynamicGuiContainer(new container.Rack(playerInventory, rack)) {
-  ySize = 210
+  imageHeight = 210
 
   final val busMasterBlankUVs = (195, 14, 3, 5)
   final val busMasterPresentUVs = (194, 20, 5, 5)
@@ -73,20 +74,24 @@ class Rack(playerInventory: Inventory, val rack: tileentity.Rack) extends Dynami
     (83, 104)
   )
 
-  final val busToSide = EnumFacing.values().filter(_ != EnumFacing.SOUTH)
+  final val busToSide = Direction.values().filter(_ != Direction.SOUTH)
   final val sideToBus = busToSide.zipWithIndex.toMap
 
   var relayButton: ImageButton = _
 
-  // bus -> mountable -> connectable
-  var wireButtons = Array.fill(rack.getSizeInventory)(Array.fill(4)(Array.fill(5)(null: ImageButton)))
+  // bus -> mountable -> connectable  
+  var wireButtons: Array[Array[Array[ImageButton]]] = null
+  
+  private def initWireButtons(): Unit = {
+    wireButtons = Array.fill(rack.getContainerSize)(Array.fill(4)(Array.fill(5)(null: ImageButton)))
+  }
 
-  def sideName(side: EnumFacing) = side match {
-    case EnumFacing.UP => Localization.Rack.Top
-    case EnumFacing.DOWN => Localization.Rack.Bottom
-    case EnumFacing.WEST => Localization.Rack.Right
-    case EnumFacing.EAST => Localization.Rack.Left
-    case EnumFacing.NORTH => Localization.Rack.Back
+  def sideName(side: Direction) = side match {
+    case Direction.UP => Localization.Rack.Top
+    case Direction.DOWN => Localization.Rack.Bottom
+    case Direction.WEST => Localization.Rack.Right
+    case Direction.EAST => Localization.Rack.Left
+    case Direction.NORTH => Localization.Rack.Back
     case _ => Localization.Rack.None
   }
 
@@ -103,58 +108,82 @@ class Rack(playerInventory: Inventory, val rack: tileentity.Rack) extends Dynami
     (mountable, connectable, bus)
   }
 
-  protected override def actionPerformed(button: GuiButton) {
-    if (button.id == 0) {
+  protected def onButtonClick(button: Button): Unit = {
+    // Button ID handling needs to be implemented differently in 1.20.1
+    // For now, we'll use button reference comparison
+    if (button == relayButton) {
       ClientPacketSender.sendRackRelayState(rack, !rack.isRelayEnabled)
     }
     else {
-      val (mountable, connectable, bus) = decodeButtonId(button.id)
-      if (rack.nodeMapping(mountable)(connectable).contains(busToSide(bus))) {
-        ClientPacketSender.sendRackMountableMapping(rack, mountable, connectable, None)
+      // Find button in wireButtons array to get coordinates
+      var found = false
+      var mountable = 0
+      var connectable = 0
+      var bus = 0
+      
+      for (m <- wireButtons.indices if !found) {
+        for (c <- wireButtons(m).indices if !found) {
+          for (b <- wireButtons(m)(c).indices if !found) {
+            if (wireButtons(m)(c)(b) == button) {
+              mountable = m
+              connectable = c
+              bus = b
+              found = true
+            }
+          }
+        }
       }
-      else {
-        ClientPacketSender.sendRackMountableMapping(rack, mountable, connectable, Option(busToSide(bus)))
+      
+      if (found) {
+        if (rack.nodeMapping(mountable)(connectable).contains(busToSide(bus))) {
+          ClientPacketSender.sendRackMountableMapping(rack, mountable, connectable, None)
+        }
+        else {
+          ClientPacketSender.sendRackMountableMapping(rack, mountable, connectable, Option(busToSide(bus)))
+        }
       }
     }
   }
 
-  override def drawScreen(mouseX: Int, mouseY: Int, dt: Float) {
+  override def render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, dt: Float): Unit = {
     for (bus <- 0 until 5) {
-      for (mountable <- 0 until rack.getSizeInventory) {
-        val presence = inventoryContainer.nodePresence(mountable)
+      for (mountable <- 0 until rack.getContainerSize) {
+        val presence = menu.asInstanceOf[container.Rack].nodePresence(mountable)
         for (connectable <- 0 until 4) {
           wireButtons(mountable)(connectable)(bus).visible = presence(connectable)
         }
       }
     }
     relayButton.displayString = if (rack.isRelayEnabled) Localization.Rack.RelayEnabled else Localization.Rack.RelayDisabled
-    super.drawScreen(mouseX, mouseY, dt)
+    super.render(guiGraphics, mouseX, mouseY, dt)
   }
 
-  override def initGui() {
-    super.initGui()
+  override def init(): Unit = {
+    super.init()
+    
+    initWireButtons()
 
-    relayButton = new ImageButton(0, guiLeft + 101, guiTop + 96, 65, 18, Textures.GUI.ButtonRelay, Localization.Rack.RelayDisabled, textIndent = 18)
-    add(buttonList, relayButton)
+    relayButton = new ImageButton(leftPos + 101, topPos + 96, 65, 18, Textures.GUI.ButtonRelay, Localization.Rack.RelayDisabled, textIndent = 18, onPress = _ => onButtonClick(relayButton))
+    addRenderableWidget(relayButton)
 
     val (mw, mh) = hoverMasterSize
     val (sw, sh) = hoverSlaveSize
     val (_, _, _, mbh) = busMasterBlankUVs
     val (_, _, _, sbh) = busSlaveBlankUVs
     for (bus <- 0 until 5) {
-      for (mountable <- 0 until rack.getSizeInventory) {
+      for (mountable <- 0 until rack.getContainerSize) {
         val offset = mountable * (mbh + sbh * 3 + busGap)
         val (bx, by) = busStart(bus)
 
         {
-          val button = new ImageButton(encodeButtonId(mountable, 0, bus), guiLeft + bx, guiTop + by + offset + 1, mw, mh)
-          add(buttonList, button)
+          val button = new ImageButton(leftPos + bx, topPos + by + offset + 1, mw, mh, onPress = btn => onButtonClick(btn))
+          addRenderableWidget(button)
           wireButtons(mountable)(0)(bus) = button
         }
 
         for (connectable <- 0 until 3) {
-          val button = new ImageButton(encodeButtonId(mountable, connectable + 1, bus), guiLeft + bx, guiTop + by + offset + 1 + mbh + sbh * connectable, sw, sh)
-          add(buttonList, button)
+          val button = new ImageButton(leftPos + bx, topPos + by + offset + 1 + mbh + sbh * connectable, sw, sh, onPress = btn => onButtonClick(btn))
+          addRenderableWidget(button)
           wireButtons(mountable)(connectable + 1)(bus) = button
         }
       }
@@ -165,12 +194,12 @@ class Rack(playerInventory: Inventory, val rack: tileentity.Rack) extends Dynami
     super.drawSecondaryForegroundLayer(mouseX, mouseY)
     RenderState.pushAttrib() // Prevents NEI render glitch.
 
-    fontRenderer.drawString(
-      Localization.localizeImmediately(rack.getName),
+    guiGraphics.drawString(font,
+      Localization.localizeImmediately("tile.oc.rack.name"),
       8, 6, 0x404040)
 
-    GlStateManager.color(1, 1, 1)
-    mc.renderEngine.bindTexture(Textures.GUI.Rack)
+    RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
+    RenderSystem.setShaderTexture(0, Textures.GUI.Rack)
 
     if (rack.isRelayEnabled) {
       val (left, top, w, h) = relayModeUVs
@@ -185,8 +214,8 @@ class Rack(playerInventory: Inventory, val rack: tileentity.Rack) extends Dynami
     val (scx, scy, scw, sch) = connectorSlaveUVs
     val (sbx, sby, sbw, sbh) = busSlaveBlankUVs
     val (spx, spy, spw, sph) = busSlavePresentUVs
-    for (mountable <- 0 until rack.getSizeInventory) {
-      val presence = inventoryContainer.nodePresence(mountable)
+    for (mountable <- 0 until rack.getContainerSize) {
+      val presence = menu.asInstanceOf[container.Rack].nodePresence(mountable)
 
       // Draw connectable indicators next to item slots.
       val (cx, cy) = connectorStart(mountable)
@@ -248,30 +277,30 @@ class Rack(playerInventory: Inventory, val rack: tileentity.Rack) extends Dynami
       val x = 122
       val y = 20 + bus * 11
 
-      fontRenderer.drawString(
+      guiGraphics.drawString(font,
         Localization.localizeImmediately(sideName(busToSide(bus))),
         x, y, 0x404040)
     }
 
-    if (mouseX >= guiLeft + 122 && mouseY >= guiTop + 20 && mouseX < guiLeft + 158 && mouseY < guiTop + 20 + 5 * 11) {
+    if (mouseX >= leftPos + 122 && mouseY >= topPos + 20 && mouseX < leftPos + 158 && mouseY < topPos + 20 + 5 * 11) {
       val tooltip = new java.util.ArrayList[String]
-      tooltip.addAll(asJavaCollection(Localization.Rack.OrientationTooltip.lines.toIterable))
-      copiedDrawHoveringText(tooltip, mouseX - guiLeft, mouseY - guiTop, fontRenderer)
+      tooltip.addAll(Localization.Rack.OrientationTooltip.split("\n").toList.asJava)
+      copiedDrawHoveringText(guiGraphics, tooltip, mouseX - leftPos, mouseY - topPos, font)
     }
 
-    if (relayButton.isMouseOver) {
+    if (relayButton.isMouseOver(mouseX, mouseY)) {
       val tooltip = new java.util.ArrayList[String]
-      tooltip.addAll(asJavaCollection(Localization.Rack.RelayModeTooltip.lines.toIterable))
-      copiedDrawHoveringText(tooltip, mouseX - guiLeft, mouseY - guiTop, fontRenderer)
+      tooltip.addAll(Localization.Rack.RelayModeTooltip.split("\n").toList.asJava)
+      copiedDrawHoveringText(guiGraphics, tooltip, mouseX - leftPos, mouseY - topPos, font)
     }
 
     RenderState.popAttrib()
   }
 
-  override def drawSecondaryBackgroundLayer() {
-    GlStateManager.color(1, 1, 1) // Required under Linux.
-    mc.renderEngine.bindTexture(Textures.GUI.Rack)
-    drawTexturedModalRect(guiLeft, guiTop, 0, 0, xSize, ySize)
+  override def renderBg(guiGraphics: GuiGraphics, dt: Float, mouseX: Int, mouseY: Int): Unit = {
+    RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f) // Required under Linux.
+    RenderSystem.setShaderTexture(0, Textures.GUI.Rack)
+    guiGraphics.blit(Textures.GUI.Rack, leftPos, topPos, 0, 0, imageWidth, imageHeight)
   }
 
   private def drawRect(x: Int, y: Int, w: Int, h: Int, u: Int, v: Int): Unit = {
@@ -279,13 +308,13 @@ class Rack(playerInventory: Inventory, val rack: tileentity.Rack) extends Dynami
     val v0 = v / 256f
     val u1 = u0 + w / 256f
     val v1 = v0 + h / 256f
-    val t = Tessellator.getInstance()
-    val r = t.getBuffer
-    r.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX)
-    r.pos(x, y, windowZ).tex(u0, v0).endVertex()
-    r.pos(x, y + h, windowZ).tex(u0, v1).endVertex()
-    r.pos(x + w, y + h, windowZ).tex(u1, v1).endVertex()
-    r.pos(x + w, y, windowZ).tex(u1, v0).endVertex()
-    t.draw()
+    val t = Tesselator.getInstance
+    val r = t.getBuilder
+    r.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX)
+    r.vertex(x, y, 0).uv(u0, v0).endVertex()
+    r.vertex(x, y + h, 0).uv(u0, v1).endVertex()
+    r.vertex(x + w, y + h, 0).uv(u1, v1).endVertex()
+    r.vertex(x + w, y, 0).uv(u1, v0).endVertex()
+    t.end()
   }
 }

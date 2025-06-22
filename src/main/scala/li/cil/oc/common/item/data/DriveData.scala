@@ -1,10 +1,10 @@
 package li.cil.oc.common.item.data
 
 import li.cil.oc.Settings
-import net.minecraft.item.ItemStack
-import net.minecraft.nbt.NBTTagCompound
+import net.minecraft.world.item.ItemStack
+import net.minecraft.nbt.CompoundTag
 import li.cil.oc.server.fs
-import net.minecraft.entity.player.EntityPlayer
+import net.minecraft.world.entity.player.Player
 
 class DriveData extends ItemData(null) {
   def this(stack: ItemStack) {
@@ -22,22 +22,22 @@ class DriveData extends ItemData(null) {
   private final val UnmanagedTag = Settings.namespace + "unmanaged"
   private val LockTag = Settings.namespace + "lock"
 
-  override def load(nbt: NBTTagCompound) {
+  override def load(nbt: CompoundTag) {
     isUnmanaged = nbt.getBoolean(UnmanagedTag)
-    lockInfo = if (nbt.hasKey(LockTag)) {
+    lockInfo = if (nbt.contains(LockTag)) {
       nbt.getString(LockTag)
     } else ""
   }
 
-  override def save(nbt: NBTTagCompound) {
-    nbt.setBoolean(UnmanagedTag, isUnmanaged)
-    nbt.setString(LockTag, lockInfo)
+  override def save(nbt: CompoundTag) {
+    nbt.putBoolean(UnmanagedTag, isUnmanaged)
+    nbt.putString(LockTag, lockInfo)
   }
 }
 
 object DriveData {
-  def lock(stack: ItemStack, player: EntityPlayer): Unit = {
-    val key = player.getName
+  def lock(stack: ItemStack, player: Player): Unit = {
+    val key = player.getName.getString
     val data = new DriveData(stack)
     if (!data.isLocked) {
       data.lockInfo = key match {

@@ -43,7 +43,7 @@ import li.cil.oc.server.network.Waypoints
 import li.cil.oc.server.network.WirelessNetwork
 import li.cil.oc.util.Color
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.World
 import net.minecraftforge.common.ForgeChunkManager

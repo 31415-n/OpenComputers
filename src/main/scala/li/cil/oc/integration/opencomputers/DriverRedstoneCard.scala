@@ -14,7 +14,7 @@ import li.cil.oc.common.tileentity.traits.RedstoneAware
 import li.cil.oc.integration.util.BundledRedstone
 import li.cil.oc.integration.util.WirelessRedstone
 import li.cil.oc.server.component
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 
 object DriverRedstoneCard extends Item with HostAware {
   override def worksWith(stack: ItemStack) = isOneOf(stack,

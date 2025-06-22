@@ -7,7 +7,7 @@ import li.cil.oc.common.{Slot, Tier}
 import li.cil.oc.server.component
 import li.cil.oc.util.BlockPosition
 import li.cil.oc.{Constants, Settings, api}
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.EnumFacing
 import net.minecraftforge.common.DimensionManager
 

@@ -12,7 +12,7 @@ import li.cil.oc.util.ResultWrapper.result
 import net.minecraft.block.Block
 import net.minecraft.block.material.Material
 import net.minecraft.init.Blocks
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.tileentity.TileEntityNote
 import net.minecraft.util.EnumFacing
 import net.minecraft.util.math.BlockPos

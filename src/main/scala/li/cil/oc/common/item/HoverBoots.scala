@@ -14,7 +14,7 @@ import net.minecraft.init.Blocks
 import net.minecraft.inventory.EntityEquipmentSlot
 import net.minecraft.item.EnumRarity
 import net.minecraft.item.ItemArmor
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.potion.Potion
 import net.minecraft.potion.PotionEffect
 import net.minecraft.world.World

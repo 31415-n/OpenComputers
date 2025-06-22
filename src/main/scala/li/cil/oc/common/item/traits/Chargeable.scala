@@ -8,7 +8,7 @@ import li.cil.oc.integration.ic2.ElectricItemManager
 import li.cil.oc.integration.opencomputers.ModOpenComputers
 import net.minecraft.util.{EnumFacing, ResourceLocation}
 import net.minecraftforge.fml.common.Optional
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraftforge.common.capabilities.{Capability, ICapabilityProvider}
 import net.minecraftforge.energy.{CapabilityEnergy, IEnergyStorage}
 

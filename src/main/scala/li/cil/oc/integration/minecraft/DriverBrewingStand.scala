@@ -10,7 +10,7 @@ import li.cil.oc.api.prefab.DriverSidedTileEntity
 import li.cil.oc.integration.ManagedTileEntityEnvironment
 import li.cil.oc.util.ResultWrapper.result
 import net.minecraft.init.Items
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.tileentity.TileEntityBrewingStand
 import net.minecraft.util.EnumFacing
 import net.minecraft.util.math.BlockPos

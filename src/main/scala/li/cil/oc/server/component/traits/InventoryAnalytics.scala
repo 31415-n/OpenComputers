@@ -9,7 +9,7 @@ import li.cil.oc.util.DatabaseAccess
 import li.cil.oc.util.ExtendedArguments._
 import li.cil.oc.util.InventoryUtils
 import li.cil.oc.util.StackOption._
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraftforge.oredict.OreDictionary
 
 trait InventoryAnalytics extends InventoryAware with NetworkAware {

@@ -19,14 +19,14 @@ import li.cil.oc.integration.util.ItemCharge
 import li.cil.oc.server.{PacketSender => ServerPacketSender}
 import li.cil.oc.util.BlockPosition
 import li.cil.oc.util.ExtendedWorld._
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.util.EnumFacing
-import net.minecraft.util.EnumParticleTypes
-import net.minecraft.util.math.Vec3d
-import net.minecraftforge.fml.relauncher.Side
-import net.minecraftforge.fml.relauncher.SideOnly
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.ItemStack
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.core.Direction
+import net.minecraft.core.particles.ParticleTypes
+import net.minecraft.world.phys.Vec3
+import net.minecraftforge.api.distmarker.Dist
+import net.minecraftforge.api.distmarker.OnlyIn
 
 import scala.jdk.CollectionConverters._
 import scala.collection.mutable
@@ -56,10 +56,10 @@ class Charger extends traits.Environment with traits.PowerAcceptor with traits.R
 
   // ----------------------------------------------------------------------- //
 
-  @SideOnly(Side.CLIENT)
-  override protected def hasConnector(side: EnumFacing): Boolean = side != facing
+  @OnlyIn(Dist.CLIENT)
+  override protected def hasConnector(side: Direction): Boolean = side != facing
 
-  override protected def connector(side: EnumFacing) = Option(if (side != facing) node else null)
+  override protected def connector(side: Direction) = Option(if (side != facing) node else null)
 
   override def energyThroughput: Double = Settings.get.chargerRate
 
@@ -72,8 +72,8 @@ class Charger extends traits.Environment with traits.PowerAcceptor with traits.R
     else util.EnumSet.noneOf(classOf[api.util.StateAware.State])
   }
 
-  override def onAnalyze(player: EntityPlayer, side: EnumFacing, hitX: Float, hitY: Float, hitZ: Float): Null = {
-    player.sendMessage(Localization.Analyzer.ChargerSpeed(chargeSpeed))
+  override def onAnalyze(player: Player, side: Direction, hitX: Float, hitY: Float, hitZ: Float): Null = {
+    player.sendSystemMessage(Localization.Analyzer.ChargerSpeed(chargeSpeed))
     null
   }
 
@@ -91,11 +91,11 @@ class Charger extends traits.Environment with traits.PowerAcceptor with traits.R
     super.updateEntity()
 
     // Offset by hashcode to avoid all chargers ticking at the same time.
-    if ((getWorld.getWorldInfo.getWorldTotalTime + math.abs(hashCode())) % 20 == 0) {
+    if ((getLevel.getGameTime + math.abs(hashCode())) % 20 == 0) {
       updateConnectors()
     }
 
-    if (isServer && getWorld.getWorldInfo.getWorldTotalTime % Settings.get.tickFrequency == 0) {
+    if (isServer && getLevel.getGameTime % Settings.get.tickFrequency == 0) {
       var canCharge = Settings.get.ignorePower
 
       // Charging of external devices.
@@ -139,15 +139,15 @@ class Charger extends traits.Environment with traits.PowerAcceptor with traits.R
       }
     }
 
-    if (isClient && chargeSpeed > 0 && hasPower && getWorld.getWorldInfo.getWorldTotalTime % 10 == 0) {
+    if (isClient && chargeSpeed > 0 && hasPower && getLevel.getGameTime % 10 == 0) {
       connectors.foreach(connector => {
         val position = connector.pos
-        val theta = getWorld.rand.nextDouble * Math.PI
-        val phi = getWorld.rand.nextDouble * Math.PI * 2
+        val theta = getLevel.random.nextDouble * Math.PI
+        val phi = getLevel.random.nextDouble * Math.PI * 2
         val dx = 0.45 * Math.sin(theta) * Math.cos(phi)
         val dy = 0.45 * Math.sin(theta) * Math.sin(phi)
         val dz = 0.45 * Math.cos(theta)
-        getWorld.spawnParticle(EnumParticleTypes.VILLAGER_HAPPY, position.x + dx, position.y + dz, position.z + dy, 0, 0, 0)
+        getLevel.addParticle(ParticleTypes.HAPPY_VILLAGER, position.x + dx, position.y + dz, position.z + dy, 0, 0, 0)
       })
     }
   }
@@ -168,40 +168,40 @@ class Charger extends traits.Environment with traits.PowerAcceptor with traits.R
   private final val InvertSignalTag = Settings.namespace + "invertSignal"
   private final val InvertSignalTagCompat = "invertSignal"
 
-  override def readFromNBTForServer(nbt: NBTTagCompound) {
+  override def readFromNBTForServer(nbt: CompoundTag) {
     super.readFromNBTForServer(nbt)
-    if (nbt.hasKey(ChargeSpeedTagCompat))
+    if (nbt.contains(ChargeSpeedTagCompat))
       chargeSpeed = nbt.getDouble(ChargeSpeedTagCompat) max 0 min 1
     else
       chargeSpeed = nbt.getDouble(ChargeSpeedTag) max 0 min 1
-    if (nbt.hasKey(HasPowerTagCompat))
+    if (nbt.contains(HasPowerTagCompat))
       hasPower = nbt.getBoolean(HasPowerTagCompat)
     else
       hasPower = nbt.getBoolean(HasPowerTag)
-    if (nbt.hasKey(InvertSignalTagCompat))
+    if (nbt.contains(InvertSignalTagCompat))
       invertSignal = nbt.getBoolean(InvertSignalTagCompat)
     else
       invertSignal = nbt.getBoolean(InvertSignalTag)
   }
 
-  override def writeToNBTForServer(nbt: NBTTagCompound) {
+  override def writeToNBTForServer(nbt: CompoundTag) {
     super.writeToNBTForServer(nbt)
-    nbt.setDouble(ChargeSpeedTag, chargeSpeed)
-    nbt.setBoolean(HasPowerTag, hasPower)
-    nbt.setBoolean(InvertSignalTag, invertSignal)
+    nbt.putDouble(ChargeSpeedTag, chargeSpeed)
+    nbt.putBoolean(HasPowerTag, hasPower)
+    nbt.putBoolean(InvertSignalTag, invertSignal)
   }
 
-  @SideOnly(Side.CLIENT)
-  override def readFromNBTForClient(nbt: NBTTagCompound) {
+  @OnlyIn(Dist.CLIENT)
+  override def readFromNBTForClient(nbt: CompoundTag) {
     super.readFromNBTForClient(nbt)
     chargeSpeed = nbt.getDouble(ChargeSpeedTag)
     hasPower = nbt.getBoolean(HasPowerTag)
   }
 
-  override def writeToNBTForClient(nbt: NBTTagCompound) {
+  override def writeToNBTForClient(nbt: CompoundTag) {
     super.writeToNBTForClient(nbt)
-    nbt.setDouble(ChargeSpeedTag, chargeSpeed)
-    nbt.setBoolean(HasPowerTag, hasPower)
+    nbt.putDouble(ChargeSpeedTag, chargeSpeed)
+    nbt.putBoolean(HasPowerTag, hasPower)
   }
 
   // ----------------------------------------------------------------------- //
@@ -221,7 +221,7 @@ class Charger extends traits.Environment with traits.PowerAcceptor with traits.R
 
   // ----------------------------------------------------------------------- //
 
-  override def updateRedstoneInput(side: EnumFacing) {
+  override def updateRedstoneInput(side: Direction) {
     super.updateRedstoneInput(side)
     val signal = getInput.max min 15
 
@@ -238,20 +238,20 @@ class Charger extends traits.Environment with traits.PowerAcceptor with traits.R
   }
 
   def updateConnectors() {
-    val robots = EnumFacing.values.map(side => {
+    val robots = Direction.values.map(side => {
       val blockPos = BlockPosition(this).offset(side)
-      if (getWorld.blockExists(blockPos)) Option(getWorld.getTileEntity(blockPos))
+      if (getLevel.isLoaded(blockPos)) Option(getLevel.getBlockEntity(blockPos))
       else None
     }).collect {
       case Some(t: RobotProxy) => new RobotChargeable(t.robot)
     }
-    val bounds = BlockPosition(this).bounds.grow(1, 1, 1)
-    val drones = getWorld.getEntitiesWithinAABB(classOf[Drone], bounds).collect {
+    val bounds = BlockPosition(this).bounds.inflate(1, 1, 1)
+    val drones = getLevel.getEntitiesOfClass(classOf[Drone], bounds).asScala.collect {
       case drone: Drone => new DroneChargeable(drone)
     }
 
-    val players = getWorld.getEntitiesWithinAABB(classOf[EntityPlayer], bounds).collect {
-      case player: EntityPlayer => player
+    val players = getLevel.getEntitiesOfClass(classOf[Player], bounds).asScala.collect {
+      case player: Player => player
     }
 
     val chargeablePlayers = players.collect {
@@ -264,13 +264,13 @@ class Charger extends traits.Environment with traits.PowerAcceptor with traits.R
     if (connectors.size != newConnectors.length || (connectors.nonEmpty && (connectors -- newConnectors).nonEmpty)) {
       connectors.clear()
       connectors ++= newConnectors
-      getWorld.notifyNeighborsOfStateChange(getPos, getBlockType, false)
+      getLevel.updateNeighborsAt(getBlockPos, getBlockState.getBlock)
     }
 
     // scan players for chargeable equipment
     equipment.clear()
     players.foreach {
-      player => player.inventory.mainInventory.foreach {
+      player => player.getInventory.items.asScala.foreach {
         stack: ItemStack =>
           if (Option(Driver.driverFor(stack, getClass)) match {
             case Some(driver) if driver.slot(stack) == Slot.Tablet => true
@@ -283,7 +283,7 @@ class Charger extends traits.Environment with traits.PowerAcceptor with traits.R
   }
 
   trait Chargeable {
-    def pos: Vec3d
+    def pos: Vec3
 
     def changeBuffer(delta: Double): Double
   }
@@ -298,7 +298,7 @@ class Charger extends traits.Environment with traits.PowerAcceptor with traits.R
   }
 
   class RobotChargeable(val robot: Robot) extends ConnectorChargeable(robot.node.asInstanceOf[Connector]) {
-    override def pos: Vec3d = BlockPosition(robot).toVec3
+    override def pos: Vec3 = BlockPosition(robot).toVec3
 
     override def equals(obj: scala.Any): Boolean = obj match {
       case chargeable: RobotChargeable => chargeable.robot == robot
@@ -309,7 +309,7 @@ class Charger extends traits.Environment with traits.PowerAcceptor with traits.R
   }
 
   class DroneChargeable(val drone: Drone) extends ConnectorChargeable(drone.components.node.asInstanceOf[Connector]) {
-    override def pos: Vec3d = new Vec3d(drone.posX, drone.posY, drone.posZ)
+    override def pos: Vec3 = new Vec3(drone.getX, drone.getY, drone.getZ)
 
     override def equals(obj: scala.Any): Boolean = obj match {
       case chargeable: DroneChargeable => chargeable.drone == drone
@@ -319,8 +319,8 @@ class Charger extends traits.Environment with traits.PowerAcceptor with traits.R
     override def hashCode(): Int = drone.hashCode()
   }
 
-  class PlayerChargeable(val player: EntityPlayer) extends Chargeable {
-    override def pos: Vec3d = new Vec3d(player.posX, player.posY, player.posZ)
+  class PlayerChargeable(val player: Player) extends Chargeable {
+    override def pos: Vec3 = new Vec3(player.getX, player.getY, player.getZ)
 
     override def changeBuffer(delta: Double): Double = {
       api.Nanomachines.getController(player) match {

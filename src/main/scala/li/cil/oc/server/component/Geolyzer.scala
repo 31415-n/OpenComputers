@@ -28,7 +28,7 @@ import li.cil.oc.util.ExtendedArguments._
 import li.cil.oc.util.ExtendedWorld._
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.item.Item
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.util.EnumFacing
 import net.minecraftforge.common.MinecraftForge

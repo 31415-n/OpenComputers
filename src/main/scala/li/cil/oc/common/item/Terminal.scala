@@ -10,7 +10,7 @@ import net.minecraft.client.renderer.block.model.ModelBakery
 import net.minecraft.client.renderer.block.model.ModelResourceLocation
 import net.minecraft.client.util.ITooltipFlag
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.ActionResult
 import net.minecraft.util.EnumHand
 import net.minecraft.util.ResourceLocation

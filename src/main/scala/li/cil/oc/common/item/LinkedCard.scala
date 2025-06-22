@@ -6,7 +6,7 @@ import li.cil.oc.Settings
 import li.cil.oc.util.Tooltip
 import net.minecraft.client.util.ITooltipFlag
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.world.World
 
 class LinkedCard(val parent: Delegator) extends traits.Delegate with traits.ItemTier {

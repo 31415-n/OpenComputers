@@ -3,7 +3,7 @@ package li.cil.oc.common.item
 import li.cil.oc.Settings
 import li.cil.oc.api.driver.item.Chargeable
 import li.cil.oc.common.item.data.NodeData
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 
 class UpgradeBattery(val parent: Delegator, val tier: Int) extends traits.Delegate with traits.ItemTier with traits.Chargeable {
   override val unlocalizedName: String = super.unlocalizedName + tier

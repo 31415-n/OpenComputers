@@ -21,7 +21,7 @@ import net.minecraft.init.Blocks
 import net.minecraft.init.Items
 import net.minecraft.inventory._
 import net.minecraft.item.ItemBlock
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.network.NetHandlerPlayServer
 import net.minecraft.potion.PotionEffect
 import net.minecraft.server.management.{PlayerInteractionManager, UserListOpsEntry}

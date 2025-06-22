@@ -5,10 +5,10 @@ import li.cil.oc.Settings
 import li.cil.oc.common.EventHandler
 import li.cil.oc.integration.util.BundledRedstone
 import li.cil.oc.server.{PacketSender => ServerPacketSender}
-import net.minecraft.nbt.NBTTagCompound
+import net.minecraft.nbt.CompoundTag
 import net.minecraft.core.Direction
-import net.minecraftforge.fml.relauncher.Side
-import net.minecraftforge.fml.relauncher.SideOnly
+import net.minecraftforge.api.distmarker.Dist
+import net.minecraftforge.api.distmarker.OnlyIn
 
 case class RedstoneChangedEventArgs (side: Direction, oldValue: Int, newValue: Int, color: Int = -1)
 
@@ -108,7 +108,7 @@ trait RedstoneAware extends RotationAware {
     if (this.isInstanceOf[Tickable]) {
       shouldUpdateInput = isServer
     } else {
-      EnumFacing.values().foreach(updateRedstoneInput)
+      Direction.values().foreach(updateRedstoneInput)
     }
   }
 
@@ -135,7 +135,7 @@ trait RedstoneAware extends RotationAware {
 
   // ----------------------------------------------------------------------- //
 
-  override def readFromNBTForServer(nbt: NBTTagCompound): Unit = {
+  override def readFromNBTForServer(nbt: CompoundTag): Unit = {
     super.readFromNBTForServer(nbt)
 
     val input = nbt.getIntArray(Settings.namespace + "rs.input")
@@ -144,21 +144,21 @@ trait RedstoneAware extends RotationAware {
     output.copyToArray(_output, 0, output.length min _output.length)
   }
 
-  override def writeToNBTForServer(nbt: NBTTagCompound): Unit = {
+  override def writeToNBTForServer(nbt: CompoundTag): Unit = {
     super.writeToNBTForServer(nbt)
 
     nbt.setIntArray(Settings.namespace + "rs.input", _input)
     nbt.setIntArray(Settings.namespace + "rs.output", _output)
   }
 
-  @SideOnly(Side.CLIENT)
-  override def readFromNBTForClient(nbt: NBTTagCompound) {
+  @OnlyIn(Dist.CLIENT)
+  override def readFromNBTForClient(nbt: CompoundTag) {
     super.readFromNBTForClient(nbt)
     _isOutputEnabled = nbt.getBoolean("isOutputEnabled")
     nbt.getIntArray("output").copyToArray(_output)
   }
 
-  override def writeToNBTForClient(nbt: NBTTagCompound) {
+  override def writeToNBTForClient(nbt: CompoundTag) {
     super.writeToNBTForClient(nbt)
     nbt.setBoolean("isOutputEnabled", _isOutputEnabled)
     nbt.setIntArray("output", _output)

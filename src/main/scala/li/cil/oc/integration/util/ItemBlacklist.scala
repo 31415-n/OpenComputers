@@ -2,7 +2,7 @@ package li.cil.oc.integration.util
 
 import li.cil.oc.common.item.traits.Delegate
 import net.minecraft.block.Block
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 
 import scala.collection.mutable
 

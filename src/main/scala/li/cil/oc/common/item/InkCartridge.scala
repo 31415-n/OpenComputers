@@ -2,7 +2,7 @@ package li.cil.oc.common.item
 
 import li.cil.oc.Constants
 import li.cil.oc.api
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 
 class InkCartridge(val parent: Delegator) extends traits.Delegate {
   override def maxStackSize = 1

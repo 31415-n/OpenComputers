@@ -31,7 +31,7 @@ import li.cil.oc.server.network.Connector
 import li.cil.oc.util.BlockPosition
 import li.cil.oc.util.ExtendedNBT._
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.util.EnumFacing
 import net.minecraft.util.EnumHand

@@ -9,7 +9,7 @@ import li.cil.oc.util.Tooltip
 import net.minecraft.block.state.IBlockState
 import net.minecraft.client.util.ITooltipFlag
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.world.World
 
 class Disassembler extends SimpleBlock with traits.PowerAcceptor with traits.StateAware with traits.GUI {

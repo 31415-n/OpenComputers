@@ -6,7 +6,7 @@ import li.cil.oc.api
 import net.minecraft.entity.EntityLivingBase
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.item.EnumAction
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.potion.Potion
 import net.minecraft.potion.PotionEffect
 import net.minecraft.util.ActionResult

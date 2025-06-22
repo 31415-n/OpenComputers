@@ -8,7 +8,7 @@ import li.cil.oc.util.Color
 import net.minecraft.item.EnumDyeColor
 import li.cil.oc.util.ItemColorizer
 import net.minecraft.item.Item
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 
 class Cable extends traits.Environment with traits.NotAnalyzable with traits.ImmibisMicroblock with traits.Colored {
   val node = api.Network.newNode(this, Visibility.None).create()

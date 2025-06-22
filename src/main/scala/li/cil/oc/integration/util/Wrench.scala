@@ -4,7 +4,7 @@ import java.lang.reflect.Method
 
 import li.cil.oc.common.IMC
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.math.BlockPos
 
 import scala.collection.mutable

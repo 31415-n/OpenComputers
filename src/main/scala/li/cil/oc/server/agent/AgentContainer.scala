@@ -3,7 +3,7 @@ package li.cil.oc.server.agent
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.inventory.{Container, IContainerListener, IInventory, Slot}
 import li.cil.oc.server.agent
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.NonNullList
 
 class AgentContainer(player: agent.Player) extends Container {

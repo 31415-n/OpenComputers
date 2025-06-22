@@ -7,7 +7,7 @@ import net.minecraft.block.BlockDynamicLiquid
 import net.minecraft.block.BlockLiquid
 import net.minecraft.block.BlockStaticLiquid
 import net.minecraft.init.Blocks
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.tileentity.TileEntity
 import net.minecraft.util.EnumFacing
 import net.minecraftforge.fluids.Fluid

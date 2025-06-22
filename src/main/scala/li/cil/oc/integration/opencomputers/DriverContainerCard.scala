@@ -8,7 +8,7 @@ import li.cil.oc.common.Slot
 import li.cil.oc.common.Tier
 import li.cil.oc.common.item
 import li.cil.oc.common.item.Delegator
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 
 object DriverContainerCard extends Item with Container {
   override def worksWith(stack: ItemStack) = isOneOf(stack,

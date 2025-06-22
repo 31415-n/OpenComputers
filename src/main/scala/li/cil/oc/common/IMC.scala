@@ -15,7 +15,7 @@ import li.cil.oc.server.driver.Registry
 import li.cil.oc.server.machine.ProgramLocations
 import li.cil.oc.util.ExtendedNBT._
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagString
 import net.minecraft.util.math.BlockPos
 import net.minecraftforge.common.util.Constants.NBT

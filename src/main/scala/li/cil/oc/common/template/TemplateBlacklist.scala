@@ -4,7 +4,7 @@ import li.cil.oc.OpenComputers
 import li.cil.oc.Settings
 import li.cil.oc.api
 import net.minecraft.item.Item
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.ResourceLocation
 
 import scala.collection.convert.WrapAsScala._

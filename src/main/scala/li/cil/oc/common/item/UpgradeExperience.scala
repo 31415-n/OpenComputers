@@ -4,7 +4,7 @@ import java.util
 
 import li.cil.oc.util.UpgradeExperience
 import net.minecraft.client.util.ITooltipFlag
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.world.World
 import net.minecraftforge.fml.relauncher.{Side, SideOnly}
 import li.cil.oc.Localization;

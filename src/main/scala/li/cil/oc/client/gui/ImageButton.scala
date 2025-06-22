@@ -10,6 +10,9 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraft.network.chat.Component
 import net.minecraftforge.api.distmarker.Dist
 import net.minecraftforge.api.distmarker.OnlyIn
+import com.mojang.blaze3d.vertex.Tesselator
+import com.mojang.blaze3d.vertex.DefaultVertexFormat
+import com.mojang.blaze3d.vertex.VertexFormat
 
 @OnlyIn(Dist.CLIENT)
 class ImageButton(xPos: Int, yPos: Int, w: Int, h: Int,
@@ -21,7 +24,10 @@ class ImageButton(xPos: Int, yPos: Int, w: Int, h: Int,
                   val textHoverColor: Int = 0xFFFFA0,
                   val textIndent: Int = -1,
                   onPress: Button.OnPress = _ => {}) extends Button(xPos, yPos, w, h, 
-                    if (text != null) Component.literal(text) else Component.empty(), onPress, Button.DEFAULT_NARRATION) {
+                    if (text != null) Component.literal(text) else Component.empty(), onPress, 
+                    new Button.CreateNarration {
+                      override def createNarrationMessage(button: Button): net.minecraft.network.chat.MutableComponent = Component.empty()
+                    }) {
 
   var toggled = false
 
@@ -30,28 +36,50 @@ class ImageButton(xPos: Int, yPos: Int, w: Int, h: Int,
   override def renderWidget(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTicks: Float): Unit = {
     if (visible) {
       val mc = Minecraft.getInstance()
-      RenderSystem.setShader(() => GameRenderer.getPositionTexShader())
-      RenderSystem.setShaderTexture(0, image)
+      Textures.bind(image)
       RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
+      
+      val x0 = getX
+      val x1 = getX + width
+      val y0 = getY
+      val y1 = getY + height
       
       val isHovered = hoverOverride || isHoveredOrFocused()
 
+      val t = Tesselator.getInstance
+      val r = t.getBuilder
       if (image != null) {
-        val u0 = if (toggled) 0.5f else 0.0f
-        val u1 = u0 + (if (canToggle) 0.5f else 1.0f)
-        val v0 = if (isHovered) 0.5f else 0.0f
-        val v1 = v0 + 0.5f
+        val u0 = if (toggled) 0.5 else 0
+        val u1 = u0 + (if (canToggle) 0.5 else 1)
+        val v0 = if (isHovered) 0.5 else 0
+        val v1 = v0 + 0.5
 
-        guiGraphics.blit(image, getX, getY, u0 * 256, v0 * 256, width, height, 256, 256)
+        r.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX)
+        r.vertex(x0, y1, 0).uv(u0.toFloat, v1.toFloat).endVertex()
+        r.vertex(x1, y1, 0).uv(u1.toFloat, v1.toFloat).endVertex()
+        r.vertex(x1, y0, 0).uv(u1.toFloat, v0.toFloat).endVertex()
+        r.vertex(x0, y0, 0).uv(u0.toFloat, v0.toFloat).endVertex()
+      }
+      else if (isHovered) {
+        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 0.8f)
+        r.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION)
+        r.vertex(x0, y1, 0).endVertex()
+        r.vertex(x1, y1, 0).endVertex()
+        r.vertex(x1, y0, 0).endVertex()
+        r.vertex(x0, y0, 0).endVertex()
       }
       else {
-        val alpha = if (isHovered) 0.8f else 0.4f
-        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, alpha)
-        guiGraphics.fill(getX, getY, getX + width, getY + height, 0xFFFFFFFF)
+        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 0.4f)
+        r.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION)
+        r.vertex(x0, y1, 0).endVertex()
+        r.vertex(x1, y1, 0).endVertex()
+        r.vertex(x1, y0, 0).endVertex()
+        r.vertex(x0, y0, 0).endVertex()
       }
+      t.end()
 
       val message = getMessage
-      if (!message.getString.isEmpty) {
+      if (message != null && !message.getString.isEmpty) {
         val color =
           if (!active) textDisabledColor
           else if (hoverOverride || isHovered) textHoverColor
@@ -70,7 +98,10 @@ class ImageButton(xPos: Int, yPos: Int, w: Int, h: Int,
     mouseX >= getX && mouseY >= getY && mouseX < getX + width && mouseY < getY + height
   }
   
-  // Compatibility property
+  // Compatibility properties
   def enabled: Boolean = active
   def enabled_=(value: Boolean): Unit = active = value
+  
+  def displayString: String = getMessage.getString
+  def displayString_=(value: String): Unit = setMessage(Component.literal(value))
 }

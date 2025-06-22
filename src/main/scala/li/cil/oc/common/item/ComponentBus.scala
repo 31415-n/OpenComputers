@@ -4,7 +4,7 @@ import li.cil.oc.Settings
 import li.cil.oc.common.Tier
 import li.cil.oc.util.Rarity
 import net.minecraft.item.EnumRarity
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 
 class ComponentBus(val parent: Delegator, val tier: Int) extends traits.Delegate with traits.ItemTier {
   override val unlocalizedName = super.unlocalizedName + tier

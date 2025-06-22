@@ -6,7 +6,7 @@ import li.cil.oc.integration.Mods
 import net.minecraft.block.Block
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.init.Blocks
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.EnumActionResult
 import net.minecraft.util.EnumFacing
 import net.minecraft.util.EnumHand

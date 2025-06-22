@@ -13,7 +13,7 @@ import li.cil.oc.util.BlockPosition
 import li.cil.oc.util.ExtendedWorld._
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.entity.player.EntityPlayerMP
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.ActionResult
 import net.minecraft.util.EnumFacing
 import net.minecraft.world.World

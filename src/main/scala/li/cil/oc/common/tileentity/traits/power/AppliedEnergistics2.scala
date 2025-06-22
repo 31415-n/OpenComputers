@@ -6,10 +6,10 @@ import li.cil.oc.Settings
 import li.cil.oc.common.EventHandler
 import li.cil.oc.integration.Mods
 import li.cil.oc.integration.util.Power
-import net.minecraft.item.ItemStack
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.util.EnumFacing
-import net.minecraft.world.World
+import net.minecraft.world.item.ItemStack
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.core.Direction
+import net.minecraft.world.level.Level
 import net.minecraftforge.fml.common._
 
 import scala.collection.JavaConversions
@@ -40,7 +40,7 @@ trait AppliedEnergistics2 extends Common {
 
   override def updateEntity() {
     super.updateEntity()
-    if (useAppliedEnergistics2Power() && getWorld.getTotalWorldTime % Settings.get.tickFrequency == 0) {
+    if (useAppliedEnergistics2Power() && getLevel.getGameTime % Settings.get.tickFrequency == 0) {
       updateEnergy()
     }
   }
@@ -77,32 +77,32 @@ trait AppliedEnergistics2 extends Common {
 
   // ----------------------------------------------------------------------- //
 
-  override def readFromNBTForServer(nbt: NBTTagCompound) {
+  override def readFromNBTForServer(nbt: CompoundTag) {
     super.readFromNBTForServer(nbt)
     if (useAppliedEnergistics2Power()) loadNode(nbt)
   }
 
   @Optional.Method(modid = Mods.IDs.AppliedEnergistics2)
-  private def loadNode(nbt: NBTTagCompound): Unit = {
+  private def loadNode(nbt: CompoundTag): Unit = {
     getGridNode(AEPartLocation.INTERNAL).loadFromNBT(Settings.namespace + "ae2power", nbt)
   }
 
-  override def setWorld(worldIn: World): Unit = {
-    if (getWorld == worldIn)
+  override def setLevel(levelIn: Level): Unit = {
+    if (getLevel == levelIn)
       return
-    super.setWorld(worldIn)
-    if (worldIn != null && isServer && useAppliedEnergistics2Power) {
+    super.setLevel(levelIn)
+    if (levelIn != null && isServer && useAppliedEnergistics2Power) {
       requestGridNodeStateUpdate()
     }
   }
 
-  override def writeToNBTForServer(nbt: NBTTagCompound) {
+  override def writeToNBTForServer(nbt: CompoundTag) {
     super.writeToNBTForServer(nbt)
     if (useAppliedEnergistics2Power()) saveNode(nbt)
   }
 
   @Optional.Method(modid = Mods.IDs.AppliedEnergistics2)
-  private def saveNode(nbt: NBTTagCompound): Unit = {
+  private def saveNode(nbt: CompoundTag): Unit = {
     getGridNode(AEPartLocation.INTERNAL).saveToNBT(Settings.namespace + "ae2power", nbt)
   }
 
@@ -143,10 +143,10 @@ class AppliedEnergistics2GridBlock(val tileEntity: AppliedEnergistics2) {
 
   override def setNetworkStatus(p1: IGrid, p2: Int): Unit = {}
 
-  override def getConnectableSides: util.EnumSet[EnumFacing] = {
-    val connectableSides = JavaConversions.asJavaCollection(EnumFacing.values.filter(tileEntity.canConnectPower))
+  override def getConnectableSides: util.EnumSet[Direction] = {
+    val connectableSides = JavaConversions.asJavaCollection(Direction.values.filter(tileEntity.canConnectPower))
     if (connectableSides.isEmpty) {
-      val s = util.EnumSet.copyOf(JavaConversions.asJavaCollection(EnumFacing.values))
+      val s = util.EnumSet.copyOf(JavaConversions.asJavaCollection(Direction.values))
       s.clear()
       s
     }

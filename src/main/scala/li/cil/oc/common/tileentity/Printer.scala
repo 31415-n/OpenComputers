@@ -19,12 +19,12 @@ import li.cil.oc.util.ExtendedNBT._
 import li.cil.oc.util.StackOption
 import li.cil.oc.util.StackOption._
 import net.minecraft.world.WorldlyContainer
-import net.minecraft.item.ItemStack
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.util.EnumFacing
-import net.minecraft.util.math.AxisAlignedBB
-import net.minecraftforge.fml.relauncher.Side
-import net.minecraftforge.fml.relauncher.SideOnly
+import net.minecraft.world.item.ItemStack
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.core.Direction
+import net.minecraft.world.phys.AABB
+import net.minecraftforge.api.distmarker.Dist
+import net.minecraftforge.api.distmarker.OnlyIn
 
 import scala.jdk.CollectionConverters._
 
@@ -61,10 +61,10 @@ class Printer extends traits.Environment with traits.Inventory with traits.Rotat
 
   // ----------------------------------------------------------------------- //
 
-  @SideOnly(Side.CLIENT)
-  override def canConnect(side: EnumFacing): Boolean = side != EnumFacing.UP
+  @OnlyIn(Dist.CLIENT)
+  override def canConnect(side: Direction): Boolean = side != Direction.UP
 
-  override def sidedNode(side: EnumFacing): ComponentConnector = if (side != EnumFacing.UP) node else null
+  override def sidedNode(side: Direction): ComponentConnector = if (side != Direction.UP) node else null
 
   override def getCurrentState: util.EnumSet[StateAware.State] = {
     if (isPrinting) util.EnumSet.of(api.util.StateAware.State.IsWorking)
@@ -187,7 +187,7 @@ class Printer extends traits.Environment with traits.Inventory with traits.Rotat
     if (minZ == maxZ) throw new IllegalArgumentException("empty block")
 
     val list = if (state) data.stateOn else data.stateOff
-    list += new PrintData.Shape(new AxisAlignedBB(
+    list += new PrintData.Shape(new AABB(
       math.min(minX, maxX),
       math.min(minY, maxY),
       math.min(minZ, maxZ),
@@ -197,7 +197,7 @@ class Printer extends traits.Environment with traits.Inventory with traits.Rotat
       texture, tint)
     isActive = false // Needs committing.
 
-    getWorld.notifyBlockUpdate(getPos, getWorld.getBlockState(getPos), getWorld.getBlockState(getPos), 3)
+    level.sendBlockUpdated(getBlockPos, level.getBlockState(getBlockPos), level.getBlockState(getBlockPos), 3)
 
     result(true)
   }
@@ -313,7 +313,7 @@ class Printer extends traits.Environment with traits.Inventory with traits.Rotat
   private final val TotalTag = Settings.namespace + "total"
   private final val RemainingTag = Settings.namespace + "remaining"
 
-  override def readFromNBTForServer(nbt: NBTTagCompound) {
+  override def readFromNBTForServer(nbt: CompoundTag) {
     super.readFromNBTForServer(nbt)
     amountMaterial = nbt.getInteger(AmountMaterialTag)
     amountInk = nbt.getInteger(AmountInkTag)
@@ -330,7 +330,7 @@ class Printer extends traits.Environment with traits.Inventory with traits.Rotat
     requiredEnergy = nbt.getDouble(RemainingTag)
   }
 
-  override def writeToNBTForServer(nbt: NBTTagCompound) {
+  override def writeToNBTForServer(nbt: CompoundTag) {
     super.writeToNBTForServer(nbt)
     nbt.setInteger(AmountMaterialTag, amountMaterial)
     nbt.setInteger(AmountInkTag, amountInk)
@@ -342,14 +342,14 @@ class Printer extends traits.Environment with traits.Inventory with traits.Rotat
     nbt.setDouble(RemainingTag, requiredEnergy)
   }
 
-  @SideOnly(Side.CLIENT) override
-  def readFromNBTForClient(nbt: NBTTagCompound) {
+  @OnlyIn(Dist.CLIENT) override
+  def readFromNBTForClient(nbt: CompoundTag) {
     super.readFromNBTForClient(nbt)
     data.load(nbt.getCompoundTag(DataTag))
     requiredEnergy = nbt.getDouble(RemainingTag)
   }
 
-  override def writeToNBTForClient(nbt: NBTTagCompound) {
+  override def writeToNBTForClient(nbt: CompoundTag) {
     super.writeToNBTForClient(nbt)
     nbt.setNewCompoundTag(DataTag, data.save)
     nbt.setDouble(RemainingTag, requiredEnergy)
@@ -368,9 +368,9 @@ class Printer extends traits.Environment with traits.Inventory with traits.Rotat
 
   // ----------------------------------------------------------------------- //
 
-  override def getSlotsForFace(side: EnumFacing): Array[Int] = Array(slotMaterial, slotInk, slotOutput)
+  override def getSlotsForFace(side: Direction): Array[Int] = Array(slotMaterial, slotInk, slotOutput)
 
-  override def canExtractItem(slot: Int, stack: ItemStack, side: EnumFacing): Boolean = !isItemValidForSlot(slot, stack)
+  override def canExtractItem(slot: Int, stack: ItemStack, side: Direction): Boolean = !isItemValidForSlot(slot, stack)
 
-  override def canInsertItem(slot: Int, stack: ItemStack, side: EnumFacing): Boolean = slot != slotOutput
+  override def canInsertItem(slot: Int, stack: ItemStack, side: Direction): Boolean = slot != slotOutput
 }

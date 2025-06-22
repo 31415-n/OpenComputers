@@ -17,13 +17,13 @@ import li.cil.oc.util.BlockPosition
 import li.cil.oc.util.ExtendedNBT._
 import li.cil.oc.util.InventoryUtils
 import li.cil.oc.util.ItemUtils
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
-import net.minecraft.nbt.NBTTagCompound
-import net.minecraft.util.EnumFacing
-import net.minecraftforge.common.util.Constants.NBT
-import net.minecraftforge.fml.relauncher.Side
-import net.minecraftforge.fml.relauncher.SideOnly
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.ItemStack
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.core.Direction
+import net.minecraft.nbt.Tag
+import net.minecraftforge.api.distmarker.Dist
+import net.minecraftforge.api.distmarker.OnlyIn
 
 import scala.jdk.CollectionConverters._
 import scala.collection.mutable
@@ -51,7 +51,7 @@ class Disassembler extends traits.Environment with traits.PowerAcceptor with tra
   private def setActive(value: Boolean) = if (value != isActive) {
     isActive = value
     ServerPacketSender.sendDisassemblerActive(this, isActive)
-    getWorld.notifyNeighborsOfStateChange(getPos, getBlockType, true)
+    getLevel.updateNeighborsAt(getBlockPos, getBlockState.getBlock)
   }
 
   private final lazy val deviceInfo = Map(
@@ -65,10 +65,10 @@ class Disassembler extends traits.Environment with traits.PowerAcceptor with tra
 
   // ----------------------------------------------------------------------- //
 
-  @SideOnly(Side.CLIENT)
-  override protected def hasConnector(side: EnumFacing): Boolean = side != EnumFacing.UP
+  @OnlyIn(Dist.CLIENT)
+  override protected def hasConnector(side: Direction): Boolean = side != Direction.UP
 
-  override protected def connector(side: EnumFacing) = Option(if (side != EnumFacing.UP) node else null)
+  override protected def connector(side: Direction) = Option(if (side != Direction.UP) node else null)
 
   override def energyThroughput: Double = Settings.get.disassemblerRate
 
@@ -82,7 +82,7 @@ class Disassembler extends traits.Environment with traits.PowerAcceptor with tra
 
   override def updateEntity() {
     super.updateEntity()
-    if (isServer && getWorld.getTotalWorldTime % Settings.get.tickFrequency == 0) {
+    if (isServer && getLevel.getGameTime % Settings.get.tickFrequency == 0) {
       if (queue.isEmpty) {
         val instant = disassembleNextInstantly // Is reset via decrStackSize
         disassemble(decrStackSize(0, 1), instant)
@@ -100,7 +100,7 @@ class Disassembler extends traits.Environment with traits.PowerAcceptor with tra
         while (buffer >= Settings.get.disassemblerItemCost && queue.nonEmpty) {
           buffer -= Settings.get.disassemblerItemCost
           val stack = queue.remove(0)
-          if (disassembleNextInstantly || getWorld.rand.nextDouble >= Settings.get.disassemblerBreakChance) {
+          if (disassembleNextInstantly || getLevel.random.nextDouble >= Settings.get.disassemblerBreakChance) {
             drop(stack)
           }
         }
@@ -132,11 +132,11 @@ class Disassembler extends traits.Environment with traits.PowerAcceptor with tra
 
   private def drop(stack: ItemStack) {
     if (!stack.isEmpty) {
-      for (side <- EnumFacing.values if stack.getCount > 0) {
+      for (side <- Direction.values if stack.getCount > 0) {
         InventoryUtils.insertIntoInventoryAt(stack, BlockPosition(this).offset(side), Some(side.getOpposite))
       }
       if (stack.getCount > 0) {
-        spawnStackInWorld(stack, Option(EnumFacing.UP))
+        spawnStackInWorld(stack, Option(Direction.UP))
       }
     }
   }
@@ -148,32 +148,32 @@ class Disassembler extends traits.Environment with traits.PowerAcceptor with tra
   private final val TotalTag = Settings.namespace + "total"
   private final val IsActiveTag = Settings.namespace + "isActive"
 
-  override def readFromNBTForServer(nbt: NBTTagCompound) {
+  override def readFromNBTForServer(nbt: CompoundTag) {
     super.readFromNBTForServer(nbt)
     queue.clear()
-    queue ++= nbt.getTagList(QueueTag, NBT.TAG_COMPOUND).
-      map((tag: NBTTagCompound) => new ItemStack(tag))
+    queue ++= nbt.getList(QueueTag, Tag.TAG_COMPOUND).
+      map((tag: CompoundTag) => ItemStack.of(tag))
     buffer = nbt.getDouble(BufferTag)
     totalRequiredEnergy = nbt.getDouble(TotalTag)
     isActive = queue.nonEmpty
   }
 
-  override def writeToNBTForServer(nbt: NBTTagCompound) {
+  override def writeToNBTForServer(nbt: CompoundTag) {
     super.writeToNBTForServer(nbt)
     nbt.setNewTagList(QueueTag, queue)
-    nbt.setDouble(BufferTag, buffer)
-    nbt.setDouble(TotalTag, totalRequiredEnergy)
+    nbt.putDouble(BufferTag, buffer)
+    nbt.putDouble(TotalTag, totalRequiredEnergy)
   }
 
-  @SideOnly(Side.CLIENT)
-  override def readFromNBTForClient(nbt: NBTTagCompound) {
+  @OnlyIn(Dist.CLIENT)
+  override def readFromNBTForClient(nbt: CompoundTag) {
     super.readFromNBTForClient(nbt)
     isActive = nbt.getBoolean(IsActiveTag)
   }
 
-  override def writeToNBTForClient(nbt: NBTTagCompound) {
+  override def writeToNBTForClient(nbt: CompoundTag) {
     super.writeToNBTForClient(nbt)
-    nbt.setBoolean(IsActiveTag, isActive)
+    nbt.putBoolean(IsActiveTag, isActive)
   }
 
   // ----------------------------------------------------------------------- //
@@ -185,18 +185,18 @@ class Disassembler extends traits.Environment with traits.PowerAcceptor with tra
       (((Settings.get.disassembleAllTheThings || api.Items.get(stack) != null) && ItemUtils.getIngredients(stack).nonEmpty) ||
         DisassemblerTemplates.select(stack).isDefined)
 
-  private def allowDisassembling(stack: ItemStack) = !stack.isEmpty && (!stack.hasTagCompound || !stack.getTagCompound.getBoolean(Settings.namespace + "undisassemblable"))
+  private def allowDisassembling(stack: ItemStack) = !stack.isEmpty && (!stack.hasTag || !stack.getTag.getBoolean(Settings.namespace + "undisassemblable"))
 
   override def setInventorySlotContents(slot: Int, stack: ItemStack): Unit = {
     super.setInventorySlotContents(slot, stack)
-    if (!getWorld.isRemote) {
+    if (!getLevel.isClientSide) {
       disassembleNextInstantly = false
     }
   }
 
-  override def onSetInventorySlotContents(player: EntityPlayer, slot: Int, stack: ItemStack): Unit = {
-    if (!getWorld.isRemote) {
-      disassembleNextInstantly = !stack.isEmpty && slot == 0 && player.capabilities.isCreativeMode
+  override def onSetInventorySlotContents(player: Player, slot: Int, stack: ItemStack): Unit = {
+    if (!getLevel.isClientSide) {
+      disassembleNextInstantly = !stack.isEmpty && slot == 0 && player.getAbilities.instabuild
     }
   }
 }

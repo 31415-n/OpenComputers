@@ -6,7 +6,7 @@ import li.cil.oc.util.BlockPosition
 import li.cil.oc.Localization
 import li.cil.oc.Settings
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.util.EnumActionResult
 import net.minecraft.util.EnumFacing

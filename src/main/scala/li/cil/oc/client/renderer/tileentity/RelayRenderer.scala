@@ -3,63 +3,70 @@ package li.cil.oc.client.renderer.tileentity
 import li.cil.oc.client.Textures
 import li.cil.oc.common.tileentity
 import li.cil.oc.util.RenderState
-import net.minecraft.client.renderer.GlStateManager
-import net.minecraft.client.renderer.Tessellator
-import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats
-import org.lwjgl.opengl.GL11
+import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.blaze3d.vertex.{PoseStack, Tesselator, DefaultVertexFormat, VertexFormat}
+import net.minecraft.client.renderer.blockentity.{BlockEntityRenderer, BlockEntityRendererProvider}
+import net.minecraft.client.renderer.{MultiBufferSource, GameRenderer}
+import net.minecraft.client.renderer.texture.TextureAtlasSprite
 
-object RelayRenderer extends TileEntitySpecialRenderer[tileentity.Relay] {
-  override def render(switch: tileentity.Relay, x: Double, y: Double, z: Double, f: Float, damage: Int, alpha: Float) {
+class RelayRenderer(context: BlockEntityRendererProvider.Context) extends BlockEntityRenderer[tileentity.Relay] {
+  override def render(relay: tileentity.Relay, partialTick: Float, poseStack: PoseStack, bufferSource: MultiBufferSource, packedLight: Int, packedOverlay: Int): Unit = {
     RenderState.checkError(getClass.getName + ".render: entering (aka: wasntme)")
 
-    val activity = math.max(0, 1 - (System.currentTimeMillis() - switch.lastMessage) / 1000.0)
+    val activity = math.max(0, 1 - (System.currentTimeMillis() - relay.lastMessage) / 1000.0)
     if (activity > 0) {
       RenderState.pushAttrib()
 
       RenderState.disableEntityLighting()
       RenderState.makeItBlend()
-      RenderState.setBlendAlpha(activity.toFloat)
+      RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, activity.toFloat)
 
-      GlStateManager.pushMatrix()
+      poseStack.pushPose()
 
-      GlStateManager.translate(x + 0.5, y + 0.5, z + 0.5)
-      GlStateManager.scale(1.0025, -1.0025, 1.0025)
-      GlStateManager.translate(-0.5f, -0.5f, -0.5f)
+      poseStack.translate(0.5, 0.5, 0.5)
+      poseStack.scale(1.0025f, -1.0025f, 1.0025f)
+      poseStack.translate(-0.5f, -0.5f, -0.5f)
 
-      val t = Tessellator.getInstance
-      val r = t.getBuffer
+      val tesselator = Tesselator.getInstance
+      val builder = tesselator.getBuilder
 
-      Textures.Block.bind()
-      r.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX)
+      RenderSystem.setShader(() => GameRenderer.getPositionTexShader())
+      RenderSystem.setShaderTexture(0, Textures.Block.getAtlasLocation)
+      builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX)
 
       val icon = Textures.getSprite(Textures.Block.SwitchSideOn)
-      r.pos(1, 1, 0).tex(icon.getMinU, icon.getMaxV).endVertex()
-      r.pos(0, 1, 0).tex(icon.getMaxU, icon.getMaxV).endVertex()
-      r.pos(0, 0, 0).tex(icon.getMaxU, icon.getMinV).endVertex()
-      r.pos(1, 0, 0).tex(icon.getMinU, icon.getMinV).endVertex()
+      val matrix = poseStack.last().pose()
+      
+      // Front face (z=0)
+      builder.vertex(matrix, 1, 1, 0).uv(icon.getU0, icon.getV1).endVertex()
+      builder.vertex(matrix, 0, 1, 0).uv(icon.getU1, icon.getV1).endVertex()
+      builder.vertex(matrix, 0, 0, 0).uv(icon.getU1, icon.getV0).endVertex()
+      builder.vertex(matrix, 1, 0, 0).uv(icon.getU0, icon.getV0).endVertex()
 
-      r.pos(0, 1, 1).tex(icon.getMinU, icon.getMaxV).endVertex()
-      r.pos(1, 1, 1).tex(icon.getMaxU, icon.getMaxV).endVertex()
-      r.pos(1, 0, 1).tex(icon.getMaxU, icon.getMinV).endVertex()
-      r.pos(0, 0, 1).tex(icon.getMinU, icon.getMinV).endVertex()
+      // Back face (z=1)
+      builder.vertex(matrix, 0, 1, 1).uv(icon.getU0, icon.getV1).endVertex()
+      builder.vertex(matrix, 1, 1, 1).uv(icon.getU1, icon.getV1).endVertex()
+      builder.vertex(matrix, 1, 0, 1).uv(icon.getU1, icon.getV0).endVertex()
+      builder.vertex(matrix, 0, 0, 1).uv(icon.getU0, icon.getV0).endVertex()
 
-      r.pos(1, 1, 1).tex(icon.getMinU, icon.getMaxV).endVertex()
-      r.pos(1, 1, 0).tex(icon.getMaxU, icon.getMaxV).endVertex()
-      r.pos(1, 0, 0).tex(icon.getMaxU, icon.getMinV).endVertex()
-      r.pos(1, 0, 1).tex(icon.getMinU, icon.getMinV).endVertex()
+      // Right face (x=1)
+      builder.vertex(matrix, 1, 1, 1).uv(icon.getU0, icon.getV1).endVertex()
+      builder.vertex(matrix, 1, 1, 0).uv(icon.getU1, icon.getV1).endVertex()
+      builder.vertex(matrix, 1, 0, 0).uv(icon.getU1, icon.getV0).endVertex()
+      builder.vertex(matrix, 1, 0, 1).uv(icon.getU0, icon.getV0).endVertex()
 
-      r.pos(0, 1, 0).tex(icon.getMinU, icon.getMaxV).endVertex()
-      r.pos(0, 1, 1).tex(icon.getMaxU, icon.getMaxV).endVertex()
-      r.pos(0, 0, 1).tex(icon.getMaxU, icon.getMinV).endVertex()
-      r.pos(0, 0, 0).tex(icon.getMinU, icon.getMinV).endVertex()
+      // Left face (x=0)
+      builder.vertex(matrix, 0, 1, 0).uv(icon.getU0, icon.getV1).endVertex()
+      builder.vertex(matrix, 0, 1, 1).uv(icon.getU1, icon.getV1).endVertex()
+      builder.vertex(matrix, 0, 0, 1).uv(icon.getU1, icon.getV0).endVertex()
+      builder.vertex(matrix, 0, 0, 0).uv(icon.getU0, icon.getV0).endVertex()
 
-      t.draw()
+      tesselator.end()
 
-      RenderState.disableBlend()
+      RenderSystem.disableBlend()
       RenderState.enableEntityLighting()
 
-      GlStateManager.popMatrix()
+      poseStack.popPose()
       RenderState.popAttrib()
     }
 

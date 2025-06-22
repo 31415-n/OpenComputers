@@ -18,7 +18,7 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.StringTag
 import net.minecraft.core.Direction
-import net.minecraftforge.common.util.Constants.NBT
+import net.minecraft.nbt.Tag
 import net.minecraftforge.api.distmarker.Dist
 import net.minecraftforge.api.distmarker.OnlyIn
 
@@ -171,7 +171,7 @@ trait Computer extends Environment with ComponentInventory with Rotatable with B
     hasErrored = nbt.getBoolean(HasErroredTag)
     setRunning(nbt.getBoolean(IsRunningTag))
     _users.clear()
-    _users ++= nbt.getList(UsersTag, NBT.TAG_STRING).asScala.map(tag => tag.getAsString)
+    _users ++= nbt.getList(UsersTag, Tag.TAG_STRING).asScala.map(tag => tag.getAsString)
     if (_isRunning) runSound.foreach(sound => Sound.startLoop(this, sound, 0.5f, 1000 + getLevel.random.nextInt(2000)))
   }
 

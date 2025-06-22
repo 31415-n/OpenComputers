@@ -65,8 +65,7 @@ object BlockEntityTypes {
   private def getRackBlock = li.cil.oc.api.Items.get(li.cil.oc.Constants.BlockName.Rack).block()
   private def getTransposerBlock = li.cil.oc.api.Items.get(li.cil.oc.Constants.BlockName.Transposer).block()
   private def getWaypointBlock = li.cil.oc.api.Items.get(li.cil.oc.Constants.BlockName.Waypoint).block()
-  private def getSwitchBlock = li.cil.oc.api.Items.get("switch").block() // This needs proper constant
-  private def getAccessPointBlock = li.cil.oc.api.Items.get("accessPoint").block() // This needs proper constant
+
 
   val ASSEMBLER: RegistryObject[BlockEntityType[tileentity.Assembler]] = 
     BLOCK_ENTITIES.register("assembler", () => 
@@ -276,19 +275,5 @@ object BlockEntityTypes {
       ).build(null)
     )
 
-  val SWITCH: RegistryObject[BlockEntityType[tileentity.Switch]] = 
-    BLOCK_ENTITIES.register("switch", () => 
-      BlockEntityType.Builder.of(
-        (pos, state) => new tileentity.Switch(),
-        getSwitchBlock
-      ).build(null)
-    )
 
-  val ACCESS_POINT: RegistryObject[BlockEntityType[tileentity.AccessPoint]] = 
-    BLOCK_ENTITIES.register("access_point", () => 
-      BlockEntityType.Builder.of(
-        (pos, state) => new tileentity.AccessPoint(),
-        getAccessPointBlock
-      ).build(null)
-    )
 }

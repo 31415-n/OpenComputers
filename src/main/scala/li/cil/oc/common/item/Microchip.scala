@@ -1,7 +1,7 @@
 package li.cil.oc.common.item
 
 import li.cil.oc.util.Rarity
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 
 class Microchip(val parent: Delegator, val tier: Int) extends traits.Delegate {
   override val unlocalizedName = super.unlocalizedName + tier

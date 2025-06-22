@@ -10,7 +10,7 @@ import li.cil.oc.util.ResultWrapper.result
 import li.cil.oc.util.StackOption._
 import net.minecraft.entity.item.EntityItem
 import net.minecraft.item.ItemBlock
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.EnumFacing
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.event.entity.item.ItemTossEvent

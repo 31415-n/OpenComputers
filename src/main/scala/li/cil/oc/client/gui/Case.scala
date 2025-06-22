@@ -5,47 +5,47 @@ import li.cil.oc.client.Textures
 import li.cil.oc.client.{PacketSender => ClientPacketSender}
 import li.cil.oc.common.container
 import li.cil.oc.common.tileentity
-import net.minecraft.client.gui.GuiButton
-import net.minecraft.client.renderer.GlStateManager
+import net.minecraft.client.gui.components.Button
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.world.entity.player.Inventory
+import net.minecraft.client.gui.Font
 
 import scala.jdk.CollectionConverters._
 
 class Case(playerInventory: Inventory, val computer: tileentity.Case) extends DynamicGuiContainer(new container.Case(playerInventory, computer)) {
   protected var powerButton: ImageButton = _
 
-  protected override def actionPerformed(button: GuiButton) {
-    if (button.id == 0) {
+  protected def onButtonClick(button: Button) {
+    // Button ID handling changed in 1.20.1, we'll use instance comparison
+    if (button == powerButton) {
       ClientPacketSender.sendComputerPower(computer, !computer.isRunning)
     }
   }
 
-  override def drawScreen(mouseX: Int, mouseY: Int, dt: Float) {
+  override def render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, dt: Float) {
     powerButton.toggled = computer.isRunning
-    super.drawScreen(mouseX, mouseY, dt)
+    super.render(guiGraphics, mouseX, mouseY, dt)
   }
 
-  override def initGui() {
-    super.initGui()
-    powerButton = new ImageButton(0, guiLeft + 70, guiTop + 33, 18, 18, Textures.GUI.ButtonPower, canToggle = true)
-    add(buttonList, powerButton)
+  override def init() {
+    super.init()
+    powerButton = new ImageButton(leftPos + 70, topPos + 33, 18, 18, Textures.GUI.ButtonPower, canToggle = true, onPress = _ => onButtonClick(powerButton))
+    addRenderableWidget(powerButton)
   }
 
   override protected def drawSecondaryForegroundLayer(mouseX: Int, mouseY: Int) = {
     super.drawSecondaryForegroundLayer(mouseX, mouseY)
-    fontRenderer.drawString(
-      Localization.localizeImmediately(computer.getName),
+    guiGraphics.drawString(font,
+      Localization.localizeImmediately(computer.getDisplayName.getString),
       8, 6, 0x404040)
-    if (powerButton.isMouseOver) {
-      val tooltip = new java.util.ArrayList[String]
-      tooltip.addAll(asJavaCollection(if (computer.isRunning) Localization.Computer.TurnOff.lines.toIterable else Localization.Computer.TurnOn.lines.toIterable))
-      copiedDrawHoveringText(tooltip, mouseX - guiLeft, mouseY - guiTop, fontRenderer)
+    if (powerButton.isMouseOver(mouseX, mouseY)) {
+      val tooltip = java.util.List.of(net.minecraft.network.chat.Component.literal(if (computer.isRunning) Localization.Computer.TurnOff else Localization.Computer.TurnOn))
+      guiGraphics.renderComponentTooltip(font, tooltip, mouseX - leftPos, mouseY - topPos)
     }
   }
 
-  override def drawSecondaryBackgroundLayer() {
-    GlStateManager.color(1, 1, 1)
+  override def drawSecondaryBackgroundLayer(guiGraphics: GuiGraphics) {
     Textures.bind(Textures.GUI.Computer)
-    drawTexturedModalRect(guiLeft, guiTop, 0, 0, xSize, ySize)
+    guiGraphics.blit(Textures.GUI.Computer, leftPos, topPos, 0, 0, imageWidth, imageHeight)
   }
 }

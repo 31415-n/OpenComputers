@@ -117,9 +117,9 @@ abstract class DynamicGuiContainer(container: AbstractContainerMenu) extends Cus
                 RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
                 guiGraphics.blit(component.tierIcon, slot.x, slot.y, 0, 0, 16, 16, 16, 16)
               }
-              if (component.hasBackground) {
+              if (component.hasBackground && component.backgroundLocation != null) {
                 RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
-                guiGraphics.blit(component.getBackgroundLocation, slot.x, slot.y, 0, 0, 16, 16, 16, 16)
+                guiGraphics.blit(component.backgroundLocation, slot.x, slot.y, 0, 0, 16, 16, 16, 16)
               }
             case _ =>
           }
@@ -128,7 +128,7 @@ abstract class DynamicGuiContainer(container: AbstractContainerMenu) extends Cus
   }
 
   protected def drawSlotHighlight(guiGraphics: GuiGraphics, slot: Slot): Unit = {
-    if (minecraft.player.getInventory.getCarried.isEmpty) slot match {
+    if (minecraft.player.containerMenu.getCarried.isEmpty) slot match {
       case component: ComponentSlot if component.slot == common.Slot.None || component.tier == common.Tier.None => // Ignore.
       case _ =>
         val currentIsInPlayerInventory = isInPlayerInventory(slot)

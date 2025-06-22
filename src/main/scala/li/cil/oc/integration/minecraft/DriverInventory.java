@@ -10,7 +10,7 @@ import li.cil.oc.integration.ManagedTileEntityEnvironment;
 import li.cil.oc.util.BlockPosition;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;

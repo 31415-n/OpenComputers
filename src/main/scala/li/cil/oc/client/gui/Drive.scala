@@ -18,14 +18,14 @@ class Drive(playerInventory: Inventory, val driveStack: () => ItemStack) extends
   protected var unmanagedButton: ImageButton = _
   protected var lockedButton: ImageButton = _
 
-  protected override def actionPerformed(button: Button): Unit = {
-    if (button.id == 0) {
+  protected def onButtonClick(button: Button): Unit = {
+    if (button == managedButton) {
       ClientPacketSender.sendDriveMode(unmanaged = false)
       DriveData.setUnmanaged(driveStack(), unmanaged = false)
-    } else if (button.id == 1) {
+    } else if (button == unmanagedButton) {
       ClientPacketSender.sendDriveMode(unmanaged = true)
       DriveData.setUnmanaged(driveStack(), unmanaged = true)
-    } else if (button.id == 2) {
+    } else if (button == lockedButton) {
       ClientPacketSender.sendDriveLock()
       DriveData.lock(driveStack(), playerInventory.player)
     }
@@ -42,9 +42,9 @@ class Drive(playerInventory: Inventory, val driveStack: () => ItemStack) extends
 
   override def init(): Unit = {
     super.init()
-    managedButton = new ImageButton(0, guiLeft + 11, guiTop + 11, 74, 18, Textures.GUI.ButtonDriveMode, text = Localization.Drive.Managed, textColor = 0x608060, canToggle = true)
-    unmanagedButton = new ImageButton(1, guiLeft + 91, guiTop + 11, 74, 18, Textures.GUI.ButtonDriveMode, text = Localization.Drive.Unmanaged, textColor = 0x608060, canToggle = true)
-    lockedButton = new ImageButton(2, guiLeft + 11, guiTop + windowHeight - 42, 44, 18, Textures.GUI.ButtonDriveMode, text = Localization.Drive.ReadOnlyLock, textColor = 0x608060, canToggle = true)
+    managedButton = new ImageButton(guiLeft + 11, guiTop + 11, 74, 18, Textures.GUI.ButtonDriveMode, text = Localization.Drive.Managed, textColor = 0x608060, canToggle = true, onPress = _ => onButtonClick(managedButton))
+    unmanagedButton = new ImageButton(guiLeft + 91, guiTop + 11, 74, 18, Textures.GUI.ButtonDriveMode, text = Localization.Drive.Unmanaged, textColor = 0x608060, canToggle = true, onPress = _ => onButtonClick(unmanagedButton))
+    lockedButton = new ImageButton(guiLeft + 11, guiTop + windowHeight - 42, 44, 18, Textures.GUI.ButtonDriveMode, text = Localization.Drive.ReadOnlyLock, textColor = 0x608060, canToggle = true, onPress = _ => onButtonClick(lockedButton))
     addRenderableWidget(managedButton)
     addRenderableWidget(unmanagedButton)
     addRenderableWidget(lockedButton)

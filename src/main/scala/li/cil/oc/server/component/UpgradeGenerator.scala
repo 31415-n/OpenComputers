@@ -19,7 +19,7 @@ import li.cil.oc.util.ExtendedNBT._
 import li.cil.oc.util.StackOption
 import li.cil.oc.util.StackOption._
 import net.minecraft.entity.item.EntityItem
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.tileentity.TileEntityFurnace
 

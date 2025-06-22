@@ -16,7 +16,7 @@ import li.cil.oc.util.ScalaClosure
 import li.cil.oc.util.ScalaClosure._
 import li.cil.repack.org.luaj.vm2._
 import li.cil.repack.org.luaj.vm2.lib.jse.JsePlatform
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 
 import scala.collection.convert.WrapAsScala._

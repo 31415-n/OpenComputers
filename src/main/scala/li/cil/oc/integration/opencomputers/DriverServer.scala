@@ -8,7 +8,7 @@ import li.cil.oc.api.network.ManagedEnvironment
 import li.cil.oc.common.Slot
 import li.cil.oc.server.component
 import li.cil.oc.util.ExtendedInventory._
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 
 object DriverServer extends Item with HostAware {

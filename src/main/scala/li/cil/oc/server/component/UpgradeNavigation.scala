@@ -23,7 +23,7 @@ import li.cil.oc.common.Tier
 import li.cil.oc.server.network.Waypoints
 import li.cil.oc.util.BlockPosition
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.util.EnumFacing
 

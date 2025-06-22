@@ -6,7 +6,7 @@ import net.minecraft.block.Block
 import net.minecraft.init.Items
 import net.minecraft.inventory.InventoryCrafting
 import net.minecraft.item.Item
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.world.World
 
 /**

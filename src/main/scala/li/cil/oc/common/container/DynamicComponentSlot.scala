@@ -7,7 +7,7 @@ import li.cil.oc.util.InventoryUtils
 import li.cil.oc.util.SideTracker
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.inventory.IInventory
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.ResourceLocation
 
 class DynamicComponentSlot(val container: Player, inventory: IInventory, index: Int, x: Int, y: Int, val info: DynamicComponentSlot => InventorySlot, val containerTierGetter: () => Int) extends ComponentSlot(inventory, index, x, y) {

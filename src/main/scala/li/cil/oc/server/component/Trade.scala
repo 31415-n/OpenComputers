@@ -11,7 +11,7 @@ import li.cil.oc.util.InventoryUtils
 import net.minecraft.entity.Entity
 import net.minecraft.entity.IMerchant
 import net.minecraft.inventory.IInventory
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.tileentity.TileEntity
 import net.minecraft.util.math.BlockPos

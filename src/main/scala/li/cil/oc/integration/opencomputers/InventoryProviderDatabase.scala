@@ -4,7 +4,7 @@ import li.cil.oc.api.driver.InventoryProvider
 import li.cil.oc.common.inventory.DatabaseInventory
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.inventory.IInventory
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 
 object InventoryProviderDatabase extends InventoryProvider {
   override def worksWith(stack: ItemStack, player: EntityPlayer): Boolean = DriverUpgradeDatabase.worksWith(stack)

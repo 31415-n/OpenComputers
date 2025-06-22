@@ -7,7 +7,7 @@ import li.cil.oc.common.block.property.PropertyRotatable
 import li.cil.oc.common.tileentity
 import net.minecraft.block.state.IBlockState
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.EnumFacing
 import net.minecraft.util.EnumFacing.Axis
 import net.minecraft.util.EnumHand

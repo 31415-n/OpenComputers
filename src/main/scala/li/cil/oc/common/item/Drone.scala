@@ -14,7 +14,7 @@ import li.cil.oc.util.BlockPosition
 import li.cil.oc.util.Rarity
 import net.minecraft.client.renderer.block.model.ModelResourceLocation
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.EnumFacing
 import net.minecraftforge.client.event.ModelBakeEvent
 import net.minecraftforge.fml.relauncher.Side

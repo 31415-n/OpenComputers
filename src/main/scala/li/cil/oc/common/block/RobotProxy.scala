@@ -23,7 +23,7 @@ import net.minecraft.entity.Entity
 import net.minecraft.entity.EntityLivingBase
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.item.EnumRarity
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util._
 import net.minecraft.util.math.AxisAlignedBB
 import net.minecraft.util.math.BlockPos

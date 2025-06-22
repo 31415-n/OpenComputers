@@ -1,7 +1,7 @@
 package li.cil.oc.util
 
 import li.cil.oc.Settings
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 
 object UpgradeExperience {

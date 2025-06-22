@@ -1,7 +1,7 @@
 package li.cil.oc.integration.vanilla
 
 import li.cil.oc.api
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraftforge.fluids.capability.{CapabilityFluidHandler, IFluidHandlerItem}
 
 import java.util

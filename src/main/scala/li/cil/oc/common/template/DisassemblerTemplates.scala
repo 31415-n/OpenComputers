@@ -4,7 +4,7 @@ import java.lang.reflect.Method
 
 import li.cil.oc.OpenComputers
 import li.cil.oc.common.IMC
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 
 import scala.collection.mutable

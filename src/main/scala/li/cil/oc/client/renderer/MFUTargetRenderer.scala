@@ -6,7 +6,7 @@ import li.cil.oc.api
 import li.cil.oc.util.BlockPosition
 import li.cil.oc.util.RenderState
 import net.minecraft.client.Minecraft
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraftforge.client.event.RenderWorldLastEvent
 import net.minecraftforge.common.util.Constants.NBT
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent

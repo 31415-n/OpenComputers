@@ -11,7 +11,7 @@ import li.cil.oc.server.component
 import li.cil.oc.server.machine.Machine
 import net.minecraft.block.Block
 import net.minecraft.item.ItemBlock
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 
 /**
  * Provide static environment lookup for blocks that are components.

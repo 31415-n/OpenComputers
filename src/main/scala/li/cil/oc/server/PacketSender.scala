@@ -14,7 +14,7 @@ import li.cil.oc.util.PackedColor
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.entity.player.EntityPlayerMP
 import net.minecraft.inventory.Container
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.CompressedStreamTools
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.util.EnumFacing

@@ -8,7 +8,7 @@ import net.minecraft.entity.item.EntityItem
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.inventory.IInventory
 import net.minecraft.inventory.ISidedInventory
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.tileentity.TileEntity
 import net.minecraft.util.EnumFacing
 import net.minecraftforge.items.CapabilityItemHandler

@@ -125,50 +125,50 @@ private[oc] class Proxy extends CommonProxy {
     // Adapter renderer
     event.registerBlockEntityRenderer(
       BlockEntityTypes.ADAPTER.get(),
-      AdapterRenderer.apply _
+      (context: BlockEntityRendererProvider.Context) => new AdapterRenderer(context)
     )
     
     // Assembler renderer
     event.registerBlockEntityRenderer(
       BlockEntityTypes.ASSEMBLER.get(),
-      AssemblerRenderer.apply _
+      (context: BlockEntityRendererProvider.Context) => new AssemblerRenderer(context)
     )
     
     // Case renderer
     event.registerBlockEntityRenderer(
       BlockEntityTypes.CASE.get(),
-      CaseRenderer.apply _
+      (context: BlockEntityRendererProvider.Context) => new CaseRenderer(context)
     )
     
     // Charger renderer
     event.registerBlockEntityRenderer(
       BlockEntityTypes.CHARGER.get(),
-      ChargerRenderer.apply _
+      (context: BlockEntityRendererProvider.Context) => new ChargerRenderer(context)
     )
     
     // Disassembler renderer
     event.registerBlockEntityRenderer(
       BlockEntityTypes.DISASSEMBLER.get(),
-      DisassemblerRenderer.apply _
+      (context: BlockEntityRendererProvider.Context) => new DisassemblerRenderer(context)
     )
     
     // Disk drive renderer
     event.registerBlockEntityRenderer(
       BlockEntityTypes.DISK_DRIVE.get(),
-      DiskDriveRenderer.apply _
+      (context: BlockEntityRendererProvider.Context) => new DiskDriveRenderer(context)
     )
     
     // Geolyzer renderer
     event.registerBlockEntityRenderer(
       BlockEntityTypes.GEOLYZER.get(),
-      GeolyzerRenderer.apply _
+      (context: BlockEntityRendererProvider.Context) => new GeolyzerRenderer(context)
     )
     
     // Hologram renderer with OpenGL capability check (equivalent to GLContext.getCapabilities.OpenGL15 check)
     val hologramRenderer = if (isOpenGL15Supported) {
-      HologramRendererNew.apply _
+      (context: BlockEntityRendererProvider.Context) => new HologramRendererNew(context)
     } else {
-      HologramRendererFallback.apply _
+      (context: BlockEntityRendererProvider.Context) => new HologramRendererFallback(context)
     }
     event.registerBlockEntityRenderer(
       BlockEntityTypes.HOLOGRAM.get(),
@@ -178,72 +178,61 @@ private[oc] class Proxy extends CommonProxy {
     // Microcontroller renderer
     event.registerBlockEntityRenderer(
       BlockEntityTypes.MICROCONTROLLER.get(),
-      MicrocontrollerRenderer.apply _
+      (context: BlockEntityRendererProvider.Context) => new MicrocontrollerRenderer(context)
     )
     
     // Net splitter renderer
     event.registerBlockEntityRenderer(
       BlockEntityTypes.NET_SPLITTER.get(),
-      NetSplitterRenderer.apply _
+      (context: BlockEntityRendererProvider.Context) => new NetSplitterRenderer(context)
     )
     
     // Power distributor renderer
     event.registerBlockEntityRenderer(
       BlockEntityTypes.POWER_DISTRIBUTOR.get(),
-      PowerDistributorRenderer.apply _
+      (context: BlockEntityRendererProvider.Context) => new PowerDistributorRenderer(context)
     )
     
     // Printer renderer
     event.registerBlockEntityRenderer(
       BlockEntityTypes.PRINTER.get(),
-      PrinterRenderer.apply _
+      (context: BlockEntityRendererProvider.Context) => new PrinterRenderer(context)
     )
     
     // Raid renderer
     event.registerBlockEntityRenderer(
       BlockEntityTypes.RAID.get(),
-      RaidRenderer.apply _
+      (context: BlockEntityRendererProvider.Context) => new RaidRenderer(context)
     )
     
     // Rack renderer
     event.registerBlockEntityRenderer(
       BlockEntityTypes.RACK.get(),
-      RackRenderer.apply _
+      (context: BlockEntityRendererProvider.Context) => new RackRenderer(context)
     )
     
-    // Switch renderer (used for Switch, AccessPoint, and Relay in 1.12.2)
-    // Note: These will be implemented when Switch, AccessPoint entities are ported
-    // event.registerBlockEntityRenderer(
-    //   BlockEntityTypes.SWITCH.get(),
-    //   SwitchRenderer.apply _
-    // )
-    // 
-    // event.registerBlockEntityRenderer(
-    //   BlockEntityTypes.ACCESS_POINT.get(),
-    //   SwitchRenderer.apply _
-    // )
-    // 
-    // event.registerBlockEntityRenderer(
-    //   BlockEntityTypes.RELAY.get(),
-    //   SwitchRenderer.apply _
-    // )
+    // Relay renderer
+    event.registerBlockEntityRenderer(
+      BlockEntityTypes.RELAY.get(),
+      (context: BlockEntityRendererProvider.Context) => new RelayRenderer(context)
+    )
     
     // Robot renderer
     event.registerBlockEntityRenderer(
       BlockEntityTypes.ROBOT_PROXY.get(),
-      RobotRendererNew.apply _
+      (context: BlockEntityRendererProvider.Context) => new RobotRendererNew(context)
     )
     
     // Screen renderer
     event.registerBlockEntityRenderer(
       BlockEntityTypes.SCREEN.get(),
-      ScreenRenderer.apply _
+      (context: BlockEntityRendererProvider.Context) => new ScreenRenderer(context)
     )
     
     // Transposer renderer
     event.registerBlockEntityRenderer(
       BlockEntityTypes.TRANSPOSER.get(),
-      TransposerRenderer.apply _
+      (context: BlockEntityRendererProvider.Context) => new TransposerRenderer(context)
     )
   }
 

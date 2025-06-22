@@ -3,7 +3,7 @@ package li.cil.oc.common.item.data
 import li.cil.oc.common.nanomachines.ControllerImpl
 import li.cil.oc.Constants
 import li.cil.oc.Settings
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 
 class NanomachineData extends ItemData(Constants.ItemName.Nanomachines) {

@@ -7,7 +7,7 @@ import li.cil.oc.api.driver.NamedBlock
 import li.cil.oc.api.network.ManagedEnvironment
 import net.minecraft.inventory.IInventory
 import net.minecraft.item.Item
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.tileentity.TileEntity
 import net.minecraft.util.EnumFacing
 import net.minecraft.util.math.BlockPos

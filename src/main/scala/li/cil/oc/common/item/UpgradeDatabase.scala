@@ -5,7 +5,7 @@ import li.cil.oc.Settings
 import li.cil.oc.common.GuiType
 import li.cil.oc.util.Rarity
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.ActionResult
 import net.minecraft.util.EnumActionResult
 import net.minecraft.util.EnumHand

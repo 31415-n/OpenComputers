@@ -22,7 +22,7 @@ import net.minecraft.client.renderer.vertex.VertexFormat
 import net.minecraft.client.renderer.vertex.VertexFormatElement
 import net.minecraft.init.Items
 import net.minecraft.item.ItemBlock
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.EnumFacing
 import net.minecraft.util.math.Vec3d
 import net.minecraft.util.text.TextFormatting

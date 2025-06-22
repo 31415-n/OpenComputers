@@ -8,7 +8,7 @@ import li.cil.oc.server.component.result
 import li.cil.oc.util.BlockPosition
 import li.cil.oc.util.ExtendedArguments._
 import li.cil.oc.util.InventoryUtils
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.EnumFacing
 import net.minecraftforge.items.IItemHandler
 

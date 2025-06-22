@@ -16,7 +16,7 @@ import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.item.EnumDyeColor
 import net.minecraft.item.EnumRarity
 import net.minecraft.item.ItemBlock
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.EnumFacing
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.World

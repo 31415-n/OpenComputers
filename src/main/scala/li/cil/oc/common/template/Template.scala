@@ -9,7 +9,7 @@ import li.cil.oc.common.Tier
 import li.cil.oc.util.StackOption
 import li.cil.oc.util.StackOption._
 import net.minecraft.inventory.IInventory
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.text.ITextComponent
 import org.apache.commons.lang3.tuple
 

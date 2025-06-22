@@ -5,7 +5,7 @@ import java.util
 import li.cil.oc.Settings
 import net.minecraft.client.util.ITooltipFlag
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.world.World
 import net.minecraftforge.fluids.FluidStack
 import net.minecraftforge.fml.relauncher.Side

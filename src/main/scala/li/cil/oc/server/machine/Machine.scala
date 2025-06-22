@@ -39,7 +39,7 @@ import li.cil.oc.util.ResultWrapper.result
 import li.cil.oc.util.ThreadPoolFactory
 import net.minecraft.client.Minecraft
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt._
 import net.minecraft.server.integrated.IntegratedServer
 import net.minecraftforge.common.util.Constants.NBT

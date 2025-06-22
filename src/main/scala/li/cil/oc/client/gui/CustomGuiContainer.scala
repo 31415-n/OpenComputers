@@ -15,7 +15,7 @@ import scala.jdk.CollectionConverters._
 // transformations that break things! Such fun. Many annoyed. And yes, this
 // is a common issue, have a look at EnderIO and Enchanting Plus. They have
 // to work around this, too.
-abstract class CustomGuiContainer(val inventoryContainer: AbstractContainerMenu) extends AbstractContainerScreen[AbstractContainerMenu](inventoryContainer, net.minecraft.world.entity.player.Inventory.EMPTY, net.minecraft.network.chat.Component.empty()) with WidgetContainer {
+abstract class CustomGuiContainer(val inventoryContainer: AbstractContainerMenu) extends AbstractContainerScreen[AbstractContainerMenu](inventoryContainer, new net.minecraft.world.entity.player.Inventory(null), net.minecraft.network.chat.Component.empty()) with WidgetContainer {
   override def windowX = leftPos
 
   override def windowY = topPos
@@ -64,7 +64,7 @@ abstract class CustomGuiContainer(val inventoryContainer: AbstractContainerMenu)
       guiGraphics.fillGradient(posX - 3, posY - 3, posX + textWidth + 3, posY - 3 + 1, color1, color1)
       guiGraphics.fillGradient(posX - 3, posY + textHeight + 2, posX + textWidth + 3, posY + textHeight + 3, color2, color2)
 
-      for ((line, index) <- text.zipWithIndex) {
+      for ((line, index) <- text.asScala.zipWithIndex) {
         guiGraphics.drawString(font, line.asInstanceOf[String], posX, posY, -1)
         if (index == 0) {
           posY += 2

@@ -1,7 +1,7 @@
 package li.cil.oc.common
 
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 
 //placeholder
 
@@ -26,7 +26,7 @@ import li.cil.oc.api.detail.ItemInfo
 import li.cil.oc.common.init.Items
 import li.cil.oc.util.StackOption
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.stats.StatBase
 import net.minecraft.stats.{Achievement => MCAchievement}
 import net.minecraftforge.common.AchievementPage

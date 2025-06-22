@@ -3,7 +3,7 @@ package li.cil.oc.common.inventory
 import li.cil.oc.api.Driver
 import li.cil.oc.common.tileentity
 import li.cil.oc.common.Slot
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 
 trait DiskDriveMountableInventory extends ItemStackInventory {
   def tier: Int = 1

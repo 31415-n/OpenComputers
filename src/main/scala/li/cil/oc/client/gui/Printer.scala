@@ -7,12 +7,13 @@ import li.cil.oc.common.container
 import li.cil.oc.common.container.ComponentSlot
 import li.cil.oc.common.tileentity
 import li.cil.oc.util.RenderState
-import net.minecraft.client.renderer.GlStateManager
+import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.world.entity.player.Inventory
+import net.minecraft.client.gui.GuiGraphics
 
 class Printer(playerInventory: Inventory, val printer: tileentity.Printer) extends DynamicGuiContainer(new container.Printer(playerInventory, printer)) {
-  xSize = 176
-  ySize = 166
+  imageWidth = 176
+  imageHeight = 166
 
   private val materialBar = addWidget(new ProgressBar(40, 21) {
     override def width = 62
@@ -36,39 +37,40 @@ class Printer(playerInventory: Inventory, val printer: tileentity.Printer) exten
     override def barTexture = Textures.GUI.PrinterProgress
   })
 
-  override def initGui() {
-    super.initGui()
+  override def init() {
+    super.init()
   }
 
   override def drawSecondaryForegroundLayer(mouseX: Int, mouseY: Int) = {
     super.drawSecondaryForegroundLayer(mouseX, mouseY)
-    fontRenderer.drawString(
-      Localization.localizeImmediately(printer.getName),
+    guiGraphics.drawString(font,
+      Localization.localizeImmediately("tile.oc.printer.name"),
       8, 6, 0x404040)
     RenderState.pushAttrib()
-    if (isPointInRegion(materialBar.x, materialBar.y, materialBar.width, materialBar.height, mouseX, mouseY)) {
+    if (isHovering(materialBar.x, materialBar.y, materialBar.width, materialBar.height, mouseX, mouseY)) {
       val tooltip = new java.util.ArrayList[String]
-      tooltip.add(inventoryContainer.amountMaterial + "/" + printer.maxAmountMaterial)
-      copiedDrawHoveringText(tooltip, mouseX - guiLeft, mouseY - guiTop, fontRenderer)
+      tooltip.add(menu.asInstanceOf[container.Printer].amountMaterial + "/" + printer.maxAmountMaterial)
+      copiedDrawHoveringText(guiGraphics, tooltip, mouseX - leftPos, mouseY - topPos, font)
     }
-    if (isPointInRegion(inkBar.x, inkBar.y, inkBar.width, inkBar.height, mouseX, mouseY)) {
+    if (isHovering(inkBar.x, inkBar.y, inkBar.width, inkBar.height, mouseX, mouseY)) {
       val tooltip = new java.util.ArrayList[String]
-      tooltip.add(inventoryContainer.amountInk + "/" + printer.maxAmountInk)
-      copiedDrawHoveringText(tooltip, mouseX - guiLeft, mouseY - guiTop, fontRenderer)
+      tooltip.add(menu.asInstanceOf[container.Printer].amountInk + "/" + printer.maxAmountInk)
+      copiedDrawHoveringText(guiGraphics, tooltip, mouseX - leftPos, mouseY - topPos, font)
     }
     RenderState.popAttrib()
   }
 
-  override def drawGuiContainerBackgroundLayer(dt: Float, mouseX: Int, mouseY: Int) {
-    GlStateManager.color(1, 1, 1)
+  override def renderBg(guiGraphics: GuiGraphics, dt: Float, mouseX: Int, mouseY: Int) {
+    RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
     Textures.bind(Textures.GUI.Printer)
-    drawTexturedModalRect(guiLeft, guiTop, 0, 0, xSize, ySize)
-    materialBar.level = inventoryContainer.amountMaterial / printer.maxAmountMaterial.toDouble
-    inkBar.level = inventoryContainer.amountInk / printer.maxAmountInk.toDouble
-    progressBar.level = inventoryContainer.progress
-    drawWidgets()
-    drawInventorySlots()
+    guiGraphics.blit(Textures.GUI.Printer, leftPos, topPos, 0, 0, imageWidth, imageHeight)
+    val printerContainer = menu.asInstanceOf[container.Printer]
+    materialBar.level = printerContainer.amountMaterial / printer.maxAmountMaterial.toDouble
+    inkBar.level = printerContainer.amountInk / printer.maxAmountInk.toDouble
+    progressBar.level = printerContainer.progress
+    renderWidgets(guiGraphics)
+    drawInventorySlots(guiGraphics)
   }
 
-  override protected def drawDisabledSlot(slot: ComponentSlot) {}
+  override protected def drawDisabledSlot(guiGraphics: GuiGraphics, slot: ComponentSlot) {}
 }

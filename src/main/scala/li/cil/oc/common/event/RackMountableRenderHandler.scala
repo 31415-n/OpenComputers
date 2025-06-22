@@ -13,7 +13,7 @@ import net.minecraft.client.renderer.GlStateManager
 import net.minecraft.client.renderer.OpenGlHelper
 import net.minecraft.client.renderer.block.model.ItemCameraTransforms
 import net.minecraft.entity.item.EntityItem
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraftforge.common.util.Constants.NBT
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
 import org.lwjgl.opengl.GL11

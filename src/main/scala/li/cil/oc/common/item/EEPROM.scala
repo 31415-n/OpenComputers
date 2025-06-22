@@ -3,7 +3,7 @@ package li.cil.oc.common.item
 import li.cil.oc.Settings
 import li.cil.oc.util.BlockPosition
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.IBlockAccess
 

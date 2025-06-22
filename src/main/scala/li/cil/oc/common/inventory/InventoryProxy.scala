@@ -2,7 +2,7 @@ package li.cil.oc.common.inventory
 
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.inventory.IInventory
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.text.ITextComponent
 
 trait InventoryProxy extends IInventory {

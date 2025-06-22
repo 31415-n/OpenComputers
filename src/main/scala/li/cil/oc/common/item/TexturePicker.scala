@@ -6,7 +6,7 @@ import li.cil.oc.util.ExtendedWorld._
 import net.minecraft.block.Block
 import net.minecraft.client.Minecraft
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.EnumFacing
 
 class TexturePicker(val parent: Delegator) extends traits.Delegate {

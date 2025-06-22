@@ -15,7 +15,7 @@ import li.cil.oc.common.SaveHandler
 import li.cil.oc.server.machine.Machine
 import li.cil.oc.util.ExtendedLuaState.extendLuaState
 import li.cil.repack.com.naef.jnlua._
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 
 import scala.collection.convert.WrapAsScala._

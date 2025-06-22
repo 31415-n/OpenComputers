@@ -11,7 +11,7 @@ import li.cil.oc.integration.util.ItemBlacklist
 import li.cil.oc.util.Rarity
 import net.minecraft.block.state.IBlockState
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util._
 import net.minecraft.util.math.AxisAlignedBB
 import net.minecraft.util.math.BlockPos

@@ -17,7 +17,7 @@ import li.cil.oc.util.Color
 import net.minecraft.block.Block
 import net.minecraft.item.Item
 import net.minecraft.item.ItemBlock
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.item.crafting.IRecipe
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.util.ResourceLocation

@@ -5,7 +5,7 @@ import li.cil.oc.common.recipe.ExtendedShapedOreRecipe
 import li.cil.oc.common.recipe.ExtendedShapelessOreRecipe
 import li.cil.oc.common.recipe.Recipes
 import li.cil.oc.common.recipe.Recipes.RecipeException
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.item.crafting.FurnaceRecipes
 import net.minecraftforge.fml.common.registry.GameRegistry
 import net.minecraftforge.oredict.OreDictionary

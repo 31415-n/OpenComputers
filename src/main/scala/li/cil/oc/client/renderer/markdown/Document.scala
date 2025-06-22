@@ -5,8 +5,12 @@ import li.cil.oc.client.renderer.markdown.segment.InteractiveSegment
 import li.cil.oc.client.renderer.markdown.segment.Segment
 import li.cil.oc.util.RenderState
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.FontRenderer
-import net.minecraft.client.renderer.GlStateManager
+import net.minecraft.client.gui.Font
+import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.blaze3d.vertex.PoseStack
+import com.mojang.blaze3d.vertex.Tesselator
+import com.mojang.blaze3d.vertex.DefaultVertexFormat
+import com.mojang.blaze3d.vertex.VertexFormat
 import org.lwjgl.opengl.GL11
 
 import scala.collection.Iterable
@@ -46,7 +50,7 @@ object Document {
   /**
    * Compute the overall height of a document, e.g. for computation of scroll offsets.
    */
-  def height(document: Segment, maxWidth: Int, renderer: FontRenderer): Int = {
+  def height(document: Segment, maxWidth: Int, renderer: Font): Int = {
     var currentX = 0
     var currentY = 0
     var segment = document
@@ -61,45 +65,42 @@ object Document {
   /**
    * Line height for a normal line of text.
    */
-  def lineHeight(renderer: FontRenderer): Int = renderer.FONT_HEIGHT + 1
+  def lineHeight(renderer: Font): Int = renderer.lineHeight + 1
 
   /**
    * Renders a list of segments and tooltips if a segment with a tooltip is hovered.
    * Returns the hovered interactive segment, if any.
    */
-  def render(document: Segment, x: Int, y: Int, maxWidth: Int, maxHeight: Int, yOffset: Int, renderer: FontRenderer, mouseX: Int, mouseY: Int): Option[InteractiveSegment] = {
-    val mc = Minecraft.getMinecraft
+  def render(document: Segment, x: Int, y: Int, maxWidth: Int, maxHeight: Int, yOffset: Int, renderer: Font, mouseX: Int, mouseY: Int): Option[InteractiveSegment] = {
+    val mc = Minecraft.getInstance
 
     RenderState.pushAttrib()
 
-    // On some systems/drivers/graphics cards the next calls won't update the
-    // depth buffer correctly if alpha test is enabled. Guess how we found out?
-    // By noticing that on those systems it only worked while chat messages
-    // were visible. Yeah. I know.
-    GlStateManager.disableAlpha()
-
     // Clear depth mask, then create masks in foreground above and below scroll area.
-    GlStateManager.color(1, 1, 1, 1)
-    GlStateManager.clear(GL11.GL_DEPTH_BUFFER_BIT)
-    GlStateManager.enableDepth()
-    GlStateManager.depthFunc(GL11.GL_LEQUAL)
-    GlStateManager.depthMask(true)
-    GlStateManager.colorMask(false, false, false, false)
+    RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
+    RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, false)
+    RenderSystem.enableDepthTest()
+    RenderSystem.depthFunc(GL11.GL_LEQUAL)
+    RenderSystem.depthMask(true)
+    RenderSystem.colorMask(false, false, false, false)
 
-    GlStateManager.pushMatrix()
-    GlStateManager.translate(0, 0, 500)
-    GL11.glBegin(GL11.GL_QUADS)
-    GL11.glVertex2f(0, y)
-    GL11.glVertex2f(mc.displayWidth, y)
-    GL11.glVertex2f(mc.displayWidth, 0)
-    GL11.glVertex2f(0, 0)
-    GL11.glVertex2f(0, mc.displayHeight)
-    GL11.glVertex2f(mc.displayWidth, mc.displayHeight)
-    GL11.glVertex2f(mc.displayWidth, y + maxHeight)
-    GL11.glVertex2f(0, y + maxHeight)
-    GL11.glEnd()
-    GlStateManager.popMatrix()
-    GlStateManager.colorMask(true, true, true, true)
+    val poseStack = new PoseStack()
+    poseStack.pushPose()
+    poseStack.translate(0, 0, 500)
+    val tesselator = Tesselator.getInstance
+    val builder = tesselator.getBuilder
+    builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION)
+    builder.vertex(0, y, 0).endVertex()
+    builder.vertex(mc.getWindow.getGuiScaledWidth, y, 0).endVertex()
+    builder.vertex(mc.getWindow.getGuiScaledWidth, 0, 0).endVertex()
+    builder.vertex(0, 0, 0).endVertex()
+    builder.vertex(0, mc.getWindow.getGuiScaledHeight, 0).endVertex()
+    builder.vertex(mc.getWindow.getGuiScaledWidth, mc.getWindow.getGuiScaledHeight, 0).endVertex()
+    builder.vertex(mc.getWindow.getGuiScaledWidth, y + maxHeight, 0).endVertex()
+    builder.vertex(0, y + maxHeight, 0).endVertex()
+    tesselator.end()
+    poseStack.popPose()
+    RenderSystem.colorMask(true, true, true, true)
 
     // Actual rendering.
     var hovered: Option[InteractiveSegment] = None
@@ -122,7 +123,7 @@ object Document {
     hovered.foreach(_.notifyHover())
 
     RenderState.popAttrib()
-    GlStateManager.bindTexture(0)
+    RenderSystem.setShaderTexture(0, 0)
 
     hovered
   }

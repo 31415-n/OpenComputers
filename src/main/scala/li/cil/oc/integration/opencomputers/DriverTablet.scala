@@ -9,7 +9,7 @@ import li.cil.oc.api.network.Visibility
 import li.cil.oc.common.Slot
 import li.cil.oc.common.item.Tablet
 import li.cil.oc.common.item.data.TabletData
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraftforge.common.util.Constants.NBT
 

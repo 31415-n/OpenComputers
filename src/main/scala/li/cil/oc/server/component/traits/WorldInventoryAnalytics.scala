@@ -10,7 +10,7 @@ import li.cil.oc.util.{BlockInventorySource, BlockPosition, DatabaseAccess, Enti
 import li.cil.oc.util.ExtendedWorld._
 import li.cil.oc.util.ExtendedArguments._
 import net.minecraft.block.Block
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.EnumFacing
 import net.minecraftforge.fml.common.registry.EntityRegistry
 import net.minecraftforge.items.IItemHandler

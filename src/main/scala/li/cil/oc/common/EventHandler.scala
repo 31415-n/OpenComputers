@@ -41,7 +41,7 @@ import li.cil.oc.util._
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.entity.player.EntityPlayerMP
 import net.minecraft.init.SoundEvents
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.tileentity.TileEntity
 import net.minecraft.util.SoundCategory
 import net.minecraftforge.common.MinecraftForge

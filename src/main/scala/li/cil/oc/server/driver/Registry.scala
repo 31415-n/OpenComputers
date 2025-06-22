@@ -15,7 +15,7 @@ import li.cil.oc.api.network.EnvironmentHost
 import li.cil.oc.util.InventoryUtils
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.inventory.IInventory
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.EnumFacing
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.World

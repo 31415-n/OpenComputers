@@ -22,7 +22,7 @@ import net.minecraftforge.fml.relauncher.SideOnly
 import net.minecraft.entity.Entity
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.world.WorldlyContainer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.util.EnumFacing
 import net.minecraft.util.math.AxisAlignedBB

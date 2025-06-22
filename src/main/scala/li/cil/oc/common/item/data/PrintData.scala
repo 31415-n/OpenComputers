@@ -8,7 +8,7 @@ import li.cil.oc.common.IMC
 import li.cil.oc.common.item.data.PrintData.Shape
 import li.cil.oc.util.ExtendedAABB._
 import li.cil.oc.util.ExtendedNBT._
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.util.math.AxisAlignedBB
 import net.minecraftforge.common.util.Constants.NBT

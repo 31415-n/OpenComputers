@@ -14,7 +14,7 @@ import li.cil.oc.common.item.HardDiskDrive
 import li.cil.oc.common.item.data.DriveData
 import li.cil.oc.server.component.Drive
 import li.cil.oc.server.fs.FileSystem.{ItemLabel, ReadOnlyLabel}
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraftforge.common.DimensionManager
 

@@ -14,7 +14,7 @@ import net.minecraft.block.BlockJukebox
 import net.minecraft.init.Blocks
 import net.minecraft.item.Item
 import net.minecraft.item.ItemRecord
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.EnumFacing
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.World

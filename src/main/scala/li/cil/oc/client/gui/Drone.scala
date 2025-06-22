@@ -13,16 +13,17 @@ import li.cil.oc.util.RenderState
 import li.cil.oc.util.TextBuffer
 import net.minecraft.client.gui.components.Button
 import com.mojang.blaze3d.systems.RenderSystem
-import net.minecraft.client.renderer.Tesselator
+import com.mojang.blaze3d.vertex.Tesselator
 import com.mojang.blaze3d.vertex.DefaultVertexFormat
+import com.mojang.blaze3d.vertex.VertexFormat
 import net.minecraft.world.entity.player.Inventory
 import org.lwjgl.opengl.GL11
 
 import scala.jdk.CollectionConverters._
 
 class Drone(playerInventory: Inventory, val drone: entity.Drone) extends DynamicGuiContainer(new container.Drone(playerInventory, drone)) with traits.DisplayBuffer {
-  xSize = 176
-  ySize = 148
+  imageWidth = 176
+  imageHeight = 148
 
   protected var powerButton: ImageButton = _
 
@@ -53,23 +54,23 @@ class Drone(playerInventory: Inventory, val drone: entity.Drone) extends Dynamic
   private val selectionsStates = 17
   private val selectionStepV = 1 / selectionsStates.toDouble
 
-  protected override def actionPerformed(button: Button): Unit = {
-    if (button.id == 0) {
+  protected def onButtonClick(button: Button): Unit = {
+    if (button == powerButton) {
       ClientPacketSender.sendDronePower(drone, !drone.isRunning)
     }
   }
 
-  override def drawScreen(mouseX: Int, mouseY: Int, dt: Float) {
+  override def render(guiGraphics: net.minecraft.client.gui.GuiGraphics, mouseX: Int, mouseY: Int, dt: Float) {
     powerButton.toggled = drone.isRunning
-    bufferRenderer.dirty = drone.statusText.lines.zipWithIndex.exists {
+    bufferRenderer.dirty = drone.statusText.split("\n").zipWithIndex.exists {
       case (line, i) => buffer.set(0, i, line, vertical = false)
     }
-    super.drawScreen(mouseX, mouseY, dt)
+    super.render(guiGraphics, mouseX, mouseY, dt)
   }
 
-  override def initGui() {
-    super.initGui()
-    powerButton = new ImageButton(0, guiLeft + 7, guiTop + 45, 18, 18, Textures.GUI.ButtonPower, canToggle = true)
+  override def init() {
+    super.init()
+    powerButton = new ImageButton(leftPos + 7, topPos + 45, 18, 18, Textures.GUI.ButtonPower, canToggle = true, onPress = _ => onButtonClick(powerButton))
     addRenderableWidget(powerButton)
   }
 
@@ -91,57 +92,57 @@ class Drone(playerInventory: Inventory, val drone: entity.Drone) extends Dynamic
   override protected def drawSecondaryForegroundLayer(mouseX: Int, mouseY: Int) {
     drawBufferLayer()
     RenderState.pushAttrib()
-    if (isPointInRegion(power.x, power.y, power.width, power.height, mouseX, mouseY)) {
+    if (isHovering(power.x, power.y, power.width, power.height, mouseX, mouseY)) {
       val tooltip = new java.util.ArrayList[String]
       val format = Localization.Computer.Power + ": %d%% (%d/%d)"
       tooltip.add(format.format(
         drone.globalBuffer * 100 / math.max(drone.globalBufferSize, 1),
         drone.globalBuffer,
         drone.globalBufferSize))
-      copiedDrawHoveringText(tooltip, mouseX - guiLeft, mouseY - guiTop, fontRenderer)
+      copiedDrawHoveringText(guiGraphics, tooltip, mouseX - leftPos, mouseY - topPos, font)
     }
-    if (powerButton.isMouseOver) {
+    if (powerButton.isMouseOver(mouseX, mouseY)) {
       val tooltip = new java.util.ArrayList[String]
-      tooltip.addAll((if (drone.isRunning) Localization.Computer.TurnOff.lines else Localization.Computer.TurnOn.lines).asJava)
-      copiedDrawHoveringText(tooltip, mouseX - guiLeft, mouseY - guiTop, fontRenderer)
+      tooltip.add(if (drone.isRunning) Localization.Computer.TurnOff else Localization.Computer.TurnOn)
+      copiedDrawHoveringText(guiGraphics, tooltip, mouseX - leftPos, mouseY - topPos, font)
     }
     RenderState.popAttrib()
   }
 
-  override protected def drawGuiContainerBackgroundLayer(dt: Float, mouseX: Int, mouseY: Int) {
+  override protected def renderBg(guiGraphics: net.minecraft.client.gui.GuiGraphics, dt: Float, mouseX: Int, mouseY: Int) {
     RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f)
     Textures.bind(Textures.GUI.Drone)
-    drawTexturedModalRect(guiLeft, guiTop, 0, 0, xSize, ySize)
+    guiGraphics.blit(Textures.GUI.Drone, leftPos, topPos, 0, 0, imageWidth, imageHeight)
     power.level = drone.globalBuffer.toDouble / math.max(drone.globalBufferSize.toDouble, 1.0)
-    drawWidgets()
+    renderWidgets(guiGraphics)
     if (drone.mainInventory.getContainerSize > 0) {
-      drawSelection()
+      drawSelection(guiGraphics)
     }
 
-    drawInventorySlots()
+    drawInventorySlots(guiGraphics)
   }
 
   // No custom slots, we just extend DynamicGuiContainer for the highlighting.
-  override protected def drawSlotBackground(x: Int, y: Int) {}
+  override protected def drawSlotBackground(guiGraphics: net.minecraft.client.gui.GuiGraphics, x: Int, y: Int) {}
 
-  private def drawSelection() {
+  private def drawSelection(guiGraphics: net.minecraft.client.gui.GuiGraphics) {
     val slot = drone.selectedSlot
     if (slot >= 0 && slot < 16) {
       RenderState.makeItBlend()
       Textures.bind(Textures.GUI.RobotSelection)
       val now = System.currentTimeMillis() / 1000.0
       val offsetV = ((now - now.toInt) * selectionsStates).toInt * selectionStepV
-      val x = guiLeft + inventoryX - 1 + (slot % 4) * (selectionSize - 2)
-      val y = guiTop + inventoryY - 1 + (slot / 4) * (selectionSize - 2)
+      val x = leftPos + inventoryX - 1 + (slot % 4) * (selectionSize - 2)
+      val y = topPos + inventoryY - 1 + (slot / 4) * (selectionSize - 2)
 
-      val t = Tessellator.getInstance
-      val r = t.getBuffer
-      r.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX)
-      r.pos(x, y, zLevel).tex(0, offsetV).endVertex()
-      r.pos(x, y + selectionSize, zLevel).tex(0, offsetV + selectionStepV).endVertex()
-      r.pos(x + selectionSize, y + selectionSize, zLevel).tex(1, offsetV + selectionStepV).endVertex()
-      r.pos(x + selectionSize, y, zLevel).tex(1, offsetV).endVertex()
-      t.draw()
+      val t = Tesselator.getInstance
+      val r = t.getBuilder
+      r.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX)
+      r.vertex(x, y, 0).uv(0, offsetV.toFloat).endVertex()
+      r.vertex(x, y + selectionSize, 0).uv(0, (offsetV + selectionStepV).toFloat).endVertex()
+      r.vertex(x + selectionSize, y + selectionSize, 0).uv(1, (offsetV + selectionStepV).toFloat).endVertex()
+      r.vertex(x + selectionSize, y, 0).uv(1, offsetV.toFloat).endVertex()
+      t.end()
     }
   }
 }

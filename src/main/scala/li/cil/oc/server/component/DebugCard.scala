@@ -33,7 +33,7 @@ import net.minecraft.entity.item.EntityMinecart
 import net.minecraft.entity.{Entity, EntityLivingBase}
 import net.minecraft.entity.player.EntityPlayerMP
 import net.minecraft.item.Item
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt._
 import net.minecraft.scoreboard.{IScoreCriteria, Scoreboard}
 import net.minecraft.server.management.UserListOpsEntry

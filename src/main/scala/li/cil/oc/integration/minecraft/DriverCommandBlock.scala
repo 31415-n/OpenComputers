@@ -11,7 +11,7 @@ import li.cil.oc.integration.ManagedTileEntityEnvironment
 import li.cil.oc.util.ResultWrapper.result
 import net.minecraft.block.Block
 import net.minecraft.init.Blocks
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.tileentity.TileEntityCommandBlock
 import net.minecraft.util.EnumFacing
 import net.minecraft.util.math.BlockPos

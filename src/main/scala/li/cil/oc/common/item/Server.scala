@@ -10,7 +10,7 @@ import li.cil.oc.util.Rarity
 import li.cil.oc.util.Tooltip
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.item.EnumRarity
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.ActionResult
 import net.minecraft.util.EnumActionResult
 import net.minecraft.util.EnumHand

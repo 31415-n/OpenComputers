@@ -8,7 +8,7 @@ import li.cil.oc.common.Tier
 import li.cil.oc.common.item
 import li.cil.oc.common.item.Delegator
 import li.cil.oc.server.component
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 
 object DriverMemory extends Item with api.driver.item.Memory with api.driver.item.CallBudget {
   override def amount(stack: ItemStack) = Delegator.subItem(stack) match {

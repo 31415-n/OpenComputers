@@ -24,12 +24,14 @@ abstract class ComponentSlot(inventory: Container, index: Int, x: Int, y: Int) e
 
   // ----------------------------------------------------------------------- //
 
-  def hasBackground = getBackgroundLocation != null
+  def hasBackground = backgroundLocation != null
+  
+  def backgroundLocation: ResourceLocation = null // Override in subclasses
 
   @OnlyIn(Dist.CLIENT)
   def isEnabled = slot != common.Slot.None && tier != common.Tier.None && isActive
 
-  override def mayPlace(stack: ItemStack): Boolean = container.canPlaceItem(getSlotIndex, stack)
+  override def mayPlace(stack: ItemStack): Boolean = container.container.isItemValidForSlot(getSlotIndex, stack)
 
   override def onTake(player: EntityPlayer, stack: ItemStack): Unit = {
     for (slot <- container.slots.asScala) slot match {
@@ -41,9 +43,9 @@ abstract class ComponentSlot(inventory: Container, index: Int, x: Int, y: Int) e
 
   override def setByPlayer(stack: ItemStack): Unit = {
     super.setByPlayer(stack)
-    container match {
+    container.container match {
       case playerAware: common.tileentity.traits.PlayerInputAware =>
-        playerAware.onSetInventorySlotContents(player, getSlotIndex, stack)
+        playerAware.onSetInventorySlotContents(container.playerInventory.player, getSlotIndex, stack)
       case _ =>
     }
   }
@@ -51,17 +53,11 @@ abstract class ComponentSlot(inventory: Container, index: Int, x: Int, y: Int) e
   override def setChanged(): Unit = {
     super.setChanged()
     for (slot <- container.slots.asScala) slot match {
-      case dynamic: ComponentSlot => dynamic.clearIfInvalid(player)
+      case dynamic: ComponentSlot => dynamic.clearIfInvalid(container.playerInventory.player)
       case _ =>
     }
     changeListener.foreach(_(this))
   }
 
   protected def clearIfInvalid(player: EntityPlayer): Unit = {}
-  
-  // Helper method to get player from container
-  private def player: EntityPlayer = container match {
-    case playerContainer: li.cil.oc.common.container.Player => playerContainer.playerInventory.player
-    case _ => null // This should not happen in normal cases
-  }
 }

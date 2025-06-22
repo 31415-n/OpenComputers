@@ -1,7 +1,7 @@
 package li.cil.oc.common.recipe
 
 import net.minecraft.inventory.InventoryCrafting
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.ResourceLocation
 import net.minecraftforge.oredict.ShapedOreRecipe
 

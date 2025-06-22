@@ -3,7 +3,7 @@ package li.cil.oc.common.item
 import li.cil.oc.OpenComputers
 import li.cil.oc.common.GuiType
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.{ActionResult, EnumActionResult, EnumHand}
 import net.minecraft.world.World
 

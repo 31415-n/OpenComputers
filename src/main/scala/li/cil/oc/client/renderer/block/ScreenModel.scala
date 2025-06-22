@@ -15,7 +15,7 @@ import net.minecraft.client.renderer.block.model.BakedQuad
 import net.minecraft.client.renderer.block.model.IBakedModel
 import net.minecraft.client.renderer.block.model.ItemOverrideList
 import net.minecraft.entity.EntityLivingBase
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.EnumFacing
 import net.minecraft.world.World
 import net.minecraftforge.common.property.IExtendedBlockState

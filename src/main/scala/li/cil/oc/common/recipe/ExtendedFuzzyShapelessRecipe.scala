@@ -1,7 +1,7 @@
 package li.cil.oc.common.recipe
 
 import net.minecraft.inventory.InventoryCrafting
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraftforge.oredict.ShapelessOreRecipe
 
 import scala.collection.mutable.ListBuffer

@@ -17,7 +17,7 @@ import li.cil.oc.util.ExtendedNBT._
 import li.cil.oc.util.SideTracker
 import net.minecraft.init.Blocks
 import net.minecraft.inventory.InventoryCrafting
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.item.crafting.IRecipe
 import net.minecraft.nbt.NBTTagCompound
 

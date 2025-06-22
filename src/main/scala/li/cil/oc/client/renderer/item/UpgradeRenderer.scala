@@ -10,7 +10,7 @@ import li.cil.oc.util.RenderState
 import net.minecraft.client.renderer.GlStateManager
 import net.minecraft.client.renderer.Tessellator
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.util.math.AxisAlignedBB
 import org.lwjgl.opengl.GL11
 

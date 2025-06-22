@@ -5,7 +5,7 @@ import li.cil.oc.common.Loot
 import li.cil.oc.integration.util.Wrench
 import li.cil.oc.util.StackOption
 import net.minecraft.inventory.InventoryCrafting
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.item.crafting.IRecipe
 import net.minecraft.util.NonNullList
 import net.minecraft.world.World

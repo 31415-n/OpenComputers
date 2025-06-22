@@ -6,7 +6,7 @@ import com.google.common.base.Charsets
 import li.cil.oc.api.machine.Arguments
 import li.cil.oc.util.ItemUtils
 import net.minecraft.item.Item
-import net.minecraft.item.ItemStack
+import net.minecraft.world.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.util.ResourceLocation
 
