@@ -26,7 +26,7 @@ class Screen(val buffer: api.internal.TextBuffer, val hasMouse: Boolean, val has
     if (hasMouse && delta != 0) {
       toBufferCoordinates(mouseX.toInt, mouseY.toInt) match {
         case Some((bx, by)) =>
-          val scroll = math.signum(delta)
+          val scroll = math.signum(delta).toInt
           buffer.mouseScroll(bx, by, scroll, null)
           true
         case _ => super.mouseScrolled(mouseX, mouseY, delta)

@@ -10,10 +10,11 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.components.Button
 import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.world.entity.player.Inventory
+import net.minecraft.world.inventory.AbstractContainerMenu
 
 import scala.jdk.CollectionConverters._
 
-class Server(playerInventory: Inventory, serverInventory: ServerInventory, val rack: Option[tileentity.Rack] = None, val slot: Int = 0) extends DynamicGuiContainer(new container.Server(playerInventory, serverInventory)) with traits.LockedHotbar {
+class Server(playerInventory: Inventory, serverInventory: ServerInventory, val rack: Option[tileentity.Rack] = None, val slot: Int = 0) extends DynamicGuiContainer(new container.Server(playerInventory, serverInventory).asInstanceOf[AbstractContainerMenu]) with traits.LockedHotbar {
   
   private def serverContainer = menu.asInstanceOf[container.Server]
   protected var powerButton: ImageButton = _
@@ -60,7 +61,7 @@ class Server(playerInventory: Inventory, serverInventory: ServerInventory, val r
       val tooltip = new java.util.ArrayList[net.minecraft.network.chat.Component]
       val lines = if (serverContainer.isRunning) Localization.Computer.TurnOff.lines else Localization.Computer.TurnOn.lines
       import scala.jdk.CollectionConverters._
-      lines.foreach(line => tooltip.add(net.minecraft.network.chat.Component.literal(line)))
+      lines.iterator().asScala.foreach(line => tooltip.add(net.minecraft.network.chat.Component.literal(line)))
       guiGraphics.renderTooltip(font, tooltip, mouseX - leftPos, mouseY - topPos)
     }
   }

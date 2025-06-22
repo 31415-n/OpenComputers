@@ -4,8 +4,9 @@ import li.cil.oc.Localization
 import li.cil.oc.common.container
 import li.cil.oc.common.item.TabletWrapper
 import net.minecraft.world.entity.player.Inventory
+import net.minecraft.world.inventory.AbstractContainerMenu
 
-class Tablet(playerInventory: Inventory, val tablet: TabletWrapper) extends DynamicGuiContainer(new container.Tablet(playerInventory, tablet)) with traits.LockedHotbar {
+class Tablet(playerInventory: Inventory, val tablet: TabletWrapper) extends DynamicGuiContainer(new container.Tablet(playerInventory, tablet).asInstanceOf[AbstractContainerMenu]) with traits.LockedHotbar {
   override def lockedStack = tablet.stack
 
   override def drawSecondaryForegroundLayer(mouseX: Int, mouseY: Int): Unit = {
