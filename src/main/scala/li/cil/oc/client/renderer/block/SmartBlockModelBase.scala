@@ -15,7 +15,7 @@ import net.minecraft.core.Direction
 import net.minecraft.world.phys.Vec3
 import net.minecraftforge.client.model.data.ModelData
 import org.joml.Vector3f
-import java.util.Random
+
 
 /**
  * Base trait for smart block models in OpenComputers.
@@ -25,9 +25,9 @@ trait SmartBlockModelBase extends BakedModel {
   
   override def getOverrides: ItemOverrides = ItemOverrides.EMPTY
 
-  override def getQuads(state: BlockState, side: Direction, rand: Random): util.List[BakedQuad] = Collections.emptyList()
+  override def getQuads(state: BlockState, side: Direction, rand: net.minecraft.util.RandomSource): util.List[BakedQuad] = Collections.emptyList()
 
-  override def getQuads(state: BlockState, side: Direction, rand: Random, data: ModelData, renderType: net.minecraft.client.renderer.RenderType): util.List[BakedQuad] = {
+  override def getQuads(state: BlockState, side: Direction, rand: net.minecraft.util.RandomSource, data: ModelData, renderType: net.minecraft.client.renderer.RenderType): util.List[BakedQuad] = {
     getQuads(state, side, rand)
   }
 

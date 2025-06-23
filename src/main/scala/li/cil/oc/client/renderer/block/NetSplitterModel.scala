@@ -7,40 +7,43 @@ import li.cil.oc.client.Textures
 import li.cil.oc.common.block
 import li.cil.oc.common.item.data.PrintData
 import li.cil.oc.common.tileentity
-import net.minecraft.block.state.IBlockState
+import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.client.renderer.block.model.BakedQuad
-import net.minecraft.client.renderer.block.model.IBakedModel
-import net.minecraft.client.renderer.block.model.ItemOverrideList
-import net.minecraft.entity.EntityLivingBase
+import net.minecraft.client.resources.model.BakedModel
+import net.minecraft.client.renderer.block.model.ItemOverrides
+import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemStack
-import net.minecraft.util.EnumFacing
-import net.minecraft.util.math.Vec3d
-import net.minecraft.world.World
+import net.minecraft.core.Direction
+import net.minecraft.world.phys.Vec3
+import net.minecraft.world.level.Level
 import net.minecraftforge.client.event.TextureStitchEvent
-import net.minecraftforge.common.property.IExtendedBlockState
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
+import net.minecraftforge.eventbus.api.SubscribeEvent
+import net.minecraftforge.client.model.data.ModelData
 
-import scala.collection.convert.WrapAsJava.bufferAsJavaList
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 object NetSplitterModel extends SmartBlockModelBase {
-  override def getOverrides: ItemOverrideList = ItemOverride
+  override def getOverrides: ItemOverrides = ItemOverride
 
-  override def getQuads(state: IBlockState, side: EnumFacing, rand: Long): util.List[BakedQuad] =
-    state match {
-      case extended: IExtendedBlockState =>
-        extended.getValue(block.property.PropertyTile.Tile) match {
-          case t: tileentity.NetSplitter =>
-            val faces = mutable.ArrayBuffer.empty[BakedQuad]
+  override def getQuads(state: BlockState, side: Direction, rand: net.minecraft.util.RandomSource): util.List[BakedQuad] = {
+    val faces = mutable.ArrayBuffer.empty[BakedQuad]
+    faces ++= BaseModel
+    addSideQuads(faces, Direction.values().map(_ => false))
+    faces.asJava
+  }
 
-            faces ++= BaseModel
-            addSideQuads(faces, EnumFacing.values().map(t.isSideOpen))
-
-            bufferAsJavaList(faces)
-          case _ => super.getQuads(state, side, rand)
-        }
-      case _ => super.getQuads(state, side, rand)
+  override def getQuads(state: BlockState, side: Direction, rand: net.minecraft.util.RandomSource, data: net.minecraftforge.client.model.data.ModelData, renderType: net.minecraft.client.renderer.RenderType): util.List[BakedQuad] = {
+    val netSplitter = data.get(li.cil.oc.common.block.property.PropertyTile.TILE_ENTITY_PROPERTY)
+    netSplitter match {
+      case splitter: tileentity.NetSplitter =>
+        val faces = mutable.ArrayBuffer.empty[BakedQuad]
+        faces ++= BaseModel
+        addSideQuads(faces, Direction.values().map(splitter.isSideOpen))
+        faces.asJava
+      case _ => getQuads(state, side, rand)
     }
+  }
 
   protected def splitterTexture = Array(
     Textures.getSprite(Textures.Block.NetSplitterTop),
@@ -55,20 +58,20 @@ object NetSplitterModel extends SmartBlockModelBase {
     val faces = mutable.ArrayBuffer.empty[BakedQuad]
 
     // Bottom.
-    faces ++= bakeQuads(makeBox(new Vec3d(0 / 16f, 0 / 16f, 5 / 16f), new Vec3d(5 / 16f, 5 / 16f, 11 / 16f)), splitterTexture, None)
-    faces ++= bakeQuads(makeBox(new Vec3d(11 / 16f, 0 / 16f, 5 / 16f), new Vec3d(16 / 16f, 5 / 16f, 11 / 16f)), splitterTexture, None)
-    faces ++= bakeQuads(makeBox(new Vec3d(5 / 16f, 0 / 16f, 0 / 16f), new Vec3d(11 / 16f, 5 / 16f, 5 / 16f)), splitterTexture, None)
-    faces ++= bakeQuads(makeBox(new Vec3d(5 / 16f, 0 / 16f, 11 / 16f), new Vec3d(11 / 16f, 5 / 16f, 16 / 16f)), splitterTexture, None)
+    faces ++= bakeQuads(makeBox(new Vec3(0 / 16f, 0 / 16f, 5 / 16f), new Vec3(5 / 16f, 5 / 16f, 11 / 16f)), splitterTexture, None)
+    faces ++= bakeQuads(makeBox(new Vec3(11 / 16f, 0 / 16f, 5 / 16f), new Vec3(16 / 16f, 5 / 16f, 11 / 16f)), splitterTexture, None)
+    faces ++= bakeQuads(makeBox(new Vec3(5 / 16f, 0 / 16f, 0 / 16f), new Vec3(11 / 16f, 5 / 16f, 5 / 16f)), splitterTexture, None)
+    faces ++= bakeQuads(makeBox(new Vec3(5 / 16f, 0 / 16f, 11 / 16f), new Vec3(11 / 16f, 5 / 16f, 16 / 16f)), splitterTexture, None)
     // Corners.
-    faces ++= bakeQuads(makeBox(new Vec3d(0 / 16f, 0 / 16f, 0 / 16f), new Vec3d(5 / 16f, 16 / 16f, 5 / 16f)), splitterTexture, None)
-    faces ++= bakeQuads(makeBox(new Vec3d(11 / 16f, 0 / 16f, 0 / 16f), new Vec3d(16 / 16f, 16 / 16f, 5 / 16f)), splitterTexture, None)
-    faces ++= bakeQuads(makeBox(new Vec3d(0 / 16f, 0 / 16f, 11 / 16f), new Vec3d(5 / 16f, 16 / 16f, 16 / 16f)), splitterTexture, None)
-    faces ++= bakeQuads(makeBox(new Vec3d(11 / 16f, 0 / 16f, 11 / 16f), new Vec3d(16 / 16f, 16 / 16f, 16 / 16f)), splitterTexture, None)
+    faces ++= bakeQuads(makeBox(new Vec3(0 / 16f, 0 / 16f, 0 / 16f), new Vec3(5 / 16f, 16 / 16f, 5 / 16f)), splitterTexture, None)
+    faces ++= bakeQuads(makeBox(new Vec3(11 / 16f, 0 / 16f, 0 / 16f), new Vec3(16 / 16f, 16 / 16f, 5 / 16f)), splitterTexture, None)
+    faces ++= bakeQuads(makeBox(new Vec3(0 / 16f, 0 / 16f, 11 / 16f), new Vec3(5 / 16f, 16 / 16f, 16 / 16f)), splitterTexture, None)
+    faces ++= bakeQuads(makeBox(new Vec3(11 / 16f, 0 / 16f, 11 / 16f), new Vec3(16 / 16f, 16 / 16f, 16 / 16f)), splitterTexture, None)
     // Top.
-    faces ++= bakeQuads(makeBox(new Vec3d(0 / 16f, 11 / 16f, 5 / 16f), new Vec3d(5 / 16f, 16 / 16f, 11 / 16f)), splitterTexture, None)
-    faces ++= bakeQuads(makeBox(new Vec3d(11 / 16f, 11 / 16f, 5 / 16f), new Vec3d(16 / 16f, 16 / 16f, 11 / 16f)), splitterTexture, None)
-    faces ++= bakeQuads(makeBox(new Vec3d(5 / 16f, 11 / 16f, 0 / 16f), new Vec3d(11 / 16f, 16 / 16f, 5 / 16f)), splitterTexture, None)
-    faces ++= bakeQuads(makeBox(new Vec3d(5 / 16f, 11 / 16f, 11 / 16f), new Vec3d(11 / 16f, 16 / 16f, 16 / 16f)), splitterTexture, None)
+    faces ++= bakeQuads(makeBox(new Vec3(0 / 16f, 11 / 16f, 5 / 16f), new Vec3(5 / 16f, 16 / 16f, 11 / 16f)), splitterTexture, None)
+    faces ++= bakeQuads(makeBox(new Vec3(11 / 16f, 11 / 16f, 5 / 16f), new Vec3(16 / 16f, 16 / 16f, 11 / 16f)), splitterTexture, None)
+    faces ++= bakeQuads(makeBox(new Vec3(5 / 16f, 11 / 16f, 0 / 16f), new Vec3(11 / 16f, 16 / 16f, 5 / 16f)), splitterTexture, None)
+    faces ++= bakeQuads(makeBox(new Vec3(5 / 16f, 11 / 16f, 11 / 16f), new Vec3(11 / 16f, 16 / 16f, 16 / 16f)), splitterTexture, None)
 
     faces.toArray
   }
@@ -81,42 +84,42 @@ object NetSplitterModel extends SmartBlockModelBase {
   }
 
   protected def addSideQuads(faces: mutable.ArrayBuffer[BakedQuad], openSides: Array[Boolean]): Unit = {
-    val down = openSides(EnumFacing.DOWN.ordinal())
-    faces ++= bakeQuads(makeBox(new Vec3d(5 / 16f, if (down) 0 / 16f else 2 / 16f, 5 / 16f), new Vec3d(11 / 16f, 5 / 16f, 11 / 16f)), splitterTexture, None)
+    val down = openSides(Direction.DOWN.ordinal())
+    faces ++= bakeQuads(makeBox(new Vec3(5 / 16f, if (down) 0 / 16f else 2 / 16f, 5 / 16f), new Vec3(11 / 16f, 5 / 16f, 11 / 16f)), splitterTexture, None)
 
-    val up = openSides(EnumFacing.UP.ordinal())
-    faces ++= bakeQuads(makeBox(new Vec3d(5 / 16f, 11 / 16f, 5 / 16f), new Vec3d(11 / 16f, if (up) 16 / 16f else 14f / 16f, 11 / 16f)), splitterTexture, None)
+    val up = openSides(Direction.UP.ordinal())
+    faces ++= bakeQuads(makeBox(new Vec3(5 / 16f, 11 / 16f, 5 / 16f), new Vec3(11 / 16f, if (up) 16 / 16f else 14f / 16f, 11 / 16f)), splitterTexture, None)
 
-    val north = openSides(EnumFacing.NORTH.ordinal())
-    faces ++= bakeQuads(makeBox(new Vec3d(5 / 16f, 5 / 16f, if (north) 0 / 16f else 2 / 16f), new Vec3d(11 / 16f, 11 / 16f, 5 / 16f)), splitterTexture, None)
+    val north = openSides(Direction.NORTH.ordinal())
+    faces ++= bakeQuads(makeBox(new Vec3(5 / 16f, 5 / 16f, if (north) 0 / 16f else 2 / 16f), new Vec3(11 / 16f, 11 / 16f, 5 / 16f)), splitterTexture, None)
 
-    val south = openSides(EnumFacing.SOUTH.ordinal())
-    faces ++= bakeQuads(makeBox(new Vec3d(5 / 16f, 5 / 16f, 11 / 16f), new Vec3d(11 / 16f, 11 / 16f, if (south) 16 / 16f else 14 / 16f)), splitterTexture, None)
+    val south = openSides(Direction.SOUTH.ordinal())
+    faces ++= bakeQuads(makeBox(new Vec3(5 / 16f, 5 / 16f, 11 / 16f), new Vec3(11 / 16f, 11 / 16f, if (south) 16 / 16f else 14 / 16f)), splitterTexture, None)
 
-    val west = openSides(EnumFacing.WEST.ordinal())
-    faces ++= bakeQuads(makeBox(new Vec3d(if (west) 0 / 16f else 2 / 16f, 5 / 16f, 5 / 16f), new Vec3d(5 / 16f, 11 / 16f, 11 / 16f)), splitterTexture, None)
+    val west = openSides(Direction.WEST.ordinal())
+    faces ++= bakeQuads(makeBox(new Vec3(if (west) 0 / 16f else 2 / 16f, 5 / 16f, 5 / 16f), new Vec3(5 / 16f, 11 / 16f, 11 / 16f)), splitterTexture, None)
 
-    val east = openSides(EnumFacing.EAST.ordinal())
-    faces ++= bakeQuads(makeBox(new Vec3d(11 / 16f, 5 / 16f, 5 / 16f), new Vec3d(if (east) 16 / 16f else 14 / 16f, 11 / 16f, 11 / 16f)), splitterTexture, None)
+    val east = openSides(Direction.EAST.ordinal())
+    faces ++= bakeQuads(makeBox(new Vec3(11 / 16f, 5 / 16f, 5 / 16f), new Vec3(if (east) 16 / 16f else 14 / 16f, 11 / 16f, 11 / 16f)), splitterTexture, None)
   }
 
   class ItemModel(val stack: ItemStack) extends SmartBlockModelBase {
     val data = new PrintData(stack)
 
-    override def getQuads(state: IBlockState, side: EnumFacing, rand: Long): util.List[BakedQuad] = {
+    override def getQuads(state: BlockState, side: Direction, rand: net.minecraft.util.RandomSource): util.List[BakedQuad] = {
       val faces = mutable.ArrayBuffer.empty[BakedQuad]
 
       Textures.Block.bind()
 
       faces ++= BaseModel
-      addSideQuads(faces, EnumFacing.values().map(_ => false))
+      addSideQuads(faces, Direction.values().map(_ => false))
 
-      bufferAsJavaList(faces)
+      faces.asJava
     }
   }
 
-  object ItemOverride extends ItemOverrideList(Collections.emptyList()) {
-    override def handleItemState(originalModel: IBakedModel, stack: ItemStack, world: World, entity: EntityLivingBase): IBakedModel = new ItemModel(stack)
+  object ItemOverride extends ItemOverrides {
+    override def resolve(originalModel: BakedModel, stack: ItemStack, world: Level, entity: LivingEntity, seed: Int): BakedModel = new ItemModel(stack)
   }
 
 }

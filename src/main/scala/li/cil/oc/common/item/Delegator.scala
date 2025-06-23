@@ -11,25 +11,25 @@ import li.cil.oc.client.renderer.item.UpgradeRenderer
 import li.cil.oc.common.item.traits.Delegate
 import li.cil.oc.integration.opencomputers.{Item => OpenComputersItem}
 import li.cil.oc.util.BlockPosition
-import net.minecraft.client.util.ITooltipFlag
-import net.minecraft.creativetab.CreativeTabs
-import net.minecraft.entity.Entity
-import net.minecraft.entity.EntityLivingBase
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.item.EnumAction
-import net.minecraft.item.EnumRarity
-import net.minecraft.item.Item
+import net.minecraft.world.item.TooltipFlag
+import net.minecraft.world.item.CreativeModeTab
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.UseAnim
+import net.minecraft.world.item.Rarity
+import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
-import net.minecraft.util.ActionResult
-import net.minecraft.util.EnumActionResult
-import net.minecraft.util.EnumFacing
-import net.minecraft.util.EnumHand
-import net.minecraft.util.NonNullList
-import net.minecraft.util.math.BlockPos
-import net.minecraft.world.IBlockAccess
-import net.minecraft.world.World
-import net.minecraftforge.fml.relauncher.Side
-import net.minecraftforge.fml.relauncher.SideOnly
+import net.minecraft.world.InteractionResultHolder
+import net.minecraft.world.InteractionResult
+import net.minecraft.core.Direction
+import net.minecraft.world.InteractionHand
+import net.minecraft.core.NonNullList
+import net.minecraft.core.BlockPos
+import net.minecraft.world.level.BlockGetter
+import net.minecraft.world.level.Level
+import net.minecraftforge.api.distmarker.Dist
+import net.minecraftforge.api.distmarker.OnlyIn
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -74,12 +74,12 @@ class Delegator extends Item with driver.item.UpgradeRenderer with Chargeable {
       case _ => None
     }
 
-  override def getSubItems(tab: CreativeTabs, list: NonNullList[ItemStack]) {
+  override def fillItemCategory(tab: CreativeModeTab, list: NonNullList[ItemStack]) {
     // Workaround for MC's untyped lists...
-    if(isInCreativeTab(tab)){
+    if(allowedIn(tab)){
       subItems.indices.filter(subItems(_).showInItemList).
         map(subItems(_).createItemStack()).
-        sortBy(_.getTranslationKey).
+        sortBy(_.getDescriptionId).
         foreach(list.add)
     }
   }
@@ -96,10 +96,10 @@ class Delegator extends Item with driver.item.UpgradeRenderer with Chargeable {
 
   override def isBookEnchantable(itemA: ItemStack, itemB: ItemStack): Boolean = false
 
-  override def getRarity(stack: ItemStack): EnumRarity =
+  override def getRarity(stack: ItemStack): Rarity =
     Delegator.subItem(stack) match {
       case Some(subItem) => subItem.rarity(stack)
-      case _ => EnumRarity.COMMON
+      case _ => Rarity.COMMON
     }
 
 //  override def getColorFromItemStack(stack: ItemStack, pass: Int) =
@@ -122,103 +122,102 @@ class Delegator extends Item with driver.item.UpgradeRenderer with Chargeable {
 
   // ----------------------------------------------------------------------- //
 
-  override def doesSneakBypassUse(stack: ItemStack, world: IBlockAccess, pos: BlockPos, player: EntityPlayer): Boolean =
+  override def doesSneakBypassUse(stack: ItemStack, world: BlockGetter, pos: BlockPos, player: Player): Boolean =
     Delegator.subItem(stack) match {
       case Some(subItem) => subItem.doesSneakBypassUse(world, pos, player)
       case _ => super.doesSneakBypassUse(stack, world, pos, player)
     }
 
-  override def onItemUseFirst(player: EntityPlayer, world: World, pos: BlockPos, side: EnumFacing, hitX: Float, hitY: Float, hitZ: Float, hand: EnumHand): EnumActionResult =
-    player.getHeldItem(hand) match {
-      case stack:ItemStack => Delegator.subItem(stack) match {
-        case Some(subItem) => subItem.onItemUseFirst(stack, player, BlockPosition(pos, world), side, hitX, hitY, hitZ)
-        case _ => super.onItemUseFirst(player, world, pos, side, hitX, hitY, hitZ, hand)
-      }
-      case _ => super.onItemUseFirst(player, world, pos, side, hitX, hitY, hitZ, hand)
-  }
-
-  override def onItemUse(player: EntityPlayer, world: World, pos: BlockPos, hand: EnumHand, side: EnumFacing, hitX: Float, hitY: Float, hitZ: Float): EnumActionResult =
-    player.getHeldItem(hand) match {
-      case stack: ItemStack => Delegator.subItem(stack) match {
-        case Some(subItem) => if (subItem.onItemUse(stack, player, BlockPosition(pos, world), side, hitX, hitY, hitZ)) EnumActionResult.SUCCESS else EnumActionResult.PASS
-        case _ => super.onItemUse(player, world, pos, hand, side, hitX, hitY, hitZ)
-      }
-      case _ => super.onItemUse(player, world, pos, hand, side, hitX, hitY, hitZ)
+  override def onItemUseFirst(stack: ItemStack, context: net.minecraft.world.item.context.UseOnContext): InteractionResult =
+    Delegator.subItem(stack) match {
+      case Some(subItem) => subItem.onItemUseFirst(stack, context.getPlayer, BlockPosition(context.getClickedPos, context.getLevel), context.getClickedFace, context.getClickLocation.x.toFloat, context.getClickLocation.y.toFloat, context.getClickLocation.z.toFloat)
+      case _ => super.onItemUseFirst(stack, context)
     }
 
-  override def onItemRightClick(world: World, player: EntityPlayer, hand: EnumHand): ActionResult[ItemStack] =
-    player.getHeldItem(hand) match {
+  override def useOn(context: net.minecraft.world.item.context.UseOnContext): InteractionResult =
+    Delegator.subItem(context.getItemInHand) match {
+      case Some(subItem) => if (subItem.onItemUse(context.getItemInHand, context.getPlayer, BlockPosition(context.getClickedPos, context.getLevel), context.getClickedFace, context.getClickLocation.x.toFloat, context.getClickLocation.y.toFloat, context.getClickLocation.z.toFloat)) InteractionResult.SUCCESS else InteractionResult.PASS
+      case _ => super.useOn(context)
+    }
+
+  override def use(world: Level, player: Player, hand: InteractionHand): InteractionResultHolder[ItemStack] =
+    player.getItemInHand(hand) match {
       case stack: ItemStack => Delegator.subItem(stack) match {
         case Some(subItem) => subItem.onItemRightClick(stack, world, player)
-        case _ => super.onItemRightClick(world, player, hand)
+        case _ => super.use(world, player, hand)
       }
-      case _ => super.onItemRightClick(world, player, hand)
+      case _ => super.use(world, player, hand)
     }
 
   // ----------------------------------------------------------------------- //
 
-  override def onItemUseFinish(stack: ItemStack, world: World, entity: EntityLivingBase): ItemStack =
+  override def finishUsingItem(stack: ItemStack, world: Level, entity: LivingEntity): ItemStack =
     Delegator.subItem(stack) match {
       case Some(subItem) => subItem.onItemUseFinish(stack, world, entity)
-      case _ => super.onItemUseFinish(stack, world, entity)
+      case _ => super.finishUsingItem(stack, world, entity)
     }
 
-  override def getItemUseAction(stack: ItemStack): EnumAction =
+  override def getUseAnimation(stack: ItemStack): UseAnim =
     Delegator.subItem(stack) match {
       case Some(subItem) => subItem.getItemUseAction(stack)
-      case _ => super.getItemUseAction(stack)
+      case _ => super.getUseAnimation(stack)
     }
 
-  override def getMaxItemUseDuration(stack: ItemStack): Int =
+  override def getUseDuration(stack: ItemStack): Int =
     Delegator.subItem(stack) match {
       case Some(subItem) => subItem.getMaxItemUseDuration(stack)
-      case _ => super.getMaxItemUseDuration(stack)
+      case _ => super.getUseDuration(stack)
     }
 
-  override def onPlayerStoppedUsing(stack: ItemStack, world: World, entity: EntityLivingBase, timeLeft: Int): Unit =
+  override def releaseUsing(stack: ItemStack, world: Level, entity: LivingEntity, timeLeft: Int): Unit =
     Delegator.subItem(stack) match {
       case Some(subItem) => subItem.onPlayerStoppedUsing(stack, entity, timeLeft)
-      case _ => super.onPlayerStoppedUsing(stack, world, entity, timeLeft)
+      case _ => super.releaseUsing(stack, world, entity, timeLeft)
     }
 
   def internalGetItemStackDisplayName(stack: ItemStack): String = super.getItemStackDisplayName(stack)
 
-  override def getItemStackDisplayName(stack: ItemStack): String =
+  override def getName(stack: ItemStack): net.minecraft.network.chat.Component =
     Delegator.subItem(stack) match {
       case Some(subItem) => subItem.displayName(stack) match {
-        case Some(name) => name
-        case _ => super.getItemStackDisplayName(stack)
+        case Some(name) => net.minecraft.network.chat.Component.literal(name)
+        case _ => super.getName(stack)
       }
-      case _ => super.getItemStackDisplayName(stack)
+      case _ => super.getName(stack)
     }
 
-  @SideOnly(Side.CLIENT)
-  override def addInformation(stack: ItemStack, world: World, tooltip: util.List[String], flag: ITooltipFlag) {
-    super.addInformation(stack, world, tooltip, flag)
+  @OnlyIn(Dist.CLIENT)
+  override def appendHoverText(stack: ItemStack, world: Level, tooltip: util.List[net.minecraft.network.chat.Component], flag: TooltipFlag) {
+    super.appendHoverText(stack, world, tooltip, flag)
     Delegator.subItem(stack) match {
-      case Some(subItem) => try subItem.tooltipLines(stack, world, tooltip, flag) catch {
+      case Some(subItem) => try {
+        val stringTooltip = new util.ArrayList[String]()
+        subItem.tooltipLines(stack, world, stringTooltip, flag)
+        import scala.jdk.CollectionConverters._
+        stringTooltip.asScala.foreach(line => tooltip.add(net.minecraft.network.chat.Component.literal(line)))
+      } catch {
         case t: Throwable => OpenComputers.log.warn("Error in item tooltip.", t)
       }
       case _ => // Nothing to add.
     }
   }
 
-  override def getDurabilityForDisplay(stack: ItemStack): Double =
+  override def getDamage(stack: ItemStack): Int =
     Delegator.subItem(stack) match {
-      case Some(subItem) => subItem.durability(stack)
-      case _ => super.getDurabilityForDisplay(stack)
+      case Some(subItem) => (subItem.durability(stack) * getMaxDamage(stack)).toInt
+      case _ => super.getDamage(stack)
     }
 
-  override def showDurabilityBar(stack: ItemStack): Boolean =
+  override def isBarVisible(stack: ItemStack): Boolean =
     Delegator.subItem(stack) match {
       case Some(subItem) => subItem.showDurabilityBar(stack)
-      case _ => super.showDurabilityBar(stack)
+      case _ => super.isBarVisible(stack)
     }
 
-  override def onUpdate(stack: ItemStack, world: World, player: Entity, slot: Int, selected: Boolean): Unit =
+  override def inventoryTick(stack: ItemStack, world: Level, player: Entity, slot: Int, selected: Boolean): Unit =
     Delegator.subItem(stack) match {
       case Some(subItem) => subItem.update(stack, world, player, slot, selected)
-      case _ => super.onUpdate(stack, world, player, slot, selected)
+      case _ => super.inventoryTick(stack, world, player, slot, selected)
     }
 
   override def toString: String = getTranslationKey

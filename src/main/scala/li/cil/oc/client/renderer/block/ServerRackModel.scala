@@ -8,58 +8,64 @@ import li.cil.oc.api.event.RackMountableRenderEvent
 import li.cil.oc.client.Textures
 import li.cil.oc.common.block
 import li.cil.oc.common.tileentity
-import net.minecraft.block.state.IBlockState
+import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.client.renderer.block.model.BakedQuad
-import net.minecraft.client.renderer.block.model.IBakedModel
-import net.minecraft.client.renderer.block.model.ItemOverrideList
-import net.minecraft.entity.EntityLivingBase
+import net.minecraft.client.resources.model.BakedModel
+import net.minecraft.client.renderer.block.model.ItemOverrides
+import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemStack
-import net.minecraft.util.EnumFacing
-import net.minecraft.util.math.Vec3d
-import net.minecraft.world.World
+import net.minecraft.core.Direction
+import net.minecraft.world.phys.Vec3
+import net.minecraft.world.level.Level
 import net.minecraftforge.common.MinecraftForge
-import net.minecraftforge.common.property.IExtendedBlockState
+import net.minecraftforge.client.model.data.ModelData
 
-import scala.collection.convert.WrapAsJava.bufferAsJavaList
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
-class ServerRackModel(val parent: IBakedModel) extends SmartBlockModelBase {
-  override def getOverrides: ItemOverrideList = ItemOverride
+class ServerRackModel(val parent: BakedModel) extends SmartBlockModelBase {
+  override def getOverrides: ItemOverrides = ItemOverride
 
-  override def getQuads(state: IBlockState, side: EnumFacing, rand: Long): util.List[BakedQuad] =
-    state match {
-      case extended: IExtendedBlockState =>
-        extended.getValue(block.property.PropertyTile.Tile) match {
-          case rack: tileentity.Rack =>
-            val facing = rack.facing
-            val faces = mutable.ArrayBuffer.empty[BakedQuad]
-
-            for (side <- EnumFacing.values if side != facing) {
-              faces ++= bakeQuads(Case(side.getIndex), serverRackTexture, None)
-            }
-
-            val textures = serverTexture
-            val defaultFront = Textures.getSprite(Textures.Block.RackFront)
-            for (slot <- 0 until 4) rack.getMountable(slot) match {
-              case mountable: RackMountable =>
-                val event = new RackMountableRenderEvent.Block(rack, slot, rack.lastData(slot), side)
-                MinecraftForge.EVENT_BUS.post(event)
-                if (!event.isCanceled) {
-                  if (event.getFrontTextureOverride != null) {
-                    (2 until 6).foreach(textures(_) = event.getFrontTextureOverride)
-                  } else {
-                    (2 until 6).foreach(textures(_) = defaultFront)
-                  }
-                  faces ++= bakeQuads(Servers(slot), textures, None)
-                }
-              case _ =>
-            }
-
-            bufferAsJavaList(faces)
-          case _ => super.getQuads(state, side, rand)
-        }
-      case _ => super.getQuads(state, side, rand)
+  override def getQuads(state: BlockState, side: Direction, rand: net.minecraft.util.RandomSource): util.List[BakedQuad] = {
+    val faces = mutable.ArrayBuffer.empty[BakedQuad]
+    for (direction <- Direction.values) {
+      faces ++= bakeQuads(Case(direction.get3DDataValue()), serverRackTexture, None)
     }
+    faces.asJava
+  }
+
+  override def getQuads(state: BlockState, side: Direction, rand: net.minecraft.util.RandomSource, data: ModelData, renderType: net.minecraft.client.renderer.RenderType): util.List[BakedQuad] = {
+    val rackEntity = data.get(li.cil.oc.common.block.property.PropertyTile.TILE_ENTITY_PROPERTY)
+    rackEntity match {
+      case rack: tileentity.Rack =>
+        val facing = rack.facing
+        val faces = mutable.ArrayBuffer.empty[BakedQuad]
+
+        for (direction <- Direction.values if direction != facing) {
+          faces ++= bakeQuads(Case(direction.get3DDataValue()), serverRackTexture, None)
+        }
+
+        val textures = serverTexture
+        val defaultFront = Textures.getSprite(Textures.Block.RackFront)
+        for (slot <- 0 until 4) rack.getMountable(slot) match {
+          case mountable: RackMountable =>
+            val event = new RackMountableRenderEvent.Block(rack, slot, rack.lastData(slot), side)
+            MinecraftForge.EVENT_BUS.post(event)
+            if (!event.isCanceled) {
+              if (event.getFrontTextureOverride != null) {
+                (2 until 6).foreach(textures(_) = event.getFrontTextureOverride)
+              } else {
+                (2 until 6).foreach(textures(_) = defaultFront)
+              }
+              faces ++= bakeQuads(Servers(slot), textures, None)
+            }
+          case _ =>
+        }
+
+        faces.asJava
+      case _ => getQuads(state, side, rand)
+    }
+  }
 
   protected def serverRackTexture = Array(
     Textures.getSprite(Textures.Block.GenericTop),
@@ -80,23 +86,23 @@ class ServerRackModel(val parent: IBakedModel) extends SmartBlockModelBase {
   )
 
   protected final val Case = Array(
-    makeBox(new Vec3d(0 / 16f, 0 / 16f, 0 / 16f), new Vec3d(16 / 16f, 2 / 16f, 16 / 16f)),
-    makeBox(new Vec3d(0 / 16f, 14 / 16f, 0 / 16f), new Vec3d(16 / 16f, 16 / 16f, 16 / 16f)),
-    makeBox(new Vec3d(0 / 16f, 2 / 16f, 0 / 16f), new Vec3d(16 / 16f, 14 / 16f, 0.99f / 16f)),
-    makeBox(new Vec3d(0 / 16f, 2 / 16f, 15.01f / 16f), new Vec3d(16 / 16f, 14 / 16f, 16 / 16f)),
-    makeBox(new Vec3d(0 / 16f, 2 / 16f, 0 / 16f), new Vec3d(0.99f / 16f, 14 / 16f, 16 / 16f)),
-    makeBox(new Vec3d(15.01f / 16f, 2 / 16f, 0 / 16f), new Vec3d(16 / 16f, 14f / 16f, 16 / 16f))
+    makeBox(new Vec3(0 / 16f, 0 / 16f, 0 / 16f), new Vec3(16 / 16f, 2 / 16f, 16 / 16f)),
+    makeBox(new Vec3(0 / 16f, 14 / 16f, 0 / 16f), new Vec3(16 / 16f, 16 / 16f, 16 / 16f)),
+    makeBox(new Vec3(0 / 16f, 2 / 16f, 0 / 16f), new Vec3(16 / 16f, 14 / 16f, 0.99f / 16f)),
+    makeBox(new Vec3(0 / 16f, 2 / 16f, 15.01f / 16f), new Vec3(16 / 16f, 14 / 16f, 16 / 16f)),
+    makeBox(new Vec3(0 / 16f, 2 / 16f, 0 / 16f), new Vec3(0.99f / 16f, 14 / 16f, 16 / 16f)),
+    makeBox(new Vec3(15.01f / 16f, 2 / 16f, 0 / 16f), new Vec3(16 / 16f, 14f / 16f, 16 / 16f))
   )
 
   protected final val Servers = Array(
-    makeBox(new Vec3d(0.5f / 16f, 11 / 16f, 0.5f / 16f), new Vec3d(15.5f / 16f, 14 / 16f, 15.5f / 16f)),
-    makeBox(new Vec3d(0.5f / 16f, 8 / 16f, 0.5f / 16f), new Vec3d(15.5f / 16f, 11 / 16f, 15.5f / 16f)),
-    makeBox(new Vec3d(0.5f / 16f, 5 / 16f, 0.5f / 16f), new Vec3d(15.5f / 16f, 8 / 16f, 15.5f / 16f)),
-    makeBox(new Vec3d(0.5f / 16f, 2 / 16f, 0.5f / 16f), new Vec3d(15.5f / 16f, 5 / 16f, 15.5f / 16f))
+    makeBox(new Vec3(0.5f / 16f, 11 / 16f, 0.5f / 16f), new Vec3(15.5f / 16f, 14 / 16f, 15.5f / 16f)),
+    makeBox(new Vec3(0.5f / 16f, 8 / 16f, 0.5f / 16f), new Vec3(15.5f / 16f, 11 / 16f, 15.5f / 16f)),
+    makeBox(new Vec3(0.5f / 16f, 5 / 16f, 0.5f / 16f), new Vec3(15.5f / 16f, 8 / 16f, 15.5f / 16f)),
+    makeBox(new Vec3(0.5f / 16f, 2 / 16f, 0.5f / 16f), new Vec3(15.5f / 16f, 5 / 16f, 15.5f / 16f))
   )
 
-  object ItemOverride extends ItemOverrideList(Collections.emptyList()) {
-    override def handleItemState(originalModel: IBakedModel, stack: ItemStack, world: World, entity: EntityLivingBase): IBakedModel = parent
+  object ItemOverride extends ItemOverrides {
+    override def resolve(originalModel: BakedModel, stack: ItemStack, world: Level, entity: LivingEntity, seed: Int): BakedModel = parent
   }
 
 }

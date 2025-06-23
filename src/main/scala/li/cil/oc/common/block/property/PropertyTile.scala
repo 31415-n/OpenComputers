@@ -1,19 +1,9 @@
 package li.cil.oc.common.block.property
 
-import net.minecraft.tileentity.TileEntity
-import net.minecraftforge.common.property.IUnlistedProperty
+import net.minecraft.world.level.block.entity.BlockEntity
+import net.minecraftforge.client.model.data.ModelProperty
 
 object PropertyTile {
-  final val Tile = new PropertyTile()
-}
-
-// Custom unlisted property used to pass a long tile entities to a block's renderer.
-class PropertyTile extends IUnlistedProperty[TileEntity] {
-  override def getName = "tile"
-
-  override def isValid(value: TileEntity) = true
-
-  override def getType = classOf[TileEntity]
-
-  override def valueToString(value: TileEntity) = value.toString
+  // ModelProperty for passing block entities to renderers in 1.20.1
+  final val TILE_ENTITY_PROPERTY = new ModelProperty[BlockEntity]()
 }
