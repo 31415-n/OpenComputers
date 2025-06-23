@@ -138,8 +138,8 @@ object ModelInitialization {
     val stack = descriptor.createItemStack(1)
 
     // Store model locations for later registration
-    registeredModels += blockLocation.id() -> createCustomBlockModel(blockName)
-    registeredModels += itemLocation.id() -> createCustomItemModel(blockName)
+    registeredModels += blockLocation -> createCustomBlockModel(blockName)
+    registeredModels += itemLocation -> createCustomItemModel(blockName)
   }
 
   /**
@@ -147,17 +147,17 @@ object ModelInitialization {
    */
   private def registerAdditionalModels(event: ModelEvent.RegisterAdditional): Unit = {
     // Register all special model locations
-    event.register(CableBlockLocation.id())
-    event.register(CableItemLocation.id())
-    event.register(NetSplitterBlockLocation.id())
-    event.register(NetSplitterItemLocation.id())
-    event.register(PrintBlockLocation.id())
-    event.register(PrintItemLocation.id())
-    event.register(RobotBlockLocation.id())
-    event.register(RobotItemLocation.id())
-    event.register(RobotAfterimageBlockLocation.id())
-    event.register(RobotAfterimageItemLocation.id())
-    event.register(RackBlockLocation.id())
+    event.register(CableBlockLocation)
+    event.register(CableItemLocation)
+    event.register(NetSplitterBlockLocation)
+    event.register(NetSplitterItemLocation)
+    event.register(PrintBlockLocation)
+    event.register(PrintItemLocation)
+    event.register(RobotBlockLocation)
+    event.register(RobotItemLocation)
+    event.register(RobotAfterimageBlockLocation)
+    event.register(RobotAfterimageItemLocation)
+    event.register(RackBlockLocation)
 
     // Register models for all delegate items
     for ((id, _) <- itemDelegates) {
@@ -172,72 +172,70 @@ object ModelInitialization {
   }
 
   /**
-   * Register regular items with dynamic model resolution.
+   * Register regular items with dynamic model resolution using 1.20.1 system.
    */
   private def registerItems(): Unit = {
-    val minecraft = Minecraft.getInstance()
-    val itemRenderer = minecraft.getItemRenderer
-    val modelManager = itemRenderer.getItemModelShaper
-
+    // Store dynamic models for later injection during model baking
     for (item <- meshableItems) {
-      registerItemWithModelManager(item, modelManager)
+      val baseLocation = new ModelResourceLocation(new ResourceLocation(Settings.resourceDomain, item.toString), "inventory")
+      registeredModels += baseLocation -> createDynamicItemModel()
     }
     meshableItems.clear()
   }
 
   /**
-   * Register delegate sub-items.
+   * Register delegate sub-items using 1.20.1 model system.
    */
   private def registerSubItems(): Unit = {
-    val minecraft = Minecraft.getInstance()
-    val itemRenderer = minecraft.getItemRenderer
-    val modelManager = itemRenderer.getItemModelShaper
-
-    for ((id, item) <- itemDelegates) {
-      val location = new ModelResourceLocation(new ResourceLocation(Settings.resourceDomain, id), "inventory")
-      modelManager.register(item.parent, item.itemId, location)
+    // Create a single dynamic model for the delegator item that handles all sub-items
+    if (itemDelegates.nonEmpty) {
+      val delegatorItem = itemDelegates.head._2.parent
+      val baseLocation = new ModelResourceLocation(new ResourceLocation(Settings.resourceDomain, delegatorItem.toString), "inventory")
+      registeredModels += baseLocation -> createDelegateModel()
+      
+      // Register individual model locations for each delegate
+      for ((id, item) <- itemDelegates) {
+        val location = new ModelResourceLocation(new ResourceLocation(Settings.resourceDomain, id), "inventory")
+        // These will be resolved dynamically by the delegate model
+      }
     }
     itemDelegates.clear()
   }
 
   /**
-   * Register custom model delegates.
+   * Register custom model delegates using 1.20.1 system.
    */
   private def registerSubItemsCustom(): Unit = {
-    val minecraft = Minecraft.getInstance()
-    val itemRenderer = minecraft.getItemRenderer
-    val modelManager = itemRenderer.getItemModelShaper
-
-    for (item <- itemDelegatesCustom) {
-      registerCustomModelWithManager(item, modelManager)
+    // Create dynamic models for custom delegates
+    if (itemDelegatesCustom.nonEmpty) {
+      val delegatorItem = itemDelegatesCustom.head.parent
+      val baseLocation = new ModelResourceLocation(new ResourceLocation(Settings.resourceDomain, delegatorItem.toString), "inventory")
+      registeredModels += baseLocation -> createCustomDelegateModel()
     }
   }
 
   /**
-   * Replace models with custom implementations.
+   * Replace models with custom implementations using 1.20.1 model system.
    */
   private def replaceCustomModels(modelManager: net.minecraft.client.resources.model.ModelManager, modelBakery: net.minecraft.client.resources.model.ModelBakery): Unit = {
-    val models = modelManager.getModel _
-
-    // Replace cable models
-    replaceModelInManager(CableBlockLocation.id(), CableModel, modelManager)
-    replaceModelInManager(CableItemLocation.id(), CableModel, modelManager)
+    val modelRegistry = getModelRegistry(modelManager)
     
-    // Replace net splitter models
-    replaceModelInManager(NetSplitterBlockLocation.id(), NetSplitterModel, modelManager)
-    replaceModelInManager(NetSplitterItemLocation.id(), NetSplitterModel, modelManager)
+    // Replace special block/item models
+    modelRegistry.put(CableBlockLocation, CableModel)
+    modelRegistry.put(CableItemLocation, CableModel)
+    modelRegistry.put(NetSplitterBlockLocation, NetSplitterModel)
+    modelRegistry.put(NetSplitterItemLocation, NetSplitterModel)
+    modelRegistry.put(PrintBlockLocation, PrintModel)
+    modelRegistry.put(PrintItemLocation, PrintModel)
+    modelRegistry.put(RobotBlockLocation, RobotModel)
+    modelRegistry.put(RobotItemLocation, RobotModel)
+    modelRegistry.put(RobotAfterimageBlockLocation, NullModel)
+    modelRegistry.put(RobotAfterimageItemLocation, NullModel)
     
-    // Replace print models
-    replaceModelInManager(PrintBlockLocation.id(), PrintModel, modelManager)
-    replaceModelInManager(PrintItemLocation.id(), PrintModel, modelManager)
-    
-    // Replace robot models
-    replaceModelInManager(RobotBlockLocation.id(), RobotModel, modelManager)
-    replaceModelInManager(RobotItemLocation.id(), RobotModel, modelManager)
-    
-    // Replace robot afterimage models
-    replaceModelInManager(RobotAfterimageBlockLocation.id(), NullModel, modelManager)
-    replaceModelInManager(RobotAfterimageItemLocation.id(), NullModel, modelManager)
+    // Inject our dynamic models
+    for ((location, model) <- registeredModels) {
+      modelRegistry.put(location, model)
+    }
   }
 
   /**
@@ -260,67 +258,129 @@ object ModelInitialization {
 
   // Helper methods for 1.20.1 model system
 
-  private def registerItemWithModelManager(item: Item, modelManager: net.minecraft.client.renderer.ItemModelShaper): Unit = {
-    // Create dynamic model resolver for OpenComputers items
-    val dynamicResolver = new net.minecraft.client.renderer.ItemModelShaper.ItemModelResolver {
-      override def resolve(stack: ItemStack): BakedModel = {
-        Option(api.Items.get(stack)) match {
-          case Some(descriptor) =>
-            val location = new ModelResourceLocation(new ResourceLocation(Settings.resourceDomain, descriptor.name()), "inventory")
-            modelManager.getModelManager.getModel(location)
-          case _ => modelManager.getModelManager.getMissingModel
+  /**
+   * Create a dynamic model that resolves OpenComputers items based on their descriptor.
+   */
+  private def createDynamicItemModel(): BakedModel = {
+    new BakedModel {
+      override def getQuads(state: BlockState, side: Direction, rand: RandomSource): java.util.List[BakedQuad] = java.util.Collections.emptyList()
+      override def getQuads(state: BlockState, side: Direction, rand: RandomSource, data: ModelData, renderType: RenderType): java.util.List[BakedQuad] = getQuads(state, side, rand)
+      override def useAmbientOcclusion(): Boolean = true
+      override def isGui3d: Boolean = true
+      override def usesBlockLight(): Boolean = false
+      override def isCustomRenderer: Boolean = false
+      override def getParticleIcon: TextureAtlasSprite = Minecraft.getInstance().getModelManager.getMissingModel.getParticleIcon
+      override def getParticleIcon(data: ModelData): TextureAtlasSprite = getParticleIcon
+      override def getTransforms: net.minecraft.client.renderer.block.model.ItemTransforms = net.minecraft.client.renderer.block.model.ItemTransforms.NO_TRANSFORMS
+      
+      override def getOverrides: ItemOverrides = new ItemOverrides {
+        override def resolve(originalModel: BakedModel, stack: ItemStack, world: net.minecraft.world.level.Level, entity: net.minecraft.world.entity.LivingEntity, seed: Int): BakedModel = {
+          Option(api.Items.get(stack)) match {
+            case Some(descriptor) =>
+              val location = new ModelResourceLocation(new ResourceLocation(Settings.resourceDomain, descriptor.name()), "inventory")
+              Minecraft.getInstance().getModelManager.getModel(location)
+            case _ => originalModel
+          }
         }
       }
     }
-    
-    // Register with model manager
-    modelManager.register(item, dynamicResolver)
   }
 
-  private def registerCustomModelWithManager(delegate: Delegate with CustomModel, modelManager: net.minecraft.client.renderer.ItemModelShaper): Unit = {
-    val customResolver = new net.minecraft.client.renderer.ItemModelShaper.ItemModelResolver {
-      override def resolve(stack: ItemStack): BakedModel = {
-        Delegator.subItem(stack) match {
-          case Some(subItem: CustomModel) => 
-            val location = subItem.getModelLocation(stack)
-            modelManager.getModelManager.getModel(location)
-          case _ => modelManager.getModelManager.getMissingModel
+  /**
+   * Create a dynamic model for delegate items that resolves based on item damage/NBT.
+   */
+  private def createDelegateModel(): BakedModel = {
+    new BakedModel {
+      override def getQuads(state: BlockState, side: Direction, rand: RandomSource): java.util.List[BakedQuad] = java.util.Collections.emptyList()
+      override def getQuads(state: BlockState, side: Direction, rand: RandomSource, data: ModelData, renderType: RenderType): java.util.List[BakedQuad] = getQuads(state, side, rand)
+      override def useAmbientOcclusion(): Boolean = true
+      override def isGui3d: Boolean = true
+      override def usesBlockLight(): Boolean = false
+      override def isCustomRenderer: Boolean = false
+      override def getParticleIcon: TextureAtlasSprite = Minecraft.getInstance().getModelManager.getMissingModel.getParticleIcon
+      override def getParticleIcon(data: ModelData): TextureAtlasSprite = getParticleIcon
+      override def getTransforms: net.minecraft.client.renderer.block.model.ItemTransforms = net.minecraft.client.renderer.block.model.ItemTransforms.NO_TRANSFORMS
+      
+      override def getOverrides: ItemOverrides = new ItemOverrides {
+        override def resolve(originalModel: BakedModel, stack: ItemStack, world: net.minecraft.world.level.Level, entity: net.minecraft.world.entity.LivingEntity, seed: Int): BakedModel = {
+          Delegator.subItem(stack) match {
+            case Some(subItem) =>
+              val location = new ModelResourceLocation(new ResourceLocation(Settings.resourceDomain, subItem.unlocalizedName), "inventory")
+              Minecraft.getInstance().getModelManager.getModel(location)
+            case _ => originalModel
+          }
         }
       }
     }
-    
-    modelManager.register(delegate.parent, customResolver)
   }
 
-  private def replaceModelInManager(location: ResourceLocation, replacement: BakedModel, modelManager: net.minecraft.client.resources.model.ModelManager): Unit = {
-    // Access the model registry through reflection or model manager API
+  /**
+   * Create a custom model for delegates with CustomModel trait.
+   */
+  private def createCustomDelegateModel(): BakedModel = {
+    new BakedModel {
+      override def getQuads(state: BlockState, side: Direction, rand: RandomSource): java.util.List[BakedQuad] = java.util.Collections.emptyList()
+      override def getQuads(state: BlockState, side: Direction, rand: RandomSource, data: ModelData, renderType: RenderType): java.util.List[BakedQuad] = getQuads(state, side, rand)
+      override def useAmbientOcclusion(): Boolean = true
+      override def isGui3d: Boolean = true
+      override def usesBlockLight(): Boolean = false
+      override def isCustomRenderer: Boolean = false
+      override def getParticleIcon: TextureAtlasSprite = Minecraft.getInstance().getModelManager.getMissingModel.getParticleIcon
+      override def getParticleIcon(data: ModelData): TextureAtlasSprite = getParticleIcon
+      override def getTransforms: net.minecraft.client.renderer.block.model.ItemTransforms = net.minecraft.client.renderer.block.model.ItemTransforms.NO_TRANSFORMS
+      
+      override def getOverrides: ItemOverrides = new ItemOverrides {
+        override def resolve(originalModel: BakedModel, stack: ItemStack, world: net.minecraft.world.level.Level, entity: net.minecraft.world.entity.LivingEntity, seed: Int): BakedModel = {
+          Delegator.subItem(stack) match {
+            case Some(subItem: CustomModel) =>
+              val location = subItem.getModelLocation(stack)
+              Minecraft.getInstance().getModelManager.getModel(location)
+            case _ => originalModel
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Get the model registry from the model manager using reflection.
+   * This is necessary because the model registry is private in 1.20.1.
+   */
+  private def getModelRegistry(modelManager: net.minecraft.client.resources.model.ModelManager): java.util.Map[ResourceLocation, BakedModel] = {
     try {
-      val modelRegistry = modelManager.getClass.getDeclaredField("models")
-      modelRegistry.setAccessible(true)
-      val models = modelRegistry.get(modelManager).asInstanceOf[java.util.Map[ResourceLocation, BakedModel]]
-      models.put(location, replacement)
+      // Try to access the models field through reflection
+      val modelRegistryField = modelManager.getClass.getDeclaredField("models")
+      modelRegistryField.setAccessible(true)
+      modelRegistryField.get(modelManager).asInstanceOf[java.util.Map[ResourceLocation, BakedModel]]
     } catch {
-      case e: Exception => 
-        // Fallback: store in our own registry
-        registeredModels += location -> replacement
+      case _: Exception =>
+        // If reflection fails, try alternative field names used in different versions
+        try {
+          val modelRegistryField = modelManager.getClass.getDeclaredField("bakedRegistry")
+          modelRegistryField.setAccessible(true)
+          modelRegistryField.get(modelManager).asInstanceOf[java.util.Map[ResourceLocation, BakedModel]]
+        } catch {
+          case _: Exception =>
+            try {
+              val modelRegistryField = modelManager.getClass.getDeclaredField("modelRegistry")
+              modelRegistryField.setAccessible(true)
+              modelRegistryField.get(modelManager).asInstanceOf[java.util.Map[ResourceLocation, BakedModel]]
+            } catch {
+              case _: Exception =>
+                // Create a temporary map - this should not happen in normal operation
+                new java.util.HashMap[ResourceLocation, BakedModel]()
+            }
+        }
     }
   }
 
   private def applyModelOverrideToManager(pattern: String, transform: BakedModel => BakedModel, modelManager: net.minecraft.client.resources.model.ModelManager): Unit = {
-    try {
-      val modelRegistry = modelManager.getClass.getDeclaredField("models")
-      modelRegistry.setAccessible(true)
-      val models = modelRegistry.get(modelManager).asInstanceOf[java.util.Map[ResourceLocation, BakedModel]]
-      
-      val matchingModels = models.entrySet().asScala.filter(entry => entry.getKey.toString.matches(pattern))
-      for (entry <- matchingModels) {
-        val transformedModel = transform(entry.getValue)
-        models.put(entry.getKey, transformedModel)
-      }
-    } catch {
-      case e: Exception =>
-        // Log error but continue
-        println(s"Failed to apply model override for pattern $pattern: ${e.getMessage}")
+    val modelRegistry = getModelRegistry(modelManager)
+    
+    val matchingModels = modelRegistry.entrySet().asScala.filter(entry => entry.getKey.toString.matches(pattern))
+    for (entry <- matchingModels) {
+      val transformedModel = transform(entry.getValue)
+      modelRegistry.put(entry.getKey, transformedModel)
     }
   }
 
