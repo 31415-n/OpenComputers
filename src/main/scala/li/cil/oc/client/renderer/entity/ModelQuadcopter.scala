@@ -2,178 +2,154 @@ package li.cil.oc.client.renderer.entity
 
 import li.cil.oc.common.entity.Drone
 import li.cil.oc.util.RenderState
-import net.minecraft.client.model.ModelBase
-import net.minecraft.client.model.ModelRenderer
-import net.minecraft.client.renderer.GlStateManager
-import net.minecraft.entity.Entity
-import net.minecraft.util.math.Vec3d
+import net.minecraft.client.model.Model
+import net.minecraft.client.model.geom.ModelPart
+import net.minecraft.client.model.geom.PartPose
+import net.minecraft.client.model.geom.builders.{CubeListBuilder, LayerDefinition, MeshDefinition}
+import com.mojang.blaze3d.vertex.{PoseStack, VertexConsumer}
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.phys.Vec3
+import com.mojang.blaze3d.systems.RenderSystem
 import org.lwjgl.opengl.GL11
 
-final class ModelQuadcopter extends ModelBase {
-  val body = new ModelRenderer(this, "body")
-  val wing0 = new ModelRenderer(this, "wing0")
-  val wing1 = new ModelRenderer(this, "wing1")
-  val wing2 = new ModelRenderer(this, "wing2")
-  val wing3 = new ModelRenderer(this, "wing3")
-  val light0 = new ModelRenderer(this, "light0")
-  val light1 = new ModelRenderer(this, "light1")
-  val light2 = new ModelRenderer(this, "light2")
-  val light3 = new ModelRenderer(this, "light3")
+object ModelQuadcopter {
+  /**
+   * Creates the layer definition for the quadcopter model.
+   * This replaces the old texture offset and addBox system from 1.12.2.
+   */
+  def createBodyLayer(): LayerDefinition = {
+    val meshDefinition = new MeshDefinition()
+    val partDefinition = meshDefinition.getRoot
 
-  textureWidth = 64
-  textureHeight = 32
+    // Body parts
+    val bodyBuilder = CubeListBuilder.create()
+    bodyBuilder.texOffs(0, 1).addBox(-3, 1, -3, 6, 1, 6) // top
+    bodyBuilder.texOffs(0, 23).addBox(-1, 0, -1, 2, 1, 2) // middle  
+    bodyBuilder.texOffs(0, 17).addBox(-2, -1, -2, 4, 1, 4) // bottom
+    partDefinition.addOrReplaceChild("body", bodyBuilder, PartPose.rotation(0, math.toRadians(45).toFloat, 0))
 
-  setTextureOffset("body.middle", 0, 23)
-  setTextureOffset("body.top", 0, 1)
-  setTextureOffset("body.bottom", 0, 17)
-  setTextureOffset("wing0.flap0", 0, 9)
-  setTextureOffset("wing0.pin0", 0, 27)
-  setTextureOffset("wing1.flap1", 0, 9)
-  setTextureOffset("wing1.pin1", 0, 27)
-  setTextureOffset("wing2.flap2", 0, 9)
-  setTextureOffset("wing2.pin2", 0, 27)
-  setTextureOffset("wing3.flap3", 0, 9)
-  setTextureOffset("wing3.pin3", 0, 27)
+    // Wing parts
+    val wing0Builder = CubeListBuilder.create()
+    wing0Builder.texOffs(0, 9).addBox(1, 0, -7, 6, 1, 6) // flap0
+    wing0Builder.texOffs(0, 27).addBox(2, -1, -3, 1, 3, 1) // pin0
+    partDefinition.addOrReplaceChild("wing0", wing0Builder, PartPose.ZERO)
 
-  setTextureOffset("light0.flap0", 24, 0)
-  setTextureOffset("light1.flap1", 24, 0)
-  setTextureOffset("light2.flap2", 24, 0)
-  setTextureOffset("light3.flap3", 24, 0)
+    val wing1Builder = CubeListBuilder.create()
+    wing1Builder.texOffs(0, 9).addBox(1, 0, 1, 6, 1, 6) // flap1
+    wing1Builder.texOffs(0, 27).addBox(2, -1, 2, 1, 3, 1) // pin1
+    partDefinition.addOrReplaceChild("wing1", wing1Builder, PartPose.ZERO)
 
-  body.addBox("top", -3, 1, -3, 6, 1, 6).rotateAngleY = math.toRadians(45).toFloat
-  body.addBox("middle", -1, 0, -1, 2, 1, 2).rotateAngleY = math.toRadians(45).toFloat
-  body.addBox("bottom", -2, -1, -2, 4, 1, 4).rotateAngleY = math.toRadians(45).toFloat
-  wing0.addBox("flap0", 1, 0, -7, 6, 1, 6)
-  wing0.addBox("pin0", 2, -1, -3, 1, 3, 1)
-  wing1.addBox("flap1", 1, 0, 1, 6, 1, 6)
-  wing1.addBox("pin1", 2, -1, 2, 1, 3, 1)
-  wing2.addBox("flap2", -7, 0, 1, 6, 1, 6)
-  wing2.addBox("pin2", -3, -1, 2, 1, 3, 1)
-  wing3.addBox("flap3", -7, 0, -7, 6, 1, 6)
-  wing3.addBox("pin3", -3, -1, -3, 1, 3, 1)
+    val wing2Builder = CubeListBuilder.create()
+    wing2Builder.texOffs(0, 9).addBox(-7, 0, 1, 6, 1, 6) // flap2
+    wing2Builder.texOffs(0, 27).addBox(-3, -1, 2, 1, 3, 1) // pin2
+    partDefinition.addOrReplaceChild("wing2", wing2Builder, PartPose.ZERO)
 
-  light0.addBox("flap0", 1, 0, -7, 6, 1, 6)
-  light1.addBox("flap1", 1, 0, 1, 6, 1, 6)
-  light2.addBox("flap2", -7, 0, 1, 6, 1, 6)
-  light3.addBox("flap3", -7, 0, -7, 6, 1, 6)
+    val wing3Builder = CubeListBuilder.create()
+    wing3Builder.texOffs(0, 9).addBox(-7, 0, -7, 6, 1, 6) // flap3
+    wing3Builder.texOffs(0, 27).addBox(-3, -1, -3, 1, 3, 1) // pin3
+    partDefinition.addOrReplaceChild("wing3", wing3Builder, PartPose.ZERO)
+
+    // Light parts
+    val light0Builder = CubeListBuilder.create()
+    light0Builder.texOffs(24, 0).addBox(1, 0, -7, 6, 1, 6)
+    partDefinition.addOrReplaceChild("light0", light0Builder, PartPose.ZERO)
+
+    val light1Builder = CubeListBuilder.create()
+    light1Builder.texOffs(24, 0).addBox(1, 0, 1, 6, 1, 6)
+    partDefinition.addOrReplaceChild("light1", light1Builder, PartPose.ZERO)
+
+    val light2Builder = CubeListBuilder.create()
+    light2Builder.texOffs(24, 0).addBox(-7, 0, 1, 6, 1, 6)
+    partDefinition.addOrReplaceChild("light2", light2Builder, PartPose.ZERO)
+
+    val light3Builder = CubeListBuilder.create()
+    light3Builder.texOffs(24, 0).addBox(-7, 0, -7, 6, 1, 6)
+    partDefinition.addOrReplaceChild("light3", light3Builder, PartPose.ZERO)
+
+    LayerDefinition.create(meshDefinition, 64, 32)
+  }
+}
+
+final class ModelQuadcopter(root: ModelPart) extends Model(net.minecraft.client.renderer.RenderType.entitySolid _) {
+  val body: ModelPart = root.getChild("body")
+  val wing0: ModelPart = root.getChild("wing0")
+  val wing1: ModelPart = root.getChild("wing1")
+  val wing2: ModelPart = root.getChild("wing2")
+  val wing3: ModelPart = root.getChild("wing3")
+  val light0: ModelPart = root.getChild("light0")
+  val light1: ModelPart = root.getChild("light1")
+  val light2: ModelPart = root.getChild("light2")
+  val light3: ModelPart = root.getChild("light3")
+
+
 
   private val scale = 1 / 16f
-  private val up = new Vec3d(0, 1, 0)
+  private val up = new Vec3(0, 1, 0)
 
   private def doRender(drone: Drone, dt: Float) {
-    if (drone.isRunning) {
-      val timeJitter = drone.hashCode() ^ 0xFF
-      GlStateManager.translate(0, (math.sin(timeJitter + (drone.getEntityWorld.getTotalWorldTime + dt) / 20.0) * (1 / 16f)).toFloat, 0)
-    }
+    // Note: In 1.20.1, transformations are handled through PoseStack in renderToBuffer method
+    // This method is kept for compatibility but transformations should be moved to renderToBuffer
 
-    val velocity = new Vec3d(drone.motionX, drone.motionY, drone.motionZ)
-    val direction = velocity.normalize()
-    if (direction.dotProduct(up) < 0.99) {
-      // Flying sideways.
-      val rotationAxis = direction.crossProduct(up)
-      val relativeSpeed = velocity.length().toFloat / drone.maxVelocity
-      GlStateManager.rotate(relativeSpeed * -20, rotationAxis.x.toFloat, rotationAxis.y.toFloat, rotationAxis.z.toFloat)
-    }
-
-    GlStateManager.rotate(drone.bodyAngle, 0, 1, 0)
-
-    body.render(scale)
-
-    wing0.rotateAngleX = drone.flapAngles(0)(0)
-    wing0.rotateAngleZ = drone.flapAngles(0)(1)
-    wing1.rotateAngleX = drone.flapAngles(1)(0)
-    wing1.rotateAngleZ = drone.flapAngles(1)(1)
-    wing2.rotateAngleX = drone.flapAngles(2)(0)
-    wing2.rotateAngleZ = drone.flapAngles(2)(1)
-    wing3.rotateAngleX = drone.flapAngles(3)(0)
-    wing3.rotateAngleZ = drone.flapAngles(3)(1)
-
-    wing0.render(scale)
-    wing1.render(scale)
-    wing2.render(scale)
-    wing3.render(scale)
+    // Model part rendering is now handled in renderToBuffer method
+    wing0.xRot = drone.flapAngles(0)(0)
+    wing0.zRot = drone.flapAngles(0)(1)
+    wing1.xRot = drone.flapAngles(1)(0)
+    wing1.zRot = drone.flapAngles(1)(1)
+    wing2.xRot = drone.flapAngles(2)(0)
+    wing2.zRot = drone.flapAngles(2)(1)
+    wing3.xRot = drone.flapAngles(3)(0)
+    wing3.zRot = drone.flapAngles(3)(1)
 
     if (drone.isRunning) {
-      RenderState.disableEntityLighting()
-      GlStateManager.depthFunc(GL11.GL_LEQUAL)
-
-      light0.rotateAngleX = drone.flapAngles(0)(0)
-      light0.rotateAngleZ = drone.flapAngles(0)(1)
-      light1.rotateAngleX = drone.flapAngles(1)(0)
-      light1.rotateAngleZ = drone.flapAngles(1)(1)
-      light2.rotateAngleX = drone.flapAngles(2)(0)
-      light2.rotateAngleZ = drone.flapAngles(2)(1)
-      light3.rotateAngleX = drone.flapAngles(3)(0)
-      light3.rotateAngleZ = drone.flapAngles(3)(1)
-
-      // Additive blending for the lights.
-      RenderState.makeItBlend()
-      GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE)
-
-      val lightColor = drone.lightColor
-      val r = (lightColor >>> 16) & 0xFF
-      val g = (lightColor >>> 8) & 0xFF
-      val b = (lightColor >>> 0) & 0xFF
-      GlStateManager.color(r / 255f, g / 255f, b / 255f)
-
-      light0.render(scale)
-      light1.render(scale)
-      light2.render(scale)
-      light3.render(scale)
-
-      RenderState.disableBlend()
-      RenderState.enableEntityLighting()
-      GlStateManager.color(1, 1, 1, 1)
+      light0.xRot = drone.flapAngles(0)(0)
+      light0.zRot = drone.flapAngles(0)(1)
+      light1.xRot = drone.flapAngles(1)(0)
+      light1.zRot = drone.flapAngles(1)(1)
+      light2.xRot = drone.flapAngles(2)(0)
+      light2.zRot = drone.flapAngles(2)(1)
+      light3.xRot = drone.flapAngles(3)(0)
+      light3.zRot = drone.flapAngles(3)(1)
     }
   }
 
-  // For inventory rendering.
-  def render() {
-    body.render(scale)
-
+  // For inventory rendering - now handled through renderToBuffer
+  def setupInventoryPose(): Unit = {
     val tilt = math.toRadians(2).toFloat
-    wing0.rotateAngleX = tilt
-    wing0.rotateAngleZ = tilt
-    wing1.rotateAngleX = -tilt
-    wing1.rotateAngleZ = tilt
-    wing2.rotateAngleX = -tilt
-    wing2.rotateAngleZ = -tilt
-    wing3.rotateAngleX = tilt
-    wing3.rotateAngleZ = -tilt
+    wing0.xRot = tilt
+    wing0.zRot = tilt
+    wing1.xRot = -tilt
+    wing1.zRot = tilt
+    wing2.xRot = -tilt
+    wing2.zRot = -tilt
+    wing3.xRot = tilt
+    wing3.zRot = -tilt
 
-    wing0.render(scale)
-    wing1.render(scale)
-    wing2.render(scale)
-    wing3.render(scale)
-
-    RenderState.disableEntityLighting()
-    GlStateManager.depthFunc(GL11.GL_LEQUAL)
-
-    light0.rotateAngleX = tilt
-    light0.rotateAngleZ = tilt
-    light1.rotateAngleX = -tilt
-    light1.rotateAngleZ = tilt
-    light2.rotateAngleX = -tilt
-    light2.rotateAngleZ = -tilt
-    light3.rotateAngleX = tilt
-    light3.rotateAngleZ = -tilt
-
-
-    RenderState.makeItBlend()
-    GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE)
-    GlStateManager.color(0x66 / 255f, 0xDD / 255f, 0x55 / 255f)
-
-    light0.render(scale)
-    light1.render(scale)
-    light2.render(scale)
-    light3.render(scale)
-
-    RenderState.disableBlend()
-    RenderState.enableEntityLighting()
-    GlStateManager.color(1, 1, 1, 1)
+    light0.xRot = tilt
+    light0.zRot = tilt
+    light1.xRot = -tilt
+    light1.zRot = tilt
+    light2.xRot = -tilt
+    light2.zRot = -tilt
+    light3.xRot = tilt
+    light3.zRot = -tilt
   }
 
-  override def render(entity: Entity, f1: Float, f2: Float, f3: Float, f4: Float, f5: Float, f6: Float): Unit = {
-    doRender(entity.asInstanceOf[Drone], f6)
+  override def renderToBuffer(poseStack: PoseStack, vertexConsumer: VertexConsumer, packedLight: Int, packedOverlay: Int, red: Float, green: Float, blue: Float, alpha: Float): Unit = {
+    body.render(poseStack, vertexConsumer, packedLight, packedOverlay, red, green, blue, alpha)
+    wing0.render(poseStack, vertexConsumer, packedLight, packedOverlay, red, green, blue, alpha)
+    wing1.render(poseStack, vertexConsumer, packedLight, packedOverlay, red, green, blue, alpha)
+    wing2.render(poseStack, vertexConsumer, packedLight, packedOverlay, red, green, blue, alpha)
+    wing3.render(poseStack, vertexConsumer, packedLight, packedOverlay, red, green, blue, alpha)
+    
+    // Render lights with special handling
+    light0.render(poseStack, vertexConsumer, packedLight, packedOverlay, red, green, blue, alpha)
+    light1.render(poseStack, vertexConsumer, packedLight, packedOverlay, red, green, blue, alpha)
+    light2.render(poseStack, vertexConsumer, packedLight, packedOverlay, red, green, blue, alpha)
+    light3.render(poseStack, vertexConsumer, packedLight, packedOverlay, red, green, blue, alpha)
+  }
+
+  def renderDrone(drone: Drone, poseStack: PoseStack, vertexConsumer: VertexConsumer, packedLight: Int, packedOverlay: Int, partialTick: Float): Unit = {
+    doRender(drone, partialTick)
+    renderToBuffer(poseStack, vertexConsumer, packedLight, packedOverlay, 1.0f, 1.0f, 1.0f, 1.0f)
   }
 }

@@ -62,7 +62,7 @@ class Server(playerInventory: Inventory, serverInventory: ServerInventory, val r
       val lines = if (serverContainer.isRunning) Localization.Computer.TurnOff.lines else Localization.Computer.TurnOn.lines
       import scala.jdk.CollectionConverters._
       lines.iterator().asScala.foreach(line => tooltip.add(net.minecraft.network.chat.Component.literal(line)))
-      guiGraphics.renderTooltip(font, tooltip, mouseX - leftPos, mouseY - topPos)
+      guiGraphics.renderComponentTooltip(font, tooltip, mouseX - leftPos, mouseY - topPos)
     }
   }
 

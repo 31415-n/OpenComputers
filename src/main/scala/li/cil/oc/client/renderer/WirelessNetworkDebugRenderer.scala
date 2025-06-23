@@ -18,7 +18,7 @@ object WirelessNetworkDebugRenderer {
     if (Settings.rTreeDebugRenderer && e.getStage == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
       RenderState.checkError(getClass.getName + ".onRenderLevelStage: entering (aka: wasntme)")
 
-      val world = e.getLevelRenderer.getLevel
+      val world = Minecraft.getInstance().level
       WirelessNetwork.dimensions.get(world.dimension().location().toString.hashCode) match {
         case Some(tree) =>
           val mc = Minecraft.getInstance()

@@ -45,7 +45,7 @@ object PrintModel extends SmartBlockModelBase {
         for (shape <- t.shapes if !Strings.isNullOrEmpty(shape.texture)) {
           val bounds = shape.bounds.rotateTowards(t.facing)
           val texture = resolveTexture(shape.texture)
-          faces ++= bakeQuads(makeBox(bounds.min(), bounds.max()), Array.fill(6)(texture), shape.tint.getOrElse(White)).toSeq
+          faces ++= bakeQuads(makeBox(bounds.min, bounds.max), Array.fill(6)(texture), shape.tint.getOrElse(White)).toSeq
         }
 
         faces.asJava
@@ -73,12 +73,12 @@ object PrintModel extends SmartBlockModelBase {
       for (shape <- shapes) {
         val bounds = shape.bounds
         val texture = resolveTexture(shape.texture)
-        faces ++= bakeQuads(makeBox(bounds.min(), bounds.max()), Array.fill(6)(texture), shape.tint.getOrElse(White)).toSeq
+        faces ++= bakeQuads(makeBox(bounds.min, bounds.max), Array.fill(6)(texture), shape.tint.getOrElse(White)).toSeq
       }
       if (shapes.isEmpty) {
         val bounds = ExtendedAABB.unitBounds
         val texture = resolveTexture(Settings.resourceDomain + ":block/white")
-        faces ++= bakeQuads(makeBox(bounds.min(), bounds.max()), Array.fill(6)(texture), Color.rgbValues(DyeColor.LIME)).toSeq
+        faces ++= bakeQuads(makeBox(bounds.min, bounds.max), Array.fill(6)(texture), Color.rgbValues(DyeColor.LIME)).toSeq
       }
 
       faces.asJava
